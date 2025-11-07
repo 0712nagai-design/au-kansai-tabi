@@ -1,1 +1,1 @@
-# au-kansai-tabi
+# ai-kansai-tabi
