@@ -1,77 +1,52 @@
-# app.py — LINE接続の切り分け用・堅牢ミニマム
-import os
-import json
-import logging
 from flask import Flask, request, abort
-
 from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError, LineBotApiError
+from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
+import openai
+import os
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
-logger = app.logger
 
-# --- 環境変数チェック（足りなければ起動時に落として原因を明確化）
-CHANNEL_SECRET = os.getenv("CHANNEL_SECRET")
-CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
-if not CHANNEL_SECRET:
-    raise RuntimeError("環境変数 CHANNEL_SECRET が未設定です")
-if not CHANNEL_ACCESS_TOKEN:
-    raise RuntimeError("環境変数 CHANNEL_ACCESS_TOKEN が未設定です")
+# 環境変数からキーを取得
+line_bot_api = LineBotApi(os.environ["LINE_CHANNEL_ACCESS_TOKEN"])
+handler = WebhookHandler(os.environ["LINE_CHANNEL_SECRET"])
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
-line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
-handler = WebhookHandler(CHANNEL_SECRET)
-
-@app.get("/")
-def health():
-    # 値は出さないが「設定の有無」は見えるようにする
-    flags = {
-        "CHANNEL_SECRET_set": bool(CHANNEL_SECRET),
-        "CHANNEL_ACCESS_TOKEN_set": bool(CHANNEL_ACCESS_TOKEN),
-    }
-    return {"status": "ok", "env": flags}, 200
-
-@app.post("/callback")
+@app.route("/callback", methods=['POST'])
 def callback():
-    signature = request.headers.get("X-Line-Signature", "")
+    signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-
-    # 受信イベントはログに（PII回避のため先頭だけ）
-    logger.info("Headers: %s", {k: request.headers.get(k) for k in ["X-Line-Signature", "Content-Type"]})
-    logger.info("Body head: %s", body[:400])
-
-    # 署名検証 → 失敗なら 400
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        logger.error("Invalid signature (CHANNEL_SECRET が違う可能性)")
         abort(400)
-    except Exception as e:
-        logger.exception("Unexpected error in handler.handle: %s", e)
-        abort(500)
-
-    return "OK", 200
+    return 'OK'
 
 @handler.add(MessageEvent, message=TextMessage)
-def on_text(event: MessageEvent):
-    text = (event.message.text or "").strip()
-    reply_text = f"受け取りました：{text}"
+def handle_message(event):
+    user_text = event.message.text.strip()
 
-    # reply_token は一回しか使えないので try で保護
-    try:
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=reply_text)
-        )
-    except LineBotApiError as e:
-        # 代表的な落ち方をログに出す（Invalid reply token 等）
-        logger.exception("LineBotApiError: %s", e)
-    except Exception as e:
-        logger.exception("Unexpected error while reply_message: %s", e)
+    if user_text.lower() in ["最初から", "やり直す", "restart", "reset"]:
+        reply = "🔄 最初からやり直しますね。\nこんにちは！私はAI旅ナビ関西です🧭\nどちらの言語でご案内しますか？\n1️⃣ 日本語（Japanese）\n2️⃣ English（英語）"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return
 
-# Render の本番は gunicorn が起動、下はローカル実行用
+    with open("prompt.txt", "r", encoding="utf-8") as f:
+        system_prompt = f.read()
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_text}
+        ],
+        max_tokens=1800,
+        temperature=0.8
+    )
+
+    reply_text = response["choices"][0]["message"]["content"]
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "10000")))
-
+    app.run(host="0.0.0.0", port=10000)
 
