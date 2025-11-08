@@ -154,3 +154,20 @@ if __name__ == "__main__":
     # RenderではProcfileでgunicornが起動するので、ここはローカルテスト用
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+import sys
+from flask import Flask
+
+# 既存の app = Flask(__name__) の直後あたりに追加
+@app.get("/py")
+def py_version():
+    return sys.version, 200
+
+@app.get("/healthz")
+def healthz():
+    return "ok", 200
+
+# 起動時にログにも出す
+import logging
+logging.getLogger().setLevel(logging.INFO)
+logging.info(f"Running Python: {sys.version}")
+
