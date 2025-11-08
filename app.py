@@ -1,5 +1,7 @@
 import os
+import sys
 import logging
+from collections import defaultdict, deque
 from flask import Flask, request, abort
 
 # LINE SDK
@@ -7,79 +9,94 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 
-# OpenAI v1 SDK（aiohttpは使いません）
+# OpenAI v1 SDK
 from openai import OpenAI
 
 # -----------------------------
-# 設定
+# 環境変数
 # -----------------------------
-# 必須の環境変数（Render > Settings > Environment で設定）
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
-# ここでエラーにしておくと、足りない変数にすぐ気づけます
 if not LINE_CHANNEL_SECRET or not LINE_CHANNEL_ACCESS_TOKEN:
     raise RuntimeError("LINEの環境変数が未設定です（LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN）")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY が未設定です")
 
-# OpenAIクライアント
+# OpenAI / Flask / LINE 準備
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# Flask
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
 
-# LINE ハンドラ
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-
 # -----------------------------
-# 補助：プロンプト読み込み
+# システムプロンプト
 # -----------------------------
 def load_system_prompt() -> str:
-    """
-    ルート直下の prompt.txt をUTF-8で読み込み。
-    置いていない場合は安全な既定文を返す。
-    """
     default_prompt = (
         "あなたは「AI旅ナビ関西（AI Travel Navi Kansai）」です。"
-        "関西（京都・大阪・奈良・神戸・滋賀・和歌山）の旅行プランを、"
-        "選択式の質問→最終プラン（ホテル3件/日程/実用ガイド/総評/操作メニュー）で一度に提示します。"
-        "禁止：進行中の中間メッセージ（了解/少々お待ちください等）、画像のMarkdownリンク、分割出力。"
-        "出力は日本語で簡潔かつフレンドリーに。"
+        "関西（京都・大阪・奈良・神戸・滋賀・和歌山）の旅行プランに精通したプロの旅行コンシェルジュとして、"
+        "ユーザーに選択式の質問を1問ずつ出し、すべての回答が揃ったら即座に最終プランを1回で提示してください。"
+        "最終出力には必ず 1)ホテル候補3件 2)日程表 3)実用ガイド 4)総評・注意点・代替案 5)次の操作メニュー を含めます。"
+        "禁止事項：進行中の中間メッセージ（了解/少々お待ちください等）、画像のMarkdownリンク、分割出力。"
+        "画像は各ブロック1枚、許可ドメイン（japan-guide / upload.wikimedia.org / images.unsplash.com）のみ。"
+        "質問は一問ずつ番号選択式、各質問の下に常に『🔄 最初から』ボタン表現を付与。"
+        "英語モードと日本語モードは選択後に統一。"
+        "ユーザーが『最初から/やり直す/restart/reset/start/スタート』と言ったら、全回答を破棄して言語選択からやり直す。"
+        "出力はLINEで読みやすい改行・絵文字・囲み記号を適度に用いる。"
     )
     path = os.path.join(os.path.dirname(__file__), "prompt.txt")
     try:
         with open(path, "r", encoding="utf-8") as f:
-            text = f.read().strip()
-            # 空ファイル対策
-            return text if text else default_prompt
+            txt = f.read().strip()
+            return txt if txt else default_prompt
     except FileNotFoundError:
         return default_prompt
 
-
 SYSTEM_PROMPT = load_system_prompt()
 
+# -----------------------------
+# 会話状態（簡易インメモリ）
+# Render は再起動することがあるため永続ではありません。
+# 安定運用するなら Redis/SQLite への置き換えを検討。
+# -----------------------------
+MAX_TURNS = 20  # 直近20ターンを保持
+conversations: dict[str, deque] = defaultdict(lambda: deque(maxlen=MAX_TURNS))
+
+RESTART_WORDS = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
+
+START_MSG = (
+    "🔄 最初から\n"
+    "こんにちは！私はAI旅ナビ関西です🧭\n"
+    "どちらの言語でご案内しますか？\n"
+    "1️⃣ 日本語（Japanese）\n"
+    "2️⃣ English（英語）"
+)
 
 # -----------------------------
 # ルーティング
 # -----------------------------
-@app.route("/", methods=["GET"])
-def health():
-    # Renderのヘルスチェック・自分確認用
+@app.get("/")
+def root_ok():
     return "ok", 200
 
+@app.get("/healthz")
+def healthz():
+    return "ok", 200
+
+@app.get("/py")
+def py_version():
+    return sys.version, 200
 
 @app.route("/callback", methods=["POST"])
 def callback():
-    # LINE署名の検証
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
     app.logger.info(f"[LINE Webhook] body={body[:1000]}...")
-
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
@@ -88,86 +105,77 @@ def callback():
     except Exception:
         app.logger.exception("Unhandled error while handling webhook")
         abort(500)
-
     return "OK", 200
-
 
 # -----------------------------
 # メッセージイベント
 # -----------------------------
 @handler.add(MessageEvent, message=TextMessage)
-def handle_text_message(event: MessageEvent):
+def on_message(event: MessageEvent):
+    user_id = event.source.user_id
     user_text = (event.message.text or "").strip()
 
-    # Restart キーワード（LINEで「最初から」「restart」など）
-    if user_text.lower() in {"restart", "reset"} or "最初から" in user_text or "やり直す" in user_text:
-        reply = (
-            "最初からやり直します🔄\n"
-            "こんにちは！私はAI旅ナビ関西です🧭\n"
-            "まず、どちらの言語でご案内しますか？\n"
-            "1️⃣ 日本語（Japanese）\n"
-            "2️⃣ English（英語）"
-        )
-        _safe_reply(event.reply_token, reply)
+    # リセット系
+    if user_text.lower() in RESTART_WORDS or user_text in RESTART_WORDS:
+        conversations.pop(user_id, None)  # 履歴クリア
+        _safe_reply(event.reply_token, START_MSG)
         return
 
-    # OpenAIへ問い合わせ（v1 chat.completions）
+    # 初回ユーザーは言語選択から
+    if user_id not in conversations or len(conversations[user_id]) == 0:
+        _safe_reply(event.reply_token, START_MSG)
+        # 初回は履歴に system だけ積んでおく
+        conversations[user_id].clear()
+        conversations[user_id].append({"role": "system", "content": SYSTEM_PROMPT})
+        # ユーザー発話も履歴化（以降の文脈用）
+        conversations[user_id].append({"role": "user", "content": user_text})
+        return
+
+    # 既に会話中：履歴にユーザー発話を追加
+    conversations[user_id].append({"role": "user", "content": user_text})
+
+    # OpenAI へ：system を先頭に、当該ユーザーの履歴を丸ごと送る
+    messages = list(conversations[user_id])
+    if messages[0].get("role") != "system":
+        messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+
     try:
         completion = client.chat.completions.create(
-            model="gpt-4o-mini",   # 利用可能なモデルに合わせて変更可
-            temperature=0.7,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_text},
-            ],
+            model="gpt-4o-mini",
+            temperature=0.6,
+            messages=messages,
         )
-        reply_text = completion.choices[0].message.content
+        reply = completion.choices[0].message.content
     except Exception as e:
         app.logger.exception("OpenAI API error")
-        reply_text = (
-            "サーバ側でエラーが発生しました。\n"
-            "しばらくしてからもう一度お試しください。\n"
-            f"(debug: {type(e).__name__})"
+        reply = (
+            "サーバ側で一時的なエラーが発生しました。\n"
+            "少し時間をおいてからもう一度お試しください。\n"
+            "（debug: " + type(e).__name__ + "）"
         )
 
-    _safe_reply(event.reply_token, reply_text)
-
+    # 返信＆履歴に AI 応答を追記
+    _safe_reply(event.reply_token, reply)
+    conversations[user_id].append({"role": "assistant", "content": reply})
 
 # -----------------------------
-# LINE返信（安全ラッパ）
+# LINE 返信（自動分割）
 # -----------------------------
 def _safe_reply(reply_token: str, text: str) -> None:
     try:
-        # LINEの1メッセージ上限に合わせ、長過ぎる時は分割（安全策）
-        MAX = 4900  # 実運用は5000未満推奨
+        MAX = 4900  # LINEの1メッセージ上限に安全マージン
         chunks = [text[i:i + MAX] for i in range(0, len(text), MAX)] or [""]
         messages = [TextSendMessage(text=c) for c in chunks]
         line_bot_api.reply_message(reply_token, messages)
     except LineBotApiError:
         app.logger.exception("LineBotApiError while replying")
 
-
 # -----------------------------
-# ローカル実行用
+# ローカル実行
 # -----------------------------
 if __name__ == "__main__":
-    # RenderではProcfileでgunicornが起動するので、ここはローカルテスト用
-    port = int(os.environ.get("PORT", 5000))
+    logging.getLogger().setLevel(logging.INFO)
+    logging.info(f"Running Python: {sys.version}")
+    port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=True)
-import sys
-from flask import Flask
-
-# 既存の app = Flask(__name__) の直後あたりに追加
-@app.get("/py")
-def py_version():
-    return sys.version, 200
-
-@app.get("/healthz")
-def healthz():
-    return "ok", 200
-
-# 起動時にログにも出す
-import logging
-logging.getLogger().setLevel(logging.INFO)
-logging.info(f"Running Python: {sys.version}")
 
