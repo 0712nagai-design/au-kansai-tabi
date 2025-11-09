@@ -1,3 +1,4 @@
-web: gunicorn app:app --preload --threads 4 --timeout 120
+web: gunicorn app:app
+
 
 
