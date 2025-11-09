@@ -257,10 +257,6 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 【言語】lang=jaなら日本語、enなら英語で一貫
 """
 
-
-        "\n【LINK_RULES】URLは生URLのみ（Markdownリンク禁止）\n"
-        "【IMAGE_RULES】各ブロック1枚／許可外ドメインは禁止／なければ placehold.co を使用\n"
-
 【画像ルール】
 - 許可ドメイン：japan-guide / upload.wikimedia.org / images.unsplash.com
 - 不明時は https://placehold.co/800x500.png?text=施設名
@@ -275,7 +271,6 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 
 # ---------- OpenAI 呼び出し ----------
 def _call_openai_plan(answers: dict) -> str:
-    # ↓ここを修正（_build_final_prompt → build_final_prompt）
     user_prompt = build_final_prompt(answers)
 
     res = client.chat.completions.create(
@@ -286,7 +281,15 @@ def _call_openai_plan(answers: dict) -> str:
             {"role": "user", "content": user_prompt},
         ],
     )
-    ...
+    text = res.choices[0].message.content or ""
+
+    # 必要日数チェック（足りなければ追記指示）
+    need = _required_days(answers)
+    got = _count_days_in_text(text)
+    if got < need:
+        text += f"\n\n（補足）現在 {got} 日分です。{need} 日分になるよう続きも含めて出力してください。"
+    return text
+
 
 
 SYSTEM_PROMPT = (
@@ -402,6 +405,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
