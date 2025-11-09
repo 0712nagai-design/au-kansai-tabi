@@ -247,6 +247,48 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 4️⃣ 総評・注意点・代替案（2–4行）
 
 5️⃣ 次の操作メニュー（指示文のまま）
+        "\n\n【出力仕様（厳守）】\n"
+        "1️⃣ ホテル候補3件（名称・特徴・価格目安・公式URL・Googleマップ検索URL・写真1枚）\n"
+        "2️⃣ 日程表（出発〜帰着まで、泊数に応じた日数分、**各日6ブロック以上**。"
+        "全ブロックに **《Day {N}》** を含める。観光・体験・昼食・夕食は固有名詞で書く）\n"
+        "3️⃣ 実用ガイド：\n"
+        "   - 交通：主要な移動手段の実務的アドバイス\n"
+        "   - 食事おすすめ：**昼3件／夜3件**（店名必須・短評・価格帯・営業時間/定休・公式URL・写真1枚・GoogleマップURL）\n"
+        "   - 体験予約：**3件**（施設名必須・公式URL・料金目安・所要・予約要否・写真1枚・GoogleマップURL）\n"
+        "   - 予算：宿泊/交通/食事/体験の小計と合計（数値）\n"
+        "   - チェックリスト\n"
+        "4️⃣ 総評・注意点・代替案（屋内ミュージアム等）\n"
+        "5️⃣ 次の操作メニュー\n\n"
+        "【ITINERARY_RULES】\n" + ITINERARY_RULES +
+        ITINERARY_RULES = r"""
+【🗓️ 日程テンプレ（厳守）】
+- 旅程は各日の冒頭に見出し：`### Day {N}: YYYY年MM月DD日（曜）` を必ず入れる。
+- 各日、**少なくとも6ブロック**（観光3+体験1+昼食1+夕食1 以上）。
+- 1ブロック = 《Day {N}》・時刻・カテゴリ・名称（固有名詞）・短評・所要・アクセス・📸画像・リンク・営業時間。
+- 各ブロック1行目は厳密フォーマット：
+  `🕘 09:00　《Day {N}》 🏯 観光：東大寺（奈良公園）` のように **《Day {N}》** を含める。
+- 区切りは必ず「──────────────────────────────」。
+- 9:00開始 / 17:30前後に主要観光終了（滞在60–90分、移動30分）。
+- 画像は許可ドメインのみ。不明時は https://placehold.co/800x500.png?text={施設名}
+- 「昼食」「夕食」は**店名を必須**（例：『○○食堂』『△△カフェ』）＋短評＋価格帯＋営業時間＋GoogleマップURL。
+- 体験ブロックは**固有施設名**（例：『ならまち着物レンタル△△店』『茶道体験□□亭』）＋料金目安＋所要＋予約要否＋GoogleマップURL。
+- 営業/拝観時間・定休は可能な限り。未知なら「🕰 公式情報なし（要確認）」。
+- 雨天時代替（屋内）を各日1つ提案。
+
+【ブロック例】
+🕘 09:00　《Day 1》 🏯 観光：東大寺（奈良公園）
+奈良の象徴・大仏と伽藍。午前は比較的空き、写真も撮りやすい。
+🕒 所要：約90分　🚶‍♀️アクセス：近鉄奈良駅→バス10分＋徒歩5分
+📸
+![東大寺](https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Todaiji_Big_Buddha.jpg/800px-Todaiji_Big_Buddha.jpg)
+🔗 公式：http://www.todaiji.or.jp/
+📍 Googleマップ：https://www.google.com/maps/search/東大寺+奈良
+🕰 拝観 7:30–17:30（季節変動）／ 休：無休
+──────────────────────────────
+"""
+
+        "\n【LINK_RULES】URLは生URLのみ（Markdownリンク禁止）\n"
+        "【IMAGE_RULES】各ブロック1枚／許可外ドメインは禁止／なければ placehold.co を使用\n"
 
 【画像ルール】
 - 許可ドメイン：japan-guide / upload.wikimedia.org / images.unsplash.com
@@ -282,15 +324,18 @@ def _call_openai_plan(answers: dict) -> str:
     return text
 SYSTEM_PROMPT = (
     "You are AI Travel Navi Kansai.\n"
-    "以下は**最終出力専用**の指示。ユーザーの回答(JSON)は別途渡す。"
-    "必ずユーザーの選択に厳密に従い、**選ばれていない地域は行程に含めない**こと。\n"
-    "出力は **プレーンテキストの旅程**。JSONやコードブロックや箇条書きのキー:値羅列は禁止。\n"
-    "構成は 1)ホテル候補3件 2)日程表 3)実用ガイド 4)総評・注意点・代替案 5)次の操作メニュー を**一度に**返す。\n"
-    "画像は各ブロック1枚。許可ドメインのみ："
-    "https://www.japan-guide.com / https://upload.wikimedia.org / https://images.unsplash.com "
-    "（無ければ https://placehold.co/800x500.png?text=施設名）。\n"
-    "GoogleマップURLは https://www.google.com/maps/search/キーワード の素のURL。Markdownリンクは禁止。\n"
-    "日本語モードなら日本語、英語モードなら英語で出力。一切の中間文言・分割禁止。"
+    "以下の利用者回答（JSON）に厳密に従って、選択されていない地域は一切含めず、"
+    "最終プランを**一度だけ**返します。中間メッセージ・分割出力は禁止。\n"
+    "出力順：1)ホテル候補3件 2)日程表 3)実用ガイド 4)総評・注意点・代替案 5)次の操作メニュー。\n"
+    "画像は各ブロック1枚。許可ドメイン：https://www.japan-guide.com / "
+    "https://upload.wikimedia.org / https://images.unsplash.com 。無い場合は "
+    "https://placehold.co/800x500.png?text={施設名} を使用。URLは生URL（Markdownリンク禁止）。\n"
+    "日本語モード（ja）は日本語、英語モード（en）は英語で一貫出力。\n"
+    # ★ ここから追加の強制条件
+    "食事と体験は**固有の店名・施設名**を必ず記載し、各項目に Google マップ検索URL と営業時間・定休の情報を付けること。\n"
+    "体験は**最低3つ**提示すること（候補として3件、各々に料金目安・所要時間・予約要否を明記）。\n"
+
+
 )
 
 # ---------- 画像検出・送信 ----------
@@ -390,4 +435,5 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
