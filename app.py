@@ -193,21 +193,101 @@ SYSTEM_PROMPT = (
     "GoogleマップURLは `https://www.google.com/maps/search/キーワード` 形式。\n"
     "日本語モードでは日本語、英語モードでは英語で出力。分割禁止、中間文言禁止。"
 )
+# --- 詳細行程テンプレ（強制ルール） ---
+ITINERARY_RULES = r"""
+【🗓️ 日程テンプレ（厳守）】
+- 各日、**少なくとも6ブロック**を必ず入れる（観光3+体験1+食事2 以上を目安）。
+- 1ブロック = 時刻・カテゴリ・名称・短評・所要・アクセス・📸画像・リンク・営業時間。
+- 各ブロックの区切りは必ず「──────────────────────────────」。
+- 時間は60–90分滞在・移動30分を基準に、**9:00開始 / 17:30前後に主要観光終了**を目安。
+- **各ブロックに画像1枚必須**。画像URLは下記ドメインのみ：
+  https://www.japan-guide.com / https://upload.wikimedia.org / https://images.unsplash.com
+  無ければ： https://placehold.co/800x500.png?text={施設名}
+- 「昼食」「夕食」は**エリア＋ジャンル記法**（店名は出さない）。
+- 営業/拝観時間・休はできるだけ入れる。不明なら「🕰 公式情報なし（要確認）」。
+- 雨天時の代替（屋内）を**各日1つ**提案する。
 
-def _call_openai_plan(answers: Dict[str, Any]) -> str:
+【ブロック例（厳密フォーマット）】
+🕘 9:00　🏯 観光：清水寺（東山）
+木造舞台から望む京都市街が絶景。朝は比較的空き、撮影に最適。
+🕒 所要：約90分　🚶‍♀️アクセス：市バス「五条坂」徒歩10分
+📸
+![清水寺](https://www.japan-guide.com/g18/3901_top.jpg)
+🔗 公式：https://www.kiyomizudera.or.jp/
+📍 Googleマップ：https://www.google.com/maps/search/清水寺+京都
+🕰 拝観 6:00–18:00（季節変動）／ 休：無休
+──────────────────────────────
+"""
+
+def _count_blocks(text: str) -> int:
+    # 区切り線の数＋時刻記号の有無で粗くブロック数を推定
+    return text.count("──────────────────────────────") + (1 if "🕘" in text or "🕒" in text else 0)
+
+def _needs_more_detail(text: str) -> bool:
+    # 12ブロック未満なら“薄い”とみなして再生成
+    return _count_blocks(text) < 12
+
+def _build_final_prompt(answers: Dict[str, Any]) -> str:
     lang = answers.get("lang", "ja")
     locale_hint = "Japanese output." if lang == "ja" else "English output."
-    brief = _answers_brief(answers)
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT + "\n" + locale_hint},
-        {"role": "user", "content": "以下の回答に基づき、最適な旅行プランを一回で提示してください。\n回答JSON:\n" + brief}
-    ]
-    res = client.chat.completions.create(
+    return f"""
+{locale_hint}
+あなたは「AI旅ナビ関西」です。以下の利用者条件に基づき、濃密な最終旅行プランを1回で出力します。
+回答JSON:
+{json.dumps(answers, ensure_ascii=False, indent=2)}
+
+出力は必ずこの順で構成：
+1️⃣ ホテル候補3件（画像・URL付き）
+2️⃣ 日程表（1日目〜最終日、各日6ブロック以上、下記テンプレ厳守）
+3️⃣ 実用ガイド（交通・食事・体験・予算・持ち物）
+4️⃣ 総評・注意点・代替案（雨天代替含む）
+5️⃣ 次の操作メニュー
+
+{ITINERARY_RULES}
+
+禁止事項：
+- 分割出力、途中で止まる文言
+- Markdown画像リンク以外の形式
+- 同じスポットの重複
+"""
+
+def _call_openai_plan(answers: Dict[str, Any]) -> str:
+    """最終プラン生成。薄いときは自動で再生成して厚くする。"""
+    prompt = _build_final_prompt(answers)
+
+    # --- 1回目 ---
+    res1 = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.6,
-        messages=messages,
-    )
-    return res.choices[0].message.content
+        max_tokens=3500,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+    ).choices[0].message.content
+
+    if not _needs_more_detail(res1):
+        return res1
+
+    # --- 2回目（補強生成）---
+    res2 = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.5,
+        max_tokens=4000,
+        messages=[
+            {"role": "system", "content": "あなたは旅行プランの専門校正者。出力を厚く、詳細にし直してください。"},
+            {"role": "user", "content": f"""
+以下の旅行プランを、各日6ブロック以上に増補し、営業時間や画像URLも補って再生成してください。
+元の出力:
+======
+{res1}
+======
+"""}
+        ],
+    ).choices[0].message.content
+
+    return res2
+
 
 IMG_URL_RE = re.compile(r"https?://(?:www\.)?(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co)/[^\s)]+", re.I)
 
@@ -312,4 +392,5 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
