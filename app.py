@@ -274,37 +274,69 @@ def _count_days_in_text(text: str) -> int:
     b = len(re.findall(r"🗓️?\s*Day\s*\d+", text, flags=re.IGNORECASE))
     return max(a, b)
 
-def _build_final_prompt(answers: dict) -> str:
-    """最終プラン生成用のシステム・プロンプト"""
+def build_final_prompt(answers: Dict[str, Any]) -> str:
     lang = answers.get("lang", "ja")
     locale_hint = "Japanese output." if lang == "ja" else "English output."
-    days = _required_days(answers)
-    brief = answers_brief(answers)
+    brief = answers_brief(answers)  # ←既存の要約関数をそのまま使う
 
     return f"""
 {locale_hint}
-あなたは「AI旅ナビ関西」です。以下の利用者条件に基づき、**完成形の旅行プラン**を一回で出力します。
+あなたは「AI旅ナビ関西」です。以下の利用者条件に基づき、**実用性の高い旅プラン**を一回で出力します。
+回答JSON（要約）:
+{json.dumps(answers, ensure_ascii=False, indent=2)}
 
-回答概要:
-{brief}
-
-出力は必ず次の順で1回で完結:
-1️⃣ ホテル候補（3件、各に写真URLと公式URL・GoogleマップURL）
-2️⃣ 日程表（{days}日間、各日6ブロック以上：朝/午前/昼/午後/夕方/夜 で具体時刻・所要・アクセス）
-3️⃣ 実用ガイド（交通→食事おすすめ3件昼/3件夜→体験予約→予算→チェックリスト）
-4️⃣ 総評・注意点・代替案（雨天代替含む）
+出力は必ず次の順で1度に:
+1️⃣ ホテル候補3件（名称・特徴・公式URL・Googleマップ検索URL・写真1枚）
+2️⃣ 日程表（出発〜帰着まで、**各日6ブロック以上**、テンプレート厳守）
+3️⃣ 実用ガイド（交通 / 食事おすすめ3+3〈**店名必須**〉/ 体験予約〈**施設名と料金必須**〉/ 予算 / チェックリスト）
+4️⃣ 総評・注意点・代替案
 5️⃣ 次の操作メニュー
 
-画像ルール:
-- 各ホテル・各主要スポットに必ず1枚（許可ドメインのみ: japan-guide / upload.wikimedia.org / images.unsplash.com）。
-- Markdownリンクは使わず、`![説明](URL)` 形式のみ。
+【ITINERARY_RULES】
+- **各ブロックは必ず具体名を含める**（例：清水寺、春日大社、ならまち散策、〇〇温泉、△△ミュージアム、□□カフェ）
+- 各ブロックの構成:
+  - 見出し：`🕘 9:00–10:30　🏯 観光：清水寺（東山）`
+  - 説明：2–3行（何をする/見どころ/ひとことアドバイス）
+  - アクセス：公共交通基準（バス/電車/徒歩・所要）
+  - 所要時間目安（60–90分が基準）
+  - 写真：**許可ドメインのみ** `japan-guide.com / upload.wikimedia.org / images.unsplash.com / placehold.co`
+    書式:
+    📸
+    ![説明](https://...)
+  - 公式サイトURL と Googleマップ検索URL を1行ずつ
+  - 営業/拝観時間・休業日（分かる範囲で）
+- 雨天時に屋内代替を**各日1件**入れる（「※雨天時は◯◯へ」）
+- 移動は**30分刻み**で自然に。片道90分を超える移動は避けるか補足を書く。
+- 1泊2日なら **Day1/Day2** を必ず出力。2泊3日以上も同様に日数分を出す。
+- 各日の区切りは必ず `──────────────────────────────`
 
-ITINERARY_RULES:
-- 各日: 9:00開始〜19:00以降到着まで、移動の所要・手段を記す
-- ブロックごとに区切り線 `──────────────────────────────`
-- 「昼食」「夕食」はエリア＋ジャンル表記（店名はガイド側で）
-- 各ブロックに 📸 画像1枚
-- 英語選択時は英語表記/Day1-2 見出し、時間は 9:00 AM 形式
+【HOTEL_RULES】
+- 3件とも**名称/特徴/価格目安/公式URL/GoogleマップURL/写真1枚**を必須
+- 写真は許可ドメインのみ（上記と同じ）
+
+【FOOD_RULES】
+- **昼3件／夜3件** すべて**店名必須**・短評・価格帯・営業時間/定休日・公式URL・写真1枚
+- 「エリア＋ジャンルのみ」は不可。必ず例：『麺屋○○（ラーメン／〜¥1,200）』
+
+【EXPERIENCE_RULES】
+- 体験は**少なくとも1件以上**。施設名・公式URL・推定料金・写真1枚を必須。
+- 予約が必要／推奨なら明記。
+
+【BUDGET_RULES】
+- 1名あたり：宿泊 / 交通 / 食事 / 体験の小計と合計を**数値**で。
+
+【LINK_RULES】
+- 公式URLとGoogleマップ検索URLは**生URL**で1行ずつ（Markdownリンク化はしない）。
+
+【IMAGE_RULES】
+- 1ブロックにつき**必ず1枚**。許可外ドメインは使わない。無い場合は
+  `https://placehold.co/800x500.png?text=施設名` を使う。
+
+【OUTPUT_STYLE】
+- 改行多めでLINEで読みやすく。全ブロックを `──────────────────────────────` で区切る。
+- 日本語モードは日本語、英語モードは英語で一貫。
+
+次を**厳守**：各ブロック・各店・各体験は**固有名詞**を必ず入れる。抽象語（「カフェ」「和食店」など）単独禁止。
 """
 
 def _call_openai_plan(answers: dict) -> str:
@@ -436,6 +468,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
