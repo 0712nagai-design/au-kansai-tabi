@@ -1,183 +1,125 @@
+# -*- coding: utf-8 -*-
 import os
-import sys
-import logging
-from collections import defaultdict, deque
 from flask import Flask, request, abort
-
-# LINE SDK
 from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
 
-# OpenAI v1 SDK
-from openai import OpenAI
-
-# -----------------------------
-# 環境変数
-# -----------------------------
-LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
-LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-
-if not LINE_CHANNEL_SECRET or not LINE_CHANNEL_ACCESS_TOKEN:
-    raise RuntimeError("LINEの環境変数が未設定です（LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN）")
-if not OPENAI_API_KEY:
-    raise RuntimeError("OPENAI_API_KEY が未設定です")
-
-# OpenAI / Flask / LINE 準備
-client = OpenAI(api_key=OPENAI_API_KEY)
+LINE_CHANNEL_SECRET = os.environ["LINE_CHANNEL_SECRET"]
+LINE_CHANNEL_ACCESS_TOKEN = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
 
 app = Flask(__name__)
-app.logger.setLevel(logging.INFO)
-
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# -----------------------------
-# システムプロンプト
-# -----------------------------
-def load_system_prompt() -> str:
-    default_prompt = (
-        "あなたは「AI旅ナビ関西（AI Travel Navi Kansai）」です。"
-        "関西（京都・大阪・奈良・神戸・滋賀・和歌山）の旅行プランに精通したプロの旅行コンシェルジュとして、"
-        "ユーザーに選択式の質問を1問ずつ出し、すべての回答が揃ったら即座に最終プランを1回で提示してください。"
-        "最終出力には必ず 1)ホテル候補3件 2)日程表 3)実用ガイド 4)総評・注意点・代替案 5)次の操作メニュー を含めます。"
-        "禁止事項：進行中の中間メッセージ（了解/少々お待ちください等）、画像のMarkdownリンク、分割出力。"
-        "画像は各ブロック1枚、許可ドメイン（japan-guide / upload.wikimedia.org / images.unsplash.com）のみ。"
-        "質問は一問ずつ番号選択式、各質問の下に常に『🔄 最初から』ボタン表現を付与。"
-        "英語モードと日本語モードは選択後に統一。"
-        "ユーザーが『最初から/やり直す/restart/reset/start/スタート』と言ったら、全回答を破棄して言語選択からやり直す。"
-        "出力はLINEで読みやすい改行・絵文字・囲み記号を適度に用いる。"
-    )
-    path = os.path.join(os.path.dirname(__file__), "prompt.txt")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            txt = f.read().strip()
-            return txt if txt else default_prompt
-    except FileNotFoundError:
-        return default_prompt
-
-SYSTEM_PROMPT = load_system_prompt()
-
-# -----------------------------
-# 会話状態（簡易インメモリ）
-# Render は再起動することがあるため永続ではありません。
-# 安定運用するなら Redis/SQLite への置き換えを検討。
-# -----------------------------
-MAX_TURNS = 20  # 直近20ターンを保持
-conversations: dict[str, deque] = defaultdict(lambda: deque(maxlen=MAX_TURNS))
-
-RESTART_WORDS = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
-
-START_MSG = (
-    "🔄 最初から\n"
-    "こんにちは！私はAI旅ナビ関西です🧭\n"
-    "どちらの言語でご案内しますか？\n"
-    "1️⃣ 日本語（Japanese）\n"
-    "2️⃣ English（英語）"
-)
-
-# -----------------------------
-# ルーティング
-# -----------------------------
 @app.get("/")
-def root_ok():
-    return "ok", 200
+def health(): return "ok", 200
 
-@app.get("/healthz")
-def healthz():
-    return "ok", 200
-
-@app.get("/py")
-def py_version():
-    return sys.version, 200
-
-@app.route("/callback", methods=["POST"])
+@app.post("/callback")
 def callback():
-    signature = request.headers.get("X-Line-Signature", "")
+    sig = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
-    app.logger.info(f"[LINE Webhook] body={body[:1000]}...")
     try:
-        handler.handle(body, signature)
+        handler.handle(body, sig)
     except InvalidSignatureError:
-        app.logger.exception("Invalid signature")
         abort(400)
-    except Exception:
-        app.logger.exception("Unhandled error while handling webhook")
-        abort(500)
     return "OK", 200
 
-# -----------------------------
-# メッセージイベント
-# -----------------------------
+# -------- Flex: ホテルカード生成 --------
+def hotel_bubble(name, features, price_range, official_url, gmaps_url, image_url):
+    return {
+      "type": "bubble",
+      "hero": {
+        "type": "image",
+        "url": image_url,              # 例: https://images.unsplash.com/photo-1542314831-068cd1dbfeeb
+        "size": "full",
+        "aspectRatio": "16:9",
+        "aspectMode": "cover",
+        "action": {"type":"uri","label":"Open","uri": official_url or gmaps_url}
+      },
+      "body": {
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "md",
+        "contents": [
+          {"type":"text","text": name,"weight":"bold","size":"lg","wrap": True},
+          {"type":"box","layout":"baseline","contents":[
+            {"type":"icon","url":"https://scdn.line-apps.com/n/channel_devcenter/img/fx/restaurant_regular_32.png"},
+            {"type":"text","text": features, "size":"sm","wrap": True,"color":"#555555"}
+          ]},
+          {"type":"box","layout":"baseline","contents":[
+            {"type":"icon","url":"https://scdn.line-apps.com/n/channel_devcenter/img/fx/coin_32.png"},
+            {"type":"text","text": price_range, "size":"sm","color":"#333333","wrap": True}
+          ]}
+        ]
+      },
+      "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "sm",
+        "contents": [
+          {"type":"button","style":"primary","height":"sm",
+           "action":{"type":"uri","label":"公式サイト","uri": official_url}},
+          {"type":"button","style":"link","height":"sm",
+           "action":{"type":"uri","label":"Googleマップ","uri": gmaps_url}}
+        ],
+        "flex": 0
+      }
+    }
+
+def hotels_carousel(items):
+    # items: list[dict] ← hotel_bubble(...) を並べる
+    return {"type": "carousel", "contents": items[:10]}  # 最大10件
+
+# -------- 使い方（例）：ユーザーが「ホテル」と送ったら3件表示 --------
 @handler.add(MessageEvent, message=TextMessage)
-def on_message(event: MessageEvent):
-    user_id = event.source.user_id
-    user_text = (event.message.text or "").strip()
+def on_text(event):
+    text = (event.message.text or "").strip()
 
-    # リセット系
-    if user_text.lower() in RESTART_WORDS or user_text in RESTART_WORDS:
-        conversations.pop(user_id, None)  # 履歴クリア
-        _safe_reply(event.reply_token, START_MSG)
+    if text in {"ホテル","hotel","1"}:
+        bubbles = [
+            hotel_bubble(
+              "琵琶湖グランドホテル",
+              "湖畔の大型リゾート／多彩な温泉と料理",
+              "約¥12,000〜¥20,000／泊",
+              "https://www.biwako-gh.co.jp/",
+              "https://www.google.com/maps/search/琵琶湖グランドホテル",
+              "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb"
+            ),
+            hotel_bubble(
+              "THE BLOSSOM KYOTO",
+              "四条駅徒歩3分／上質モダン／外国人対応◎",
+              "約¥15,000〜¥25,000／泊",
+              "https://theblossomhotel.jp/kyoto/",
+              "https://www.google.com/maps/search/THE+BLOSSOM+KYOTO",
+              "https://images.unsplash.com/photo-1566073771259-6a8506099945"
+            ),
+            hotel_bubble(
+              "旅館 ひやま",
+              "琵琶湖湖畔の和風旅館／静かな環境でリラックス",
+              "約¥8,000〜¥15,000／泊",
+              "https://www.hiyama.com/",
+              "https://www.google.com/maps/search/旅館+ひやま",
+              "https://images.unsplash.com/photo-1551776235-dde6d4829808"
+            ),
+        ]
+        car = hotels_carousel(bubbles)
+        flex = FlexSendMessage(alt_text="ホテル候補", contents=car)
+        line_bot_api.reply_message(event.reply_token, flex)
         return
 
-    # 初回ユーザーは言語選択から
-    if user_id not in conversations or len(conversations[user_id]) == 0:
-        _safe_reply(event.reply_token, START_MSG)
-        # 初回は履歴に system だけ積んでおく
-        conversations[user_id].clear()
-        conversations[user_id].append({"role": "system", "content": SYSTEM_PROMPT})
-        # ユーザー発話も履歴化（以降の文脈用）
-        conversations[user_id].append({"role": "user", "content": user_text})
-        return
+    # それ以外は通常テキスト
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text="「ホテル」と送ると写真付きカードを表示します！"))
 
-    # 既に会話中：履歴にユーザー発話を追加
-    conversations[user_id].append({"role": "user", "content": user_text})
-
-    # OpenAI へ：system を先頭に、当該ユーザーの履歴を丸ごと送る
-    messages = list(conversations[user_id])
-    if messages[0].get("role") != "system":
-        messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
-
-    try:
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.6,
-            messages=messages,
-        )
-        reply = completion.choices[0].message.content
-    except Exception as e:
-        app.logger.exception("OpenAI API error")
-        reply = (
-            "サーバ側で一時的なエラーが発生しました。\n"
-            "少し時間をおいてからもう一度お試しください。\n"
-            "（debug: " + type(e).__name__ + "）"
-        )
-
-    # 返信＆履歴に AI 応答を追記
-    _safe_reply(event.reply_token, reply)
-    conversations[user_id].append({"role": "assistant", "content": reply})
-
-# -----------------------------
-# LINE 返信（自動分割）
-# -----------------------------
-def _safe_reply(reply_token: str, text: str) -> None:
-    try:
-        MAX = 4900  # LINEの1メッセージ上限に安全マージン
-        chunks = [text[i:i + MAX] for i in range(0, len(text), MAX)] or [""]
-        messages = [TextSendMessage(text=c) for c in chunks]
-        line_bot_api.reply_message(reply_token, messages)
-    except LineBotApiError:
-        app.logger.exception("LineBotApiError while replying")
-
-# -----------------------------
-# ローカル実行
-# -----------------------------
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.info(f"Running Python: {sys.version}")
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(port=int(os.environ.get("PORT",5000)), debug=True)
+
+
+
+
+
+
+
 
 
 
