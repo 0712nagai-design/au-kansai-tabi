@@ -227,117 +227,95 @@ def _needs_more_detail(text: str) -> bool:
     # 12ブロック未満なら“薄い”とみなして再生成
     return _count_blocks(text) < 12
 
-def _build_final_prompt(answers: Dict[str, Any]) -> str:
-    lang = answers.get("lang", "ja")
-    locale_hint = "Japanese output." if lang == "ja" else "English output."
-    return f"""
-{locale_hint}
-あなたは「AI旅ナビ関西」です。以下の利用者条件に基づき、濃密な最終旅行プランを1回で出力します。
-回答JSON:
-{json.dumps(answers, ensure_ascii=False, indent=2)}
-
-出力は必ずこの順で構成：
-1️⃣ ホテル候補3件（画像・URL付き）
-2️⃣ 日程表（1日目〜最終日、各日6ブロック以上、下記テンプレ厳守）
-3️⃣ 実用ガイド（交通・食事・体験・予算・持ち物）
-4️⃣ 総評・注意点・代替案（雨天代替含む）
-5️⃣ 次の操作メニュー
-
-{ITINERARY_RULES}
-
-禁止事項：
-- 分割出力、途中で止まる文言
-- Markdown画像リンク以外の形式
-- 同じスポットの重複
-"""
-
-import re
-import json
-
-# --- 必要日数を answers から推定 ---
-def _required_days(answers: dict) -> int:
-    """
-    answers['schedule'] が:
-      1=日帰り, 2=1泊2日, 3=2泊3日, 4=3泊以上（最低4日分で作らせる）
-    の想定。文字列/数値どちらでも耐性あり。
-    """
-    raw = str(answers.get("schedule", "")).strip()
-    mapping = {
-        "1": 1, "日帰り": 1, "daytrip": 1,
-        "2": 2, "1泊2日": 2,
-        "3": 3, "2泊3日": 3,
-        "4": 4, "3泊以上": 4,
-    }
-    return mapping.get(raw, 2)  # 不明なら2日想定で保守的に
-
-# --- 出力本文に含まれる“日付見出し”のカウント ---
-DAY_JP_RE = re.compile(r"(?:\*\*|\*|^)\s*([第]?\s*\d+\s*日目)\b", re.MULTILINE)
-DAY_EN_RE = re.compile(r"(?:^|\n)\s*🗓️?\s*Day\s*(\d+)\b", re.IGNORECASE)
-
-def _count_days_in_text(text: str) -> int:
-    n1 = len(set(m.group(1) for m in DAY_JP_RE.finditer(text)))
-    n2 = len(set(m.group(1) for m in DAY_EN_RE.finditer(text)))
-    return max(n1, n2)
-
-# --- 生成プロンプトを組み立て（あなたの既存の SYSTEM_PROMPT を活かす） ---
 def _build_final_prompt(answers: dict, required_days: int) -> list[dict]:
     lang = answers.get("lang", "ja")
     locale_hint = "Japanese output." if str(lang).lower() in {"ja", "1", "japanese"} else "English output."
 
-    # ここはあなたの answers_brief など既存の要約関数があればそれを使ってOK
+    # 必要ならあなたの answers_brief に変更してOK
     brief = json.dumps(answers, ensure_ascii=False)
 
-    extra_rules = (
-        f"必須要件：**日程表はちょうど {required_days} 日分**を出力すること。"
-        "各日には【朝・午前・昼・午後・夕方・夜】の少なくとも4ブロックを入れ、"
-        "各ブロックに《開始時間／所要時間／移動手段》を明記。"
-        "もし回答が不足していても、推定で埋めて構いません。"
-    )
+    # ここを“濃いめ”に。各ブロックの必須項目をテンプレ化して指示します。
+    extra_rules = f"""
+【絶対遵守】
+- 日程表は **ちょうど {required_days} 日分**。各日 **朝/午前/昼/午後/夕方/夜** の最低6ブロック。
+- 各ブロックは **①開始時刻 ②内容 ③所要時間 ④移動手段 ⑤料金(あれば) ⑥公式/地図URL ⑦写真1枚** を必ず含む。
+- 画像: 許可ドメインのみ（japan-guide / upload.wikimedia.org / images.unsplash.com / placehold.co）。**1ブロック1枚**。
+- URLは **公式1つ + Googleマップ1つ** を基本（不明時は placehold.co と Google検索URL）。
+- 文章はLINEで読みやすく、**1ブロック2〜3行**に収める。
+
+【ブロックの書式（日本語モード）】
+- 🕘 **朝 09:00**｜🏯 清水寺  
+  所要: 90分／🚶 バス+徒歩／料金: 400〜1,000円  
+  公式: https://www.kiyomizudera.or.jp/  
+  地図: https://www.google.com/maps/search/清水寺+京都  
+  📸  
+  ![清水寺](https://images.unsplash.com/photo-1549692520-acc6669e2f0c)
+
+【ホテル操作】
+- 1日目「チェックイン」、最終日「チェックアウト」を必ず入れる。夜はホテル戻りを明記。
+
+【移動の粒度】
+- “JR/私鉄/地下鉄/バス/徒歩/車” のいずれかを毎ブロックに明記。
+- 主要移動には **所要(◯分) と概算運賃(◯円)** を併記。
+
+【雨天代替】
+- 各日どこかに **屋内代替案（1行）** を入れる（例：雨天時→◯◯ミュージアム）。
+
+【出力順序】
+1) ホテル候補（3件） 2) 日程表 3) 実用ガイド 4) 総評・注意点・代替案 5) 次の操作メニュー
+→ **分割禁止**。1回で完成品を出す。
+"""
 
     return [
         {"role": "system", "content": SYSTEM_PROMPT + "\n" + locale_hint + "\n" + extra_rules},
         {"role": "user", "content": "以下の回答に基づき、最適な旅プランを一回で提示してください。\n回答JSON:\n" + brief}
     ]
 
-# --- OpenAI呼び出し（足りない日数なら自動で再生成） ---
+
 def _call_openai_plan(answers: dict) -> str:
     need_days = _required_days(answers)
-
-    # 1回目生成
     messages = _build_final_prompt(answers, need_days)
-    res = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.6,
-        messages=messages,
-    )
-    text = res.choices[0].message.content or ""
 
-    # 日数チェック
-    have_days = _count_days_in_text(text)
-    if have_days >= need_days:
+    def _generate(msgs, temp=0.6):
+        return client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=temp,
+            max_tokens=3500,
+            messages=msgs,
+        ).choices[0].message.content or ""
+
+    def _looks_sparse(text: str, need_days: int) -> bool:
+        # 日数
+        days = _count_days_in_text(text)
+        if days < need_days:  # まずは日数不足
+            return True
+        # 各日の最低6ブロック（朝/午前/昼/午後/夕方/夜）に近い個数があるかをざっくり判定
+        # 「- 」行をブロックと見なし、1日あたり5未満ならスカスカとみなす
+        day_splits = re.split(r"\n\*+\s*\d+日目|\n🗓️?\s*Day\s*\d+", text, flags=re.IGNORECASE)
+        block_lines = [len([l for l in d.splitlines() if l.strip().startswith("- ")]) for d in day_splits if d.strip()]
+        if block_lines and min(block_lines) < 5:
+            return True
+        # 画像枚数（📸または "!["
+        img_cnt = len(re.findall(r"📸|!\[", text))
+        # 各ブロックに1枚が目標：ざっくり  need_days*6 >= 期待値
+        return img_cnt < need_days * 5  # 多少ゆるめ
+
+    # 1回目
+    text = _generate(messages, temp=0.55)
+    if not _looks_sparse(text, need_days):
         return text
 
-    # 2回目：修正依頼（不足日数を明示）
-    missing = need_days - have_days
-    fix_messages = messages + [
-        {
-            "role": "user",
-            "content": (
-                "直前の出力では日程が不足しています。"
-                f"**あと {missing} 日分**を追加し、合計で **{need_days} 日分**にしてください。"
-                "全体を自然に時系列でつなげ、すでに出した日も含めて**最初から最後まで通しの1回出力**で再提示してください。"
-                "各日には【朝・午前・昼・午後・夕方・夜】のブロックを入れ、開始時間・所要時間・移動手段を必ず記載。"
-            )
-        }
-    ]
-    res2 = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.5,
-        messages=fix_messages,
+    # 2回目（不足点を明示してリライト）
+    fix = (
+        "直前の出力は日数やブロック密度が不足しています。"
+        f"**{need_days}日分・各日6ブロック（朝/午前/昼/午後/夕方/夜）**を満たし、"
+        "各ブロックに開始時刻/所要/移動/料金/公式URL/地図URL/写真を必ず入れて、"
+        "通しで1回の完成出力にして再提示してください。"
+        "写真は許可ドメインのみ、1ブロック1枚。"
     )
-    text2 = res2.choices[0].message.content or ""
-    # 念のためもう一度カウントして、まだ足りなければ2→3回目…に広げてもOK。ここでは2回で終了。
+    text2 = _generate(messages + [{"role": "user", "content": fix}], temp=0.45)
     return text2
+
 
 
 
@@ -444,6 +422,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
