@@ -8,6 +8,8 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+import re
 
 # OpenAI v1 SDK
 from openai import OpenAI
@@ -169,6 +171,52 @@ def _safe_reply(reply_token: str, text: str) -> None:
         line_bot_api.reply_message(reply_token, messages)
     except LineBotApiError:
         app.logger.exception("LineBotApiError while replying")
+IMG_PAT = re.compile(r'!\[[^\]]*\]\((https?://[^\s)]+)\)')
+def _safe_reply(reply_token: str, text: str) -> None:
+    try:
+        messages = build_line_messages_from_markdown(text)
+        line_bot_api.reply_message(reply_token, messages)
+    except LineBotApiError:
+        app.logger.exception("LineBotApiError while replying")
+
+ALLOWED_IMG = ("https://www.japan-guide.com",
+               "https://upload.wikimedia.org",
+               "https://images.unsplash.com",
+               "https://placehold.co")
+
+def build_line_messages_from_markdown(text: str):
+    """
+    Markdown内の画像 `![alt](url)` を検出して、
+    テキストは TextSendMessage、画像は ImageSendMessage に分解する。
+    返すのは LINE 送信用メッセージ配列（最大5件に収める）。
+    """
+    msgs = []
+    pos = 0
+    for m in IMG_PAT.finditer(text):
+        url = m.group(1)
+        # 画像の前のテキスト
+        chunk = text[pos:m.start()].strip()
+        if chunk:
+            # 5000未満で安全に分割
+            MAX = 4900
+            for i in range(0, len(chunk), MAX):
+                msgs.append(TextSendMessage(text=chunk[i:i+MAX]))
+        # 許可ドメインのみ画像として送る（それ以外はURL文字列にして送信）
+        if url.startswith(ALLOWED_IMG):
+            msgs.append(ImageSendMessage(original_content_url=url, preview_image_url=url))
+        else:
+            msgs.append(TextSendMessage(text=f"画像URL: {url}"))
+        pos = m.end()
+
+    # 残りのテキスト
+    tail = text[pos:].strip()
+    if tail:
+        MAX = 4900
+        for i in range(0, len(tail), MAX):
+            msgs.append(TextSendMessage(text=tail[i:i+MAX]))
+
+    # LINEのreplyは一度に最大5メッセージ（公式上限）なので絞る
+    return msgs[:5] if msgs else [TextSendMessage(text="")]
 
 # -----------------------------
 # ローカル実行
@@ -178,4 +226,5 @@ if __name__ == "__main__":
     logging.info(f"Running Python: {sys.version}")
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
