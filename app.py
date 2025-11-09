@@ -261,31 +261,7 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
         "5️⃣ 次の操作メニュー\n\n"
         "【ITINERARY_RULES】
        
-【🗓️ 日程テンプレ（厳守）】
-- 旅程は各日の冒頭に見出し：`### Day {N}: YYYY年MM月DD日（曜）` を必ず入れる。
-- 各日、**少なくとも6ブロック**（観光3+体験1+昼食1+夕食1 以上）。
-- 1ブロック = 《Day {N}》・時刻・カテゴリ・名称（固有名詞）・短評・所要・アクセス・📸画像・リンク・営業時間。
-- 各ブロック1行目は厳密フォーマット：
-  `🕘 09:00　《Day {N}》 🏯 観光：東大寺（奈良公園）` のように **《Day {N}》** を含める。
-- 区切りは必ず「──────────────────────────────」。
-- 9:00開始 / 17:30前後に主要観光終了（滞在60–90分、移動30分）。
-- 画像は許可ドメインのみ。不明時は https://placehold.co/800x500.png?text={施設名}
-- 「昼食」「夕食」は**店名を必須**（例：『○○食堂』『△△カフェ』）＋短評＋価格帯＋営業時間＋GoogleマップURL。
-- 体験ブロックは**固有施設名**（例：『ならまち着物レンタル△△店』『茶道体験□□亭』）＋料金目安＋所要＋予約要否＋GoogleマップURL。
-- 営業/拝観時間・定休は可能な限り。未知なら「🕰 公式情報なし（要確認）」。
-- 雨天時代替（屋内）を各日1つ提案。
 
-【ブロック例】
-🕘 09:00　《Day 1》 🏯 観光：東大寺（奈良公園）
-奈良の象徴・大仏と伽藍。午前は比較的空き、写真も撮りやすい。
-🕒 所要：約90分　🚶‍♀️アクセス：近鉄奈良駅→バス10分＋徒歩5分
-📸
-![東大寺](https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Todaiji_Big_Buddha.jpg/800px-Todaiji_Big_Buddha.jpg)
-🔗 公式：http://www.todaiji.or.jp/
-📍 Googleマップ：https://www.google.com/maps/search/東大寺+奈良
-🕰 拝観 7:30–17:30（季節変動）／ 休：無休
-──────────────────────────────
-"""
 
         "\n【LINK_RULES】URLは生URLのみ（Markdownリンク禁止）\n"
         "【IMAGE_RULES】各ブロック1枚／許可外ドメインは禁止／なければ placehold.co を使用\n"
@@ -435,6 +411,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
