@@ -7,6 +7,8 @@ from typing import Optional, Dict, Any, List
 from flask import Flask, request, abort
 import re, json
 from datetime import datetime
+import json
+from typing import Dict, Any
 
 # LINE SDK
 from linebot import LineBotApi, WebhookHandler
@@ -235,21 +237,29 @@ def _required_days(answers: dict) -> int:
     d = table.get(m, 3)
     return max(d, 2)  # 1泊2日以上を前提に最低2日に
 
-def answers_brief(a: dict) -> str:
-    """ユーザー回答を短い日本語の箇条書きに整形（最終プロンプトに埋め込む）"""
-    region_map = {"1":"京都","2":"大阪","3":"奈良","4":"神戸","5":"滋賀","6":"和歌山"}
-    theme_map  = {"1":"グルメ","2":"歴史文化","3":"自然癒し","4":"夜景","5":"温泉","6":"家族",
-                  "7":"ショッピング","8":"体験メイン","9":"その他"}
-    hotel_map  = {"1":"高級","2":"中価格","3":"コスパ","4":"和風旅館","5":"こだわらない"}
-    traffic_map= {"1":"公共交通","2":"車","3":"徒歩中心","4":"指定なし"}
-    party_map  = {"1":"ひとり","2":"カップル","3":"友人","4":"家族","5":"外国人友人","6":"その他"}
-    dep_band_map={"1":"6–8時","2":"9–11時","3":"12–14時","4":"15–17時","5":"18時以降"}
-    arr_band_map={"1":"14–17時","2":"17–19時","3":"19–21時","4":"21時以降","5":"未定"}
+def answers_brief(answers: Dict[str, Any]) -> str:
+    """ユーザー回答を短く並べる（欠損に強い安全版）"""
+    def pick(key, default="未選択"):
+        v = answers.get(key)
+        if v is None or v == "":
+            return default
+        if isinstance(v, list):
+            return "、".join(map(str, v)) if v else default
+        return str(v)
 
-    def pick_list(ids, m):
-        if not ids: return "未選択"
-        if isinstance(ids, str): ids = [x.strip() for x in ids.split(",") if x.strip()]
-        return "・".join([m.get(i,i) for i in ids]) if ids else "未選択"
+    return (
+        f"- 地域：{pick('area')}\n"
+        f"- 出発日：{pick('date')}\n"
+        f"- 日程：{pick('stay')}\n"
+        f"- テーマ：{pick('theme')}\n"
+        f"- 予算：{pick('budget')}\n"
+        f"- ホテルタイプ：{pick('hotel')}\n"
+        f"- 交通手段：{pick('transport')}\n"
+        f"- 同行者：{pick('companion')}\n"
+        f"- 出発時間帯：{pick('depart_time')}\n"
+        f"- 帰着時間帯：{pick('return_time')}\n"
+    )
+
 
     regions = pick_list(a.get("region", ""), region_map)
     themes  = pick_list(a.get("theme", ""), theme_map)
@@ -466,6 +476,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
