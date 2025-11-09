@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 from flask import Flask, request, abort
+import re, json
+from datetime import datetime
 
 # LINE SDK
 from linebot import LineBotApi, WebhookHandler
@@ -226,95 +228,107 @@ def _count_blocks(text: str) -> int:
 def _needs_more_detail(text: str) -> bool:
     # 12ブロック未満なら“薄い”とみなして再生成
     return _count_blocks(text) < 12
+def _required_days(answers: dict) -> int:
+    """日程の選択肢から、必要な日数を返す（最低2に丸め）"""
+    m = str(answers.get("schedule", "1"))
+    table = {"1": 1, "2": 2, "3": 3}
+    d = table.get(m, 3)
+    return max(d, 2)  # 1泊2日以上を前提に最低2日に
 
-def _build_final_prompt(answers: dict, required_days: int) -> list[dict]:
+def answers_brief(a: dict) -> str:
+    """ユーザー回答を短い日本語の箇条書きに整形（最終プロンプトに埋め込む）"""
+    region_map = {"1":"京都","2":"大阪","3":"奈良","4":"神戸","5":"滋賀","6":"和歌山"}
+    theme_map  = {"1":"グルメ","2":"歴史文化","3":"自然癒し","4":"夜景","5":"温泉","6":"家族",
+                  "7":"ショッピング","8":"体験メイン","9":"その他"}
+    hotel_map  = {"1":"高級","2":"中価格","3":"コスパ","4":"和風旅館","5":"こだわらない"}
+    traffic_map= {"1":"公共交通","2":"車","3":"徒歩中心","4":"指定なし"}
+    party_map  = {"1":"ひとり","2":"カップル","3":"友人","4":"家族","5":"外国人友人","6":"その他"}
+    dep_band_map={"1":"6–8時","2":"9–11時","3":"12–14時","4":"15–17時","5":"18時以降"}
+    arr_band_map={"1":"14–17時","2":"17–19時","3":"19–21時","4":"21時以降","5":"未定"}
+
+    def pick_list(ids, m):
+        if not ids: return "未選択"
+        if isinstance(ids, str): ids = [x.strip() for x in ids.split(",") if x.strip()]
+        return "・".join([m.get(i,i) for i in ids]) if ids else "未選択"
+
+    regions = pick_list(a.get("region", ""), region_map)
+    themes  = pick_list(a.get("theme", ""), theme_map)
+    traffic = pick_list(a.get("traffic", ""), traffic_map)
+
+    s = []
+    s.append(f"- 地域：{regions}")
+    s.append(f"- 出発日：{a.get('date','未選択')}")
+    s.append(f"- 日程：{ {'1':'日帰り','2':'1泊2日','3':'2泊3日','4':'3泊以上'}.get(str(a.get('schedule','')), '未選択') }")
+    s.append(f"- テーマ：{themes}")
+    s.append(f"- 予算：{ {'1':'~¥5,000','2':'~¥10,000','3':'~¥20,000','4':'¥30,000以上'}.get(str(a.get('budget','')), '未選択') }")
+    s.append(f"- ホテルタイプ：{ hotel_map.get(str(a.get('hotel','')), '未選択') }")
+    s.append(f"- 交通手段：{traffic}")
+    s.append(f"- 同行者：{ party_map.get(str(a.get('party','')), '未選択') }")
+    s.append(f"- 出発時間帯：{ dep_band_map.get(str(a.get('dep_band','')), '未選択') }")
+    s.append(f"- 帰着時間帯：{ arr_band_map.get(str(a.get('arr_band','')), '未選択') }")
+    return "\n".join(s)
+
+def _count_days_in_text(text: str) -> int:
+    """生成文から日数らしき見出し数を数える（不足検出に使う）"""
+    a = len(re.findall(r"\*\*?\s*\d+日目", text))
+    b = len(re.findall(r"🗓️?\s*Day\s*\d+", text, flags=re.IGNORECASE))
+    return max(a, b)
+
+def _build_final_prompt(answers: dict) -> str:
+    """最終プラン生成用のシステム・プロンプト"""
     lang = answers.get("lang", "ja")
-    locale_hint = "Japanese output." if str(lang).lower() in {"ja", "1", "japanese"} else "English output."
+    locale_hint = "Japanese output." if lang == "ja" else "English output."
+    days = _required_days(answers)
+    brief = answers_brief(answers)
 
-    # 必要ならあなたの answers_brief に変更してOK
-    brief = json.dumps(answers, ensure_ascii=False)
+    return f"""
+{locale_hint}
+あなたは「AI旅ナビ関西」です。以下の利用者条件に基づき、**完成形の旅行プラン**を一回で出力します。
 
-    # ここを“濃いめ”に。各ブロックの必須項目をテンプレ化して指示します。
-    extra_rules = f"""
-【絶対遵守】
-- 日程表は **ちょうど {required_days} 日分**。各日 **朝/午前/昼/午後/夕方/夜** の最低6ブロック。
-- 各ブロックは **①開始時刻 ②内容 ③所要時間 ④移動手段 ⑤料金(あれば) ⑥公式/地図URL ⑦写真1枚** を必ず含む。
-- 画像: 許可ドメインのみ（japan-guide / upload.wikimedia.org / images.unsplash.com / placehold.co）。**1ブロック1枚**。
-- URLは **公式1つ + Googleマップ1つ** を基本（不明時は placehold.co と Google検索URL）。
-- 文章はLINEで読みやすく、**1ブロック2〜3行**に収める。
+回答概要:
+{brief}
 
-【ブロックの書式（日本語モード）】
-- 🕘 **朝 09:00**｜🏯 清水寺  
-  所要: 90分／🚶 バス+徒歩／料金: 400〜1,000円  
-  公式: https://www.kiyomizudera.or.jp/  
-  地図: https://www.google.com/maps/search/清水寺+京都  
-  📸  
-  ![清水寺](https://images.unsplash.com/photo-1549692520-acc6669e2f0c)
+出力は必ず次の順で1回で完結:
+1️⃣ ホテル候補（3件、各に写真URLと公式URL・GoogleマップURL）
+2️⃣ 日程表（{days}日間、各日6ブロック以上：朝/午前/昼/午後/夕方/夜 で具体時刻・所要・アクセス）
+3️⃣ 実用ガイド（交通→食事おすすめ3件昼/3件夜→体験予約→予算→チェックリスト）
+4️⃣ 総評・注意点・代替案（雨天代替含む）
+5️⃣ 次の操作メニュー
 
-【ホテル操作】
-- 1日目「チェックイン」、最終日「チェックアウト」を必ず入れる。夜はホテル戻りを明記。
+画像ルール:
+- 各ホテル・各主要スポットに必ず1枚（許可ドメインのみ: japan-guide / upload.wikimedia.org / images.unsplash.com）。
+- Markdownリンクは使わず、`![説明](URL)` 形式のみ。
 
-【移動の粒度】
-- “JR/私鉄/地下鉄/バス/徒歩/車” のいずれかを毎ブロックに明記。
-- 主要移動には **所要(◯分) と概算運賃(◯円)** を併記。
-
-【雨天代替】
-- 各日どこかに **屋内代替案（1行）** を入れる（例：雨天時→◯◯ミュージアム）。
-
-【出力順序】
-1) ホテル候補（3件） 2) 日程表 3) 実用ガイド 4) 総評・注意点・代替案 5) 次の操作メニュー
-→ **分割禁止**。1回で完成品を出す。
+ITINERARY_RULES:
+- 各日: 9:00開始〜19:00以降到着まで、移動の所要・手段を記す
+- ブロックごとに区切り線 `──────────────────────────────`
+- 「昼食」「夕食」はエリア＋ジャンル表記（店名はガイド側で）
+- 各ブロックに 📸 画像1枚
+- 英語選択時は英語表記/Day1-2 見出し、時間は 9:00 AM 形式
 """
 
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT + "\n" + locale_hint + "\n" + extra_rules},
-        {"role": "user", "content": "以下の回答に基づき、最適な旅プランを一回で提示してください。\n回答JSON:\n" + brief}
-    ]
-
-
 def _call_openai_plan(answers: dict) -> str:
-    need_days = _required_days(answers)
-    messages = _build_final_prompt(answers, need_days)
-
-    def _generate(msgs, temp=0.6):
-        return client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=temp,
-            max_tokens=3500,
-            messages=msgs,
-        ).choices[0].message.content or ""
-
-    def _looks_sparse(text: str, need_days: int) -> bool:
-        # 日数
-        days = _count_days_in_text(text)
-        if days < need_days:  # まずは日数不足
-            return True
-        # 各日の最低6ブロック（朝/午前/昼/午後/夕方/夜）に近い個数があるかをざっくり判定
-        # 「- 」行をブロックと見なし、1日あたり5未満ならスカスカとみなす
-        day_splits = re.split(r"\n\*+\s*\d+日目|\n🗓️?\s*Day\s*\d+", text, flags=re.IGNORECASE)
-        block_lines = [len([l for l in d.splitlines() if l.strip().startswith("- ")]) for d in day_splits if d.strip()]
-        if block_lines and min(block_lines) < 5:
-            return True
-        # 画像枚数（📸または "!["
-        img_cnt = len(re.findall(r"📸|!\[", text))
-        # 各ブロックに1枚が目標：ざっくり  need_days*6 >= 期待値
-        return img_cnt < need_days * 5  # 多少ゆるめ
-
-    # 1回目
-    text = _generate(messages, temp=0.55)
-    if not _looks_sparse(text, need_days):
-        return text
-
-    # 2回目（不足点を明示してリライト）
-    fix = (
-        "直前の出力は日数やブロック密度が不足しています。"
-        f"**{need_days}日分・各日6ブロック（朝/午前/昼/午後/夕方/夜）**を満たし、"
-        "各ブロックに開始時刻/所要/移動/料金/公式URL/地図URL/写真を必ず入れて、"
-        "通しで1回の完成出力にして再提示してください。"
-        "写真は許可ドメインのみ、1ブロック1枚。"
+    """OpenAI へ最終プランを生成させる"""
+    sys_prompt = _build_final_prompt(answers)
+    messages = [
+        {"role": "system", "content": sys_prompt},
+        {"role": "user",
+         "content": "以下の回答に基づいて、上記仕様どおり**一度で完成**の旅程を提示してください。\n回答JSON:\n" +
+                    json.dumps(answers, ensure_ascii=False, indent=2)}
+    ]
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.6,
+        messages=messages,
     )
-    text2 = _generate(messages + [{"role": "user", "content": fix}], temp=0.45)
-    return text2
+    text = res.choices[0].message.content or ""
+
+    # 念のため、日数不足を検出したら追記指示を自動で付け足す
+    need = _required_days(answers)
+    got = _count_days_in_text(text)
+    if got < need:
+        text += f"\n\n（補足）上記は {got} 日分です。{need} 日分の体裁になるよう続きも含めて提示してください。"
+    return text
 
 
 
@@ -422,6 +436,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
