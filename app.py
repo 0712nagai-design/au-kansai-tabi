@@ -197,44 +197,68 @@ def _required_days(answers: dict) -> int:
 # ---------- 生成プロンプト ----------
 def build_final_prompt(answers: Dict[str, Any]) -> str:
     lang = answers.get("lang", "ja")
-    locale_hint = "Japanese output." if lang == "ja" else "English output."
-    brief = answers_brief(answers)
+    locale = "Japanese output." if lang == "ja" else "English output."
+    # ここでユーザー回答をそのまま添付（モデルは参照用に使うだけ）
+    answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
 
     return f"""
-{locale_hint}
-あなたは「AI旅ナビ関西」です。以下の利用者条件に基づき、**実用性の高い旅プラン**を1回で出力します。
+{locale}
+あなたは「AI旅ナビ関西」です。以下のユーザー回答に**厳密**に従い、読みやすい“完成版”旅プランを**1回で**出力してください。
+（JSONやコードブロックやキー:値の羅列は出さない）
 
-回答JSON:
-{json.dumps(answers, ensure_ascii=False, indent=2)}
-回答サマリ:
-{brief}
+【ユーザー回答(JSON 参照用)】
+{answers_json}
 
-出力はこの順で**一度に**:
-1️⃣ ホテル候補3件（名称・特徴・価格目安・公式URL・Googleマップ検索URL・写真1枚）
-2️⃣ 日程表（出発〜帰着まで、**各日6ブロック以上**）
-3️⃣ 実用ガイド（交通 / 食事おすすめ3+3〈店名必須〉/ 体験予約〈施設名と料金必須〉/ 予算 / チェックリスト）
-4️⃣ 総評・注意点・代替案
-5️⃣ 次の操作メニュー
+【出力順（ぜったい厳守）】
+1️⃣ ホテル候補（3件）
+　書式：
+　🏨 ホテル名
+　特徴：要約1行
+　📸
+　![説明](許可ドメインの画像URL)
+　🔗 公式：生URL
+　📍 Googleマップ：生URL
+　💰 価格目安：〜円／泊
+──────────────────────────────
 
-【ITINERARY_RULES】
-- 各ブロックは**固有名詞を必須**（例：東大寺、春日大社、ならまち、海遊館、白浜温泉 等）
-- 見出し：`🕘 9:00–10:30　🏯 観光：春日大社（奈良公園）`
-- 本文：見どころ/体験内容/小さなコツ（2–3行）
-- アクセス（公共交通・徒歩中心／所要）
-- 所要：60–90分基準、移動は30分刻み
-- 画像：**japan-guide / upload.wikimedia.org / images.unsplash.com / placehold.co** のいずれか1枚  
-  書式：
-  📸
-  ![説明](https://…)
-- 公式サイトURLとGoogleマップ検索URL（生URL）
-- 営業/拝観時間・休（分かる範囲）
-- 雨天代替を**各日1件**
-- 1泊2日なら **Day1 / Day2** を必ず出力。泊数に応じて日数分。
-- 区切りは `──────────────────────────────`
+2️⃣ 日程表（Day1〜帰着まで。**各日6ブロック以上**）
+　各ブロックの厳密フォーマット（**これに従う**）：
+　🕘 9:00–10:30　🏯 観光：施設名（エリア）
+　短評：見どころ/体験/小さなコツを2–3行
+　🕒 所要：90分　🚶アクセス：公共交通/徒歩での行き方・所要
+　📸
+　![施設名](許可ドメイン画像URL)
+　🔗 公式：生URL
+　📍 Googleマップ：生URL
+　🕰 営業：時間／休：定休
+　──────────────────────────────
+　※「昼食」「夕食」は**エリア＋ジャンル**で記載（店名は出さない）。
+　※**各日1つ以上**の雨天代替（屋内）も書く。
+　※9:00開始〜17:30前後で主要観光を収め、移動は30分刻みで自然に。
+──────────────────────────────
 
-【FOOD / EXPERIENCE / BUDGET / IMAGE / LINK ルール】は先述に従う。
-日本語モードは日本語、英語モードは英語で一貫。分割禁止・中間メッセージ禁止。
+3️⃣ 実用ガイド（この順で）
+　1) 🚆 交通（主要3行／運賃目安）
+　2) 🍱 食事（昼3・夜3、**店名必須**・短評・価格帯・🕰時間/休・公式URL・📸1枚）
+　3) 🎟️ 体験予約（1件以上：施設名・公式URL・料金・📸）
+　4) 💰 合計予算（宿/交通/食事/体験の小計＋合計）
+　5) ✅ チェックリスト
+
+4️⃣ 総評・注意点・代替案（2–4行）
+
+5️⃣ 次の操作メニュー（指示文のまま）
+
+【画像ルール】
+- 許可ドメイン：japan-guide / upload.wikimedia.org / images.unsplash.com
+- 不明時は https://placehold.co/800x500.png?text=施設名
+- 各ブロックに📸を1枚
+
+【言語】
+- lang=jaなら日本語、enなら英語で一貫。
+
+以上を**プレーンテキスト**で。JSON・コードブロック・表形式は禁止。
 """
+
 
 # ---------- OpenAI 呼び出し ----------
 def _call_openai_plan(answers: dict) -> str:
@@ -256,6 +280,18 @@ def _call_openai_plan(answers: dict) -> str:
     if got < need:
         text += f"\n\n（補足）現在 {got} 日分です。{need} 日分になるよう続きも含めて出力してください。"
     return text
+SYSTEM_PROMPT = (
+    "You are AI Travel Navi Kansai.\n"
+    "以下は**最終出力専用**の指示。ユーザーの回答(JSON)は別途渡す。"
+    "必ずユーザーの選択に厳密に従い、**選ばれていない地域は行程に含めない**こと。\n"
+    "出力は **プレーンテキストの旅程**。JSONやコードブロックや箇条書きのキー:値羅列は禁止。\n"
+    "構成は 1)ホテル候補3件 2)日程表 3)実用ガイド 4)総評・注意点・代替案 5)次の操作メニュー を**一度に**返す。\n"
+    "画像は各ブロック1枚。許可ドメインのみ："
+    "https://www.japan-guide.com / https://upload.wikimedia.org / https://images.unsplash.com "
+    "（無ければ https://placehold.co/800x500.png?text=施設名）。\n"
+    "GoogleマップURLは https://www.google.com/maps/search/キーワード の素のURL。Markdownリンクは禁止。\n"
+    "日本語モードなら日本語、英語モードなら英語で出力。一切の中間文言・分割禁止。"
+)
 
 # ---------- 画像検出・送信 ----------
 IMG_URL_RE = re.compile(
@@ -354,3 +390,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
