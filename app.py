@@ -251,42 +251,94 @@ def _build_final_prompt(answers: Dict[str, Any]) -> str:
 - 同じスポットの重複
 """
 
-def _call_openai_plan(answers: Dict[str, Any]) -> str:
-    """最終プラン生成。薄いときは自動で再生成して厚くする。"""
-    prompt = _build_final_prompt(answers)
+import re
+import json
 
-    # --- 1回目 ---
-    res1 = client.chat.completions.create(
+# --- 必要日数を answers から推定 ---
+def _required_days(answers: dict) -> int:
+    """
+    answers['schedule'] が:
+      1=日帰り, 2=1泊2日, 3=2泊3日, 4=3泊以上（最低4日分で作らせる）
+    の想定。文字列/数値どちらでも耐性あり。
+    """
+    raw = str(answers.get("schedule", "")).strip()
+    mapping = {
+        "1": 1, "日帰り": 1, "daytrip": 1,
+        "2": 2, "1泊2日": 2,
+        "3": 3, "2泊3日": 3,
+        "4": 4, "3泊以上": 4,
+    }
+    return mapping.get(raw, 2)  # 不明なら2日想定で保守的に
+
+# --- 出力本文に含まれる“日付見出し”のカウント ---
+DAY_JP_RE = re.compile(r"(?:\*\*|\*|^)\s*([第]?\s*\d+\s*日目)\b", re.MULTILINE)
+DAY_EN_RE = re.compile(r"(?:^|\n)\s*🗓️?\s*Day\s*(\d+)\b", re.IGNORECASE)
+
+def _count_days_in_text(text: str) -> int:
+    n1 = len(set(m.group(1) for m in DAY_JP_RE.finditer(text)))
+    n2 = len(set(m.group(1) for m in DAY_EN_RE.finditer(text)))
+    return max(n1, n2)
+
+# --- 生成プロンプトを組み立て（あなたの既存の SYSTEM_PROMPT を活かす） ---
+def _build_final_prompt(answers: dict, required_days: int) -> list[dict]:
+    lang = answers.get("lang", "ja")
+    locale_hint = "Japanese output." if str(lang).lower() in {"ja", "1", "japanese"} else "English output."
+
+    # ここはあなたの answers_brief など既存の要約関数があればそれを使ってOK
+    brief = json.dumps(answers, ensure_ascii=False)
+
+    extra_rules = (
+        f"必須要件：**日程表はちょうど {required_days} 日分**を出力すること。"
+        "各日には【朝・午前・昼・午後・夕方・夜】の少なくとも4ブロックを入れ、"
+        "各ブロックに《開始時間／所要時間／移動手段》を明記。"
+        "もし回答が不足していても、推定で埋めて構いません。"
+    )
+
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT + "\n" + locale_hint + "\n" + extra_rules},
+        {"role": "user", "content": "以下の回答に基づき、最適な旅プランを一回で提示してください。\n回答JSON:\n" + brief}
+    ]
+
+# --- OpenAI呼び出し（足りない日数なら自動で再生成） ---
+def _call_openai_plan(answers: dict) -> str:
+    need_days = _required_days(answers)
+
+    # 1回目生成
+    messages = _build_final_prompt(answers, need_days)
+    res = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.6,
-        max_tokens=3500,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ],
-    ).choices[0].message.content
+        messages=messages,
+    )
+    text = res.choices[0].message.content or ""
 
-    if not _needs_more_detail(res1):
-        return res1
+    # 日数チェック
+    have_days = _count_days_in_text(text)
+    if have_days >= need_days:
+        return text
 
-    # --- 2回目（補強生成）---
+    # 2回目：修正依頼（不足日数を明示）
+    missing = need_days - have_days
+    fix_messages = messages + [
+        {
+            "role": "user",
+            "content": (
+                "直前の出力では日程が不足しています。"
+                f"**あと {missing} 日分**を追加し、合計で **{need_days} 日分**にしてください。"
+                "全体を自然に時系列でつなげ、すでに出した日も含めて**最初から最後まで通しの1回出力**で再提示してください。"
+                "各日には【朝・午前・昼・午後・夕方・夜】のブロックを入れ、開始時間・所要時間・移動手段を必ず記載。"
+            )
+        }
+    ]
     res2 = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.5,
-        max_tokens=4000,
-        messages=[
-            {"role": "system", "content": "あなたは旅行プランの専門校正者。出力を厚く、詳細にし直してください。"},
-            {"role": "user", "content": f"""
-以下の旅行プランを、各日6ブロック以上に増補し、営業時間や画像URLも補って再生成してください。
-元の出力:
-======
-{res1}
-======
-"""}
-        ],
-    ).choices[0].message.content
+        messages=fix_messages,
+    )
+    text2 = res2.choices[0].message.content or ""
+    # 念のためもう一度カウントして、まだ足りなければ2→3回目…に広げてもOK。ここでは2回で終了。
+    return text2
 
-    return res2
 
 
 IMG_URL_RE = re.compile(r"https?://(?:www\.)?(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co)/[^\s)]+", re.I)
@@ -392,5 +444,6 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
