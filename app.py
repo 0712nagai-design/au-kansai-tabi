@@ -1,38 +1,20 @@
-# -*- coding: utf-8 -*-
-"""
-AI旅ナビ関西（LINE公式アカウント用） Flaskアプリ 完全版
-- LINE webhook: /callback
-- ヘルスチェック: /, /healthz, /py
-- OpenAI v1 (requestsベース) を利用（aiohttpは不使用）
-- セッション（会話履歴）をユーザーごとにメモリ保持（TTL付き）
-- "最初から" リセット
-- 画像マークダウン `![alt](URL)` を ImageSendMessage に自動変換
-- 長文は安全分割（LINE上限対策）
-- RateLimit/その他エラーの丁寧なフォールバック
-"""
-
-import os
-import re
-import time
-import sys
-import logging
-from typing import List, Dict, Any
+import os, re, logging, sys
+from typing import List, Tuple
+from urllib.parse import urlparse, urlunparse, urlencode, parse_qsl
 
 from flask import Flask, request, abort
 
 # LINE SDK
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
-)
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 
-# OpenAI v1 SDK（aiohttp依存なし）
+# OpenAI v1
 from openai import OpenAI
-from openai import RateLimitError, APIConnectionError, APIError
+
 
 # =========================
-# 環境変数（Render > Settings > Environment）
+# 環境変数
 # =========================
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
@@ -43,155 +25,45 @@ if not LINE_CHANNEL_SECRET or not LINE_CHANNEL_ACCESS_TOKEN:
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY が未設定です")
 
-# =========================
-# OpenAI クライアント
-# =========================
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# =========================
 # Flask
-# =========================
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-logging.getLogger().setLevel(logging.INFO)
-logging.info(f"Running Python: {sys.version}")
 
-# =========================
-# LINE ハンドラ
-# =========================
+# LINE
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
+
 # =========================
-# システムプロンプト
+# プロンプト読込
 # =========================
 def load_system_prompt() -> str:
     default_prompt = (
         "あなたは「AI旅ナビ関西（AI Travel Navi Kansai）」です。"
         "関西（京都・大阪・奈良・神戸・滋賀・和歌山）の旅行プランを、"
-        "選択式の質問を一問ずつ出し、全質問終了後に1回で最終プラン（ホテル3件/日程/実用ガイド/総評/操作メニュー）を提示します。"
-        "禁止：進行中の中間メッセージ（了解/少々お待ちください等）、画像のMarkdownリンク、分割出力。"
-        "画像は各ブロック1枚、許可ドメイン（japan-guide.com / upload.wikimedia.org / images.unsplash.com / placehold.co）のみを使用。"
-        "ユーザーが「最初から」「restart」「reset」等と言ったら会話をリセットして言語選択からやり直します。"
-        "常に文体は簡潔でフレンドリー、日本語モードでは日本語、英語モードでは英語のみを用います。"
+        "選択式の質問→全回答後に最終プラン（ホテル3件/日程/実用ガイド/総評/操作メニュー）を"
+        "一度で提示します。禁止：進行中の中間メッセージ、分割出力、Markdownのリンク画像。"
+        "写真は 1ブロック1枚まで。写真の行は Markdown 画像（例: ![説明](https://...)）で書いてください。"
+        "文章は日本語で簡潔に。"
     )
+    path = os.path.join(os.path.dirname(__file__), "prompt.txt")
     try:
-        here = os.path.dirname(__file__)
-        with open(os.path.join(here, "prompt.txt"), "r", encoding="utf-8") as f:
-            txt = f.read().strip()
-            return txt or default_prompt
+        with open(path, "r", encoding="utf-8") as f:
+            t = f.read().strip()
+            return t if t else default_prompt
     except FileNotFoundError:
         return default_prompt
 
 SYSTEM_PROMPT = load_system_prompt()
 
-# =========================
-# 会話セッション（メモリ）
-# =========================
-# Renderの単一コンテナ内で有効。スケールアウト時はRedis等が必要。
-SESSIONS: Dict[str, Dict[str, Any]] = {}
-SESSION_TTL_SEC = 60 * 60 * 2  # 2時間で自動破棄
-MAX_MSG_LEN = 4900            # TextSendMessage安全分割閾値
-OPENAI_MODEL = "gpt-4o-mini"  # コスパ良い軽量モデル
-
-def now() -> float:
-    return time.time()
-
-def cleanup_sessions() -> None:
-    """古いセッションを掃除"""
-    cutoff = now() - SESSION_TTL_SEC
-    dead_keys = [uid for uid, s in SESSIONS.items() if s.get("t", 0) < cutoff]
-    for k in dead_keys:
-        SESSIONS.pop(k, None)
-
-def new_greeting() -> str:
-    """最初の質問（静的に生成：安定のため）"""
-    return (
-        "🔄 最初から\n"
-        "こんにちは！私はAI旅ナビ関西です🧭\n"
-        "どちらの言語でご案内しますか？\n"
-        "1️⃣ 日本語（Japanese）\n"
-        "2️⃣ English（英語）"
-    )
-
-def init_session(user_id: str) -> Dict[str, Any]:
-    sess = {
-        "t": now(),
-        "msgs": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "assistant", "content": new_greeting()},
-        ],
-    }
-    SESSIONS[user_id] = sess
-    return sess
-
-def get_session(user_id: str) -> Dict[str, Any]:
-    cleanup_sessions()
-    sess = SESSIONS.get(user_id)
-    if not sess:
-        sess = init_session(user_id)
-    return sess
-
-def reset_session(user_id: str) -> Dict[str, Any]:
-    return init_session(user_id)
 
 # =========================
-# 画像マークダウン → LINEメッセージ変換
-# =========================
-IMG_PAT = re.compile(r'!\[[^\]]*\]\((https?://[^\s)]+)\)')
-ALLOWED_IMG_PREFIX = (
-    "https://www.japan-guide.com",
-    "https://upload.wikimedia.org",
-    "https://images.unsplash.com",
-    "https://placehold.co",
-)
-
-def build_line_messages_from_markdown(text: str) -> List[Any]:
-    """
-    本文中の `![alt](url)` を検出して、
-    テキストはTextSendMessage、画像はImageSendMessageに変換。
-    """
-    msgs: List[Any] = []
-    pos = 0
-
-    def push_text(chunk: str):
-        chunk = (chunk or "").strip()
-        if not chunk:
-            return
-        for i in range(0, len(chunk), MAX_MSG_LEN):
-            msgs.append(TextSendMessage(text=chunk[i:i+MAX_MSG_LEN]))
-
-    for m in IMG_PAT.finditer(text):
-        url = m.group(1)
-        # 前テキスト
-        push_text(text[pos:m.start()])
-        # 画像（許可ドメインのみ）
-        if url.startswith(ALLOWED_IMG_PREFIX):
-            msgs.append(ImageSendMessage(original_content_url=url, preview_image_url=url))
-        else:
-            # 安全策：URLをテキストで通知
-            push_text(f"📸 画像URL: {url}")
-        pos = m.end()
-
-    # 残りテキスト
-    push_text(text[pos:])
-
-    # LINEの1 replyは最大5メッセージ程度が安全
-    return msgs[:5] if msgs else [TextSendMessage(text="")]
-
-def reply_text_or_images(reply_token: str, content: str) -> None:
-    """OpenAI応答を行に合わせて送信"""
-    try:
-        messages = build_line_messages_from_markdown(content)
-        line_bot_api.reply_message(reply_token, messages)
-    except LineBotApiError:
-        app.logger.exception("LineBotApiError while replying")
-
-# =========================
-# ルーティング
+# ヘルスチェック
 # =========================
 @app.get("/")
-def index():
+def root():
     return "ok", 200
 
 @app.get("/healthz")
@@ -202,11 +74,15 @@ def healthz():
 def py_version():
     return sys.version, 200
 
+
+# =========================
+# Webhook
+# =========================
 @app.post("/callback")
 def callback():
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
-    app.logger.info(f"[LINE Webhook] body={body[:1000]}...")
+    app.logger.info(f"[Webhook body] {body[:800]}...")
 
     try:
         handler.handle(body, signature)
@@ -214,82 +90,156 @@ def callback():
         app.logger.exception("Invalid signature")
         abort(400)
     except Exception:
-        app.logger.exception("Unhandled error")
+        app.logger.exception("Webhook unhandled error")
         abort(500)
-
     return "OK", 200
 
+
 # =========================
-# メッセージイベント
+# 画像URL抽出 & 整形
+# =========================
+IMG_MD = re.compile(r"!\[[^\]]*\]\((https?://[^\s)]+)\)")
+
+ALLOW_HOSTS = {
+    "upload.wikimedia.org",
+    "images.unsplash.com",
+    "www.japan-guide.com",
+    "placehold.co",
+}
+
+def _tune_for_line_image(url: str) -> str:
+    """
+    LINEが取りにいけるように、サイズを抑えるための微調整。
+    ・HTTPS必須
+    ・画像直リンク（拡張子は必須ではないが、content-type が image/* になること）
+    ・Unsplashは w パラメータで縮小
+    """
+    try:
+        u = urlparse(url)
+        if u.scheme != "https":
+            return url  # https でないと失敗するので、そのまま返し→後で弾く
+
+        if u.netloc == "images.unsplash.com":
+            qs = dict(parse_qsl(u.query))
+            # なるべく軽く。幅 1000px 程度
+            qs.setdefault("w", "1000")
+            u = u._replace(query=urlencode(qs))
+            return urlunparse(u)
+
+        return url
+    except Exception:
+        return url
+
+def extract_images_and_clean(text: str) -> Tuple[str, List[str]]:
+    """
+    本文から Markdown 画像行を抜き出し、本文からは削除。
+    返り値: (画像行を除いた本文, 画像URLリスト)
+    """
+    urls = []
+
+    def repl(m: re.Match) -> str:
+        url = m.group(1).strip()
+        tuned = _tune_for_line_image(url)
+        urls.append(tuned)
+        # 本文側にはURLだけ残す（保険）
+        return f"（画像: {tuned}）"
+
+    body = IMG_MD.sub(repl, text)
+
+    # ホスト制限（不許可ドメインは捨てる）
+    filtered = []
+    for u in urls:
+        host = urlparse(u).netloc.lower()
+        if any(host.endswith(h) for h in ALLOW_HOSTS):
+            filtered.append(u)
+    return body, filtered
+
+
+# =========================
+# LINE メッセージ構築
+# =========================
+MAX_REPLY_MSGS = 5         # LINE 仕様
+MAX_TEXT_LEN   = 4800      # 安全マージン
+
+def build_line_messages(full_text: str) -> List:
+    """
+    OpenAIの応答文字列から、Text と Image を組み合わせて
+    1返信あたり5通以内に収めて返す。
+    """
+    # 画像抽出
+    body, img_urls = extract_images_and_clean(full_text)
+
+    # テキストは必要に応じ分割
+    texts = [body[i:i+MAX_TEXT_LEN] for i in range(0, len(body), MAX_TEXT_LEN)]
+    text_msgs = [TextSendMessage(text=t) for t in texts]
+
+    # 画像は最大2枚だけ（返信上限を超えないように）
+    img_msgs = []
+    for u in img_urls[:2]:
+        if urlparse(u).scheme == "https":
+            img_msgs.append(ImageSendMessage(original_content_url=u, preview_image_url=u))
+
+    # 上限調整：テキストが多いときは画像をさらに絞る
+    while len(text_msgs) + len(img_msgs) > MAX_REPLY_MSGS:
+        if img_msgs:
+            img_msgs.pop()
+        else:
+            # それでも超えるなら最後のテキストを切り詰める
+            text_msgs = text_msgs[:MAX_REPLY_MSGS]
+            break
+
+    return text_msgs + img_msgs
+
+
+# =========================
+# 会話ハンドラ
 # =========================
 @handler.add(MessageEvent, message=TextMessage)
-def on_text_message(event: MessageEvent):
-    user_id = event.source.user_id if hasattr(event.source, "user_id") else "anonymous"
+def handle_message(event: MessageEvent):
     user_text = (event.message.text or "").strip()
-    app.logger.info(f"[MSG] {user_id=} text={user_text!r}")
 
-    # リセットワード
-    if user_text.lower() in {"restart", "reset"} or ("最初から" in user_text) or ("やり直す" in user_text):
-        sess = reset_session(user_id)
-        greeting = sess["msgs"][-1]["content"]
-        reply_text_or_images(event.reply_token, greeting)
+    # Restart
+    if user_text.lower() in {"restart", "reset"} or "最初から" in user_text or "やり直す" in user_text:
+        reply = (
+            "最初からやり直します🔄\n"
+            "こんにちは！私はAI旅ナビ関西です🧭\n"
+            "どちらの言語でご案内しますか？\n"
+            "1️⃣ 日本語（Japanese）\n"
+            "2️⃣ English（英語）"
+        )
+        line_bot_api.reply_message(event.reply_token, [TextSendMessage(text=reply)])
         return
 
-    # セッション取得
-    sess = get_session(user_id)
-    sess["t"] = now()
-
-    # 初回起動用キーワード（念のため）
-    if user_text in {"スタート", "start", "開始", "ここをクリック"} and len(sess["msgs"]) <= 2:
-        greeting = sess["msgs"][-1]["content"]
-        reply_text_or_images(event.reply_token, greeting)
-        return
-
-    # OpenAI への問い合わせ（履歴ごと）
-    msgs = sess["msgs"] + [{"role": "user", "content": user_text}]
-
+    # OpenAI へ
     try:
         completion = client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model="gpt-4o-mini",
             temperature=0.7,
-            messages=msgs,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_text},
+            ],
         )
-        assistant_text = completion.choices[0].message.content or ""
-    except RateLimitError as e:
-        app.logger.warning(f"OpenAI RateLimit: {e}")
-        assistant_text = (
-            "サーバが混み合っています。少し時間をおいてもう一度お試しください。\n"
-            "(debug: RateLimitError)"
-        )
-    except (APIConnectionError, APIError) as e:
-        app.logger.exception("OpenAI API connectivity error")
-        assistant_text = (
-            "接続エラーが発生しました。ネットワーク状況をご確認の上、再度お試しください。\n"
-            f"(debug: {type(e).__name__})"
-        )
+        content = completion.choices[0].message.content or "（応答なし）"
     except Exception as e:
-        app.logger.exception("OpenAI API unexpected error")
-        assistant_text = (
-            "サーバ側でエラーが発生しました。しばらくしてからもう一度お試しください。\n"
+        app.logger.exception("OpenAI API error")
+        content = (
+            "サーバ側でエラーが発生しました。\n"
+            "少し時間をおいて再度お試しください。\n"
             f"(debug: {type(e).__name__})"
         )
 
-    # 「🔄 最初から」を常時フッターとして付ける（重複しないよう簡易対策）
-    if "最初から" not in assistant_text:
-        assistant_text = f"{assistant_text}\n\n🔄 最初から"
+    # LINE 返信（5通以内に整形）
+    try:
+        msgs = build_line_messages(content)
+        line_bot_api.reply_message(event.reply_token, msgs)
+    except LineBotApiError:
+        app.logger.exception("LineBotApiError while replying")
 
-    # 履歴を更新
-    sess["msgs"] = msgs + [{"role": "assistant", "content": assistant_text}]
-    # 応答
-    reply_text_or_images(event.reply_token, assistant_text)
 
 # =========================
-# ローカル実行
+# ローカル起動
 # =========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
-
-
