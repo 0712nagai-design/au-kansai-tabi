@@ -250,55 +250,66 @@ def on_message(event: MessageEvent):
     text = (event.message.text or "").strip()
     last_to[event.reply_token] = uid
 
-    # リセット
+    # ─ リスタート ─
     if text.lower() in RESTART or text in RESTART:
         users.pop(uid, None)
         _reply_text(event.reply_token, WELCOME)
         return
 
-    # 初期化
+    # ─ 初期化 ─
     if uid not in users or not users[uid]:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
 
     state = users[uid]
     step = state["step"]
 
-    # まず入力を検証して保存（初回も同じルート）
-    if not _validate_and_store(uid, step, text):
+    # ─ 現在ステップに対して入力を検証 ─
+    valid = _validate_and_store(uid, step, text)
+    if not valid:
+        # 無効入力：現在の質問を再表示
         _reply_text(event.reply_token, _render_question(step))
         return
 
-    # 次のステップへ
+    # ─ 有効なら次へ進める ─
     step += 1
     state["step"] = step
 
-    # まだ質問が残っている
+    # ✅ ここが修正ポイント：
+    # 言語選択後（step==1）は必ず地域質問に進むため、
+    # 次の入力を待たずに質問を送信
+    if step == 1:
+        _reply_text(event.reply_token, _render_question(step))
+        return
+
+    # ─ まだ質問が残っている場合 ─
     if step < len(Q):
         _reply_text(event.reply_token, _render_question(step))
         return
 
-    # ---- 全部そろった：OpenAIに投げる ----
+    # ─ 全質問終了 → OpenAI で最終プラン作成 ─
     answers = state["answers"].copy()
     try:
         plan = _call_openai_plan(answers)
     except Exception as e:
         app.logger.exception("OpenAI API error")
-        _reply_text(event.reply_token,
-            "サーバ側で一時的なエラーが発生しました。時間をおいて再試行してください。\n(debug: %s)" % type(e).__name__)
+        _reply_text(
+            event.reply_token,
+            f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})",
+        )
         return
 
-    # 本文
     _reply_text(event.reply_token, plan)
-    # 先頭から最大5枚の画像をプッシュ（本文とは独立）
     imgs = _detect_image_urls(plan, limit=5)
     if imgs:
         _push_images(uid, imgs)
 
-    # セッションを終了（次回は最初から）
     users.pop(uid, None)
+
+  
 
 # ====== ローカル実行 ======
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
