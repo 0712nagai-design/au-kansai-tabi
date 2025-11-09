@@ -198,7 +198,6 @@ def _required_days(answers: dict) -> int:
 def build_final_prompt(answers: Dict[str, Any]) -> str:
     lang = answers.get("lang", "ja")
     locale = "Japanese output." if lang == "ja" else "English output."
-    # ここでユーザー回答をそのまま添付（モデルは参照用に使うだけ）
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
 
     return f"""
@@ -209,7 +208,7 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 【ユーザー回答(JSON 参照用)】
 {answers_json}
 
-【出力順（ぜったい厳守）】
+【出力順（厳守）】
 1️⃣ ホテル候補（3件）
 　書式：
 　🏨 ホテル名
@@ -223,44 +222,40 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 
 2️⃣ 日程表（Day1〜帰着まで。**各日6ブロック以上**）
 　各ブロックの厳密フォーマット（**これに従う**）：
-　🕘 9:00–10:30　🏯 観光：施設名（エリア）
+　🕘 9:00–10:30　《Day N》 🏯 観光：施設名（エリア）
 　短評：見どころ/体験/小さなコツを2–3行
-　🕒 所要：90分　🚶アクセス：公共交通/徒歩での行き方・所要
+　🕒 所要：60–90分　🚶アクセス：公共交通/徒歩・所要
 　📸
 　![施設名](許可ドメイン画像URL)
 　🔗 公式：生URL
 　📍 Googleマップ：生URL
 　🕰 営業：時間／休：定休
 　──────────────────────────────
-　※「昼食」「夕食」は**エリア＋ジャンル**で記載（店名は出さない）。
-　※**各日1つ以上**の雨天代替（屋内）も書く。
-　※9:00開始〜17:30前後で主要観光を収め、移動は30分刻みで自然に。
+　※「昼食」「夕食」は**店名を必須**（例：○○食堂）＋短評＋価格帯＋営業時間＋GoogleマップURL。
+　※体験は**固有施設名で最低1ブロック**（例：ならまち着物レンタル△△店、茶道体験□□亭）。
+　※各日1件、雨天時代替（屋内）も書く。
+　※9:00開始〜17:30前後で主要観光／移動は30分刻みで自然に。
 ──────────────────────────────
 
 3️⃣ 実用ガイド（この順で）
 　1) 🚆 交通（主要3行／運賃目安）
-　2) 🍱 食事（昼3・夜3、**店名必須**・短評・価格帯・🕰時間/休・公式URL・📸1枚）
-　3) 🎟️ 体験予約（1件以上：施設名・公式URL・料金・📸）
-　4) 💰 合計予算（宿/交通/食事/体験の小計＋合計）
+　2) 🍱 食事おすすめ：**昼3件／夜3件**（店名必須・短評・価格帯・🕰時間/休・公式URL・📸1枚・GoogleマップURL）
+　3) 🎟️ 体験予約：**3件**（施設名必須・公式URL・料金目安・所要・予約要否・📸1枚・GoogleマップURL）
+	4) 💰 合計予算（宿/交通/食事/体験の小計＋合計）
 　5) ✅ チェックリスト
 
 4️⃣ 総評・注意点・代替案（2–4行）
 
 5️⃣ 次の操作メニュー（指示文のまま）
-        "\n\n【出力仕様（厳守）】\n"
-        "1️⃣ ホテル候補3件（名称・特徴・価格目安・公式URL・Googleマップ検索URL・写真1枚）\n"
-        "2️⃣ 日程表（出発〜帰着まで、泊数に応じた日数分、**各日6ブロック以上**。"
-        "全ブロックに **《Day {N}》** を含める。観光・体験・昼食・夕食は固有名詞で書く）\n"
-        "3️⃣ 実用ガイド：\n"
-        "   - 交通：主要な移動手段の実務的アドバイス\n"
-        "   - 食事おすすめ：**昼3件／夜3件**（店名必須・短評・価格帯・営業時間/定休・公式URL・写真1枚・GoogleマップURL）\n"
-        "   - 体験予約：**3件**（施設名必須・公式URL・料金目安・所要・予約要否・写真1枚・GoogleマップURL）\n"
-        "   - 予算：宿泊/交通/食事/体験の小計と合計（数値）\n"
-        "   - チェックリスト\n"
-        "4️⃣ 総評・注意点・代替案（屋内ミュージアム等）\n"
-        "5️⃣ 次の操作メニュー\n\n"
-        "【ITINERARY_RULES】
-       
+
+【画像ルール】
+- 許可ドメイン：https://www.japan-guide.com / https://upload.wikimedia.org / https://images.unsplash.com
+- 不明時は https://placehold.co/800x500.png?text=施設名
+- 各ブロックに📸を1枚
+
+【リンクルール】URLは**生URL**のみ（Markdownリンク禁止）
+【言語】lang=jaなら日本語、enなら英語で一貫
+"""
 
 
         "\n【LINK_RULES】URLは生URLのみ（Markdownリンク禁止）\n"
@@ -280,24 +275,20 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 
 # ---------- OpenAI 呼び出し ----------
 def _call_openai_plan(answers: dict) -> str:
-    sys_policy = "Follow the user's instructions exactly and produce a single, complete itinerary."
+    # ↓ここを修正（_build_final_prompt → build_final_prompt）
     user_prompt = build_final_prompt(answers)
 
     res = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.6,
         messages=[
-            {"role": "system", "content": sys_policy},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
     )
-    text = res.choices[0].message.content or ""
+    ...
 
-    need = _required_days(answers)
-    got = _count_days_in_text(text)
-    if got < need:
-        text += f"\n\n（補足）現在 {got} 日分です。{need} 日分になるよう続きも含めて出力してください。"
-    return text
+
 SYSTEM_PROMPT = (
     "You are AI Travel Navi Kansai.\n"
     "以下の利用者回答（JSON）に厳密に従って、選択されていない地域は一切含めず、"
@@ -411,6 +402,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
