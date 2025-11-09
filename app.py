@@ -241,7 +241,7 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 　1) 🚆 交通（主要3行／運賃目安）
 　2) 🍱 食事おすすめ：**昼3件／夜3件**（店名必須・短評・価格帯・🕰時間/休・公式URL・📸1枚・GoogleマップURL）
 　3) 🎟️ 体験予約：**3件**（施設名必須・公式URL・料金目安・所要・予約要否・📸1枚・GoogleマップURL）
-	4) 💰 合計予算（宿/交通/食事/体験の小計＋合計）
+　4) 💰 合計予算（宿/交通/食事/体験の小計＋合計）
 　5) ✅ チェックリスト
 
 4️⃣ 総評・注意点・代替案（2–4行）
@@ -256,18 +256,6 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 【リンクルール】URLは**生URL**のみ（Markdownリンク禁止）
 【言語】lang=jaなら日本語、enなら英語で一貫
 """
-
-【画像ルール】
-- 許可ドメイン：japan-guide / upload.wikimedia.org / images.unsplash.com
-- 不明時は https://placehold.co/800x500.png?text=施設名
-- 各ブロックに📸を1枚
-
-【言語】
-- lang=jaなら日本語、enなら英語で一貫。
-
-以上を**プレーンテキスト**で。JSON・コードブロック・表形式は禁止。
-"""
-
 
 # ---------- OpenAI 呼び出し ----------
 def _call_openai_plan(answers: dict) -> str:
@@ -405,6 +393,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
