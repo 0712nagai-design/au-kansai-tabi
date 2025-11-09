@@ -449,3 +449,75 @@ if __name__ == "__main__":
     logging.info(f"Running Python: {sys.version}")
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=True)
+    @handler.add(MessageEvent, message=TextMessage)
+def on_text(event: MessageEvent):
+    uid = event.source.user_id
+    txt = (event.message.text or "").strip()
+    users_last_to[event.reply_token] = uid  # 画像pushの宛先に使う
+
+    # リスタート
+    if txt.lower() in RESTART_WORDS or txt in RESTART_WORDS:
+        users.pop(uid, None)
+        _reply(event.reply_token, WELCOME_JA)
+        return
+
+    # ユーザー状態を初期化（未登録なら）
+    if uid not in users:
+        users[uid] = {
+            "step": 0,
+            "answers": {},
+            "history": deque(maxlen=MAX_TURNS),
+        }
+
+    state = users[uid]
+    step = state["step"]
+
+    # --- ここがポイント：現在のstepに対して今届いた入力をまずパース ---
+    ans = parse_answer(txt, step)
+
+    # 無効なら質問だけ出して終了（初回含む）
+    if ans is None:
+        _reply(event.reply_token, render_question(step))
+        return
+
+    # リスタート指示（parse_answer側で判定済み）
+    if ans == "__RESTART__":
+        users.pop(uid, None)
+        _reply(event.reply_token, WELCOME_JA)
+        return
+
+    # 有効回答を保存し、次のステップへ
+    state["answers"][Q[step]["key"]] = ans
+    step += 1
+    state["step"] = step
+
+    # まだ質問が残っていれば次の質問を出す
+    if step < len(Q):
+        _reply(event.reply_token, render_question(step))
+        return
+
+    # ===== 全質問そろい → 最終プラン生成 =====
+    answers = state["answers"].copy()
+    sys_prompt = SYSTEM_PROMPT
+    brief = build_user_brief(answers)
+
+    try:
+        messages = [{"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": "以下の回答に基づき、最終プランを1回で提示してください。\n回答: " + brief}]
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.6,
+            messages=messages,
+        )
+        out = completion.choices[0].message.content
+    except Exception as e:
+        app.logger.exception("OpenAI API error")
+        _reply(event.reply_token,
+               "サーバ側で一時的なエラーが発生しました。少し時間をおいて再試行してください。\n(debug: %s)" % type(e).__name__)
+        return
+
+    # テキスト + 画像送信、完了後は初期状態に戻す
+    reply_with_text_and_images(event.reply_token, out)
+    users.pop(uid, None)
+
+
