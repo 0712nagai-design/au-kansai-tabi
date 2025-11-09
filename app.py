@@ -1,20 +1,22 @@
-import os
-import sys
-import logging
+# -*- coding: utf-8 -*-
+import os, re, sys, json, logging
 from collections import defaultdict, deque
+from datetime import datetime
+from typing import Optional, Dict, Any, List
+
 from flask import Flask, request, abort
 
 # LINE SDK
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import (
+    MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+)
 
-# OpenAI v1 SDK
+# OpenAI v1
 from openai import OpenAI
 
-# -----------------------------
-# 環境変数
-# -----------------------------
+# ====== 環境変数 ======
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
@@ -24,162 +26,279 @@ if not LINE_CHANNEL_SECRET or not LINE_CHANNEL_ACCESS_TOKEN:
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY が未設定です")
 
-# OpenAI / Flask / LINE 準備
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+# ====== Flask / LINE 準備 ======
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# -----------------------------
-# システムプロンプト
-# -----------------------------
-def load_system_prompt() -> str:
-    default_prompt = (
-        "あなたは「AI旅ナビ関西（AI Travel Navi Kansai）」です。"
-        "関西（京都・大阪・奈良・神戸・滋賀・和歌山）の旅行プランに精通したプロの旅行コンシェルジュとして、"
-        "ユーザーに選択式の質問を1問ずつ出し、すべての回答が揃ったら即座に最終プランを1回で提示してください。"
-        "最終出力には必ず 1)ホテル候補3件 2)日程表 3)実用ガイド 4)総評・注意点・代替案 5)次の操作メニュー を含めます。"
-        "禁止事項：進行中の中間メッセージ（了解/少々お待ちください等）、画像のMarkdownリンク、分割出力。"
-        "画像は各ブロック1枚、許可ドメイン（japan-guide / upload.wikimedia.org / images.unsplash.com）のみ。"
-        "質問は一問ずつ番号選択式、各質問の下に常に『🔄 最初から』ボタン表現を付与。"
-        "英語モードと日本語モードは選択後に統一。"
-        "ユーザーが『最初から/やり直す/restart/reset/start/スタート』と言ったら、全回答を破棄して言語選択からやり直す。"
-        "出力はLINEで読みやすい改行・絵文字・囲み記号を適度に用いる。"
-    )
-    path = os.path.join(os.path.dirname(__file__), "prompt.txt")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            txt = f.read().strip()
-            return txt if txt else default_prompt
-    except FileNotFoundError:
-        return default_prompt
+# ====== 会話状態（インメモリ） ======
+MAX_TURNS = 30
+State = Dict[str, Any]
+users: Dict[str, State] = defaultdict(dict)
+last_to: Dict[str, str] = {}  # reply_token -> user_id（画像push宛先用）
 
-SYSTEM_PROMPT = load_system_prompt()
+# 再起動ワード
+RESTART = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
 
-# -----------------------------
-# 会話状態（簡易インメモリ）
-# Render は再起動することがあるため永続ではありません。
-# 安定運用するなら Redis/SQLite への置き換えを検討。
-# -----------------------------
-MAX_TURNS = 20  # 直近20ターンを保持
-conversations: dict[str, deque] = defaultdict(lambda: deque(maxlen=MAX_TURNS))
+# ====== 質問定義 ======
+REGIONS = {1: "京都", 2: "大阪", 3: "奈良", 4: "神戸", 5: "滋賀", 6: "和歌山"}
+THEMES = {
+    1: "グルメ", 2: "歴史文化", 3: "自然癒し", 4: "夜景",
+    5: "温泉", 6: "家族", 7: "ショッピング", 8: "体験メイン", 9: "その他"
+}
+BUDGETS = {1: "~¥5,000", 2: "~¥10,000", 3: "~¥20,000", 4: "¥30,000以上"}
+HOTELS = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館", 5: "こだわらない"}
+TRANSPORT = {1: "公共交通", 2: "車", 3: "徒歩中心", 4: "指定なし"}
+COMPANION = {1: "ひとり", 2: "カップル", 3: "友人", 4: "家族", 5: "外国人友人", 6: "その他"}
+DEPT = {1: "6–8時", 2: "9–11時", 3: "12–14時", 4: "15–17時", 5: "18時以降"}
+ARRV = {1: "14–17時", 2: "17–19時", 3: "19–21時", 4: "21時以降", 5: "未定"}
 
-RESTART_WORDS = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
+Q = [
+    {"key": "lang", "title": "どちらの言語でご案内しますか？",
+     "choices": {1: "日本語", 2: "English"}, "multi": False},
+    {"key": "region", "title": "地域を教えてください。（複数選択可）",
+     "choices": REGIONS, "multi": True},
+    {"key": "date", "title": "出発日を YYYY-MM-DD で入力してください（例：2025-03-20）",
+     "choices": {}, "multi": False},
+    {"key": "stay", "title": "日程を選択してください。",
+     "choices": {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊以上"}, "multi": False},
+    {"key": "theme", "title": "テーマを選んでください。（複数選択可）",
+     "choices": THEMES, "multi": True},
+    {"key": "budget", "title": "予算（1人）を選んでください。",
+     "choices": BUDGETS, "multi": False},
+    {"key": "hotel", "title": "ホテルタイプを選んでください。",
+     "choices": HOTELS, "multi": False},
+    {"key": "transport", "title": "交通手段を選んでください。（複数選択可）",
+     "choices": TRANSPORT, "multi": True},
+    {"key": "companion", "title": "同行者を選んでください。",
+     "choices": COMPANION, "multi": False},
+    {"key": "dept", "title": "出発時間帯を選んでください。",
+     "choices": DEPT, "multi": False},
+    {"key": "arrv", "title": "帰着時間帯はどのくらいを予定されていますか？",
+     "choices": ARRV, "multi": False},
+]
 
-START_MSG = (
+WELCOME = (
     "🔄 最初から\n"
     "こんにちは！私はAI旅ナビ関西です🧭\n"
     "どちらの言語でご案内しますか？\n"
     "1️⃣ 日本語（Japanese）\n"
-    "2️⃣ English（英語）"
+    "2️⃣ English（英語）\n"
+    "（再開するには 1 または 2 を送ってください）"
 )
 
-# -----------------------------
-# ルーティング
-# -----------------------------
+# ====== ルーティング ======
 @app.get("/")
-def root_ok():
-    return "ok", 200
+def root_ok(): return "ok", 200
 
 @app.get("/healthz")
-def healthz():
-    return "ok", 200
+def healthz(): return "ok", 200
 
 @app.get("/py")
-def py_version():
-    return sys.version, 200
+def py(): return sys.version, 200
 
-@app.route("/callback", methods=["POST"])
+@app.post("/callback")
 def callback():
-    signature = request.headers.get("X-Line-Signature", "")
+    sig = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
-    app.logger.info(f"[LINE Webhook] body={body[:1000]}...")
     try:
-        handler.handle(body, signature)
+        handler.handle(body, sig)
     except InvalidSignatureError:
-        app.logger.exception("Invalid signature")
         abort(400)
-    except Exception:
-        app.logger.exception("Unhandled error while handling webhook")
-        abort(500)
     return "OK", 200
 
-# -----------------------------
-# メッセージイベント
-# -----------------------------
+# ====== ユーティリティ ======
+def _render_question(idx: int) -> str:
+    q = Q[idx]
+    title = q["title"]
+    if q["choices"]:
+        lines = [title]
+        for n, label in q["choices"].items():
+            lines.append(f"{n}\u20E3 {label}")  # 1⃣ 風
+    else:
+        lines = [title]
+    lines.append("\n🔁 最初から")
+    return "\n".join(lines)
+
+def _parse_numbers(s: str) -> Optional[List[int]]:
+    if not s: return None
+    s = s.replace("，", ",").replace("・", ",").replace(" ", "")
+    if not re.fullmatch(r"[0-9,]+", s): return None
+    try:
+        nums = [int(x) for x in s.split(",") if x]
+        return nums if nums else None
+    except Exception:
+        return None
+
+def _validate_and_store(uid: str, step: int, text: str) -> bool:
+    """有効なら users[uid]['answers'] に保存して True を返す。無効なら False。"""
+    state = users[uid]
+    q = Q[step]
+    key = q["key"]
+
+    # 言語
+    if key == "lang":
+        nums = _parse_numbers(text)
+        if nums and len(nums) == 1 and nums[0] in (1, 2):
+            state["answers"][key] = "ja" if nums[0] == 1 else "en"
+            return True
+        return False
+
+    # 地域（複数）
+    if key == "region":
+        nums = _parse_numbers(text)
+        if not nums: return False
+        bad = [n for n in nums if n not in REGIONS]
+        if bad: return False
+        state["answers"][key] = [REGIONS[n] for n in sorted(set(nums))]
+        return True
+
+    # 日付
+    if key == "date":
+        try:
+            datetime.strptime(text.strip(), "%Y-%m-%d")
+            state["answers"][key] = text.strip()
+            return True
+        except Exception:
+            return False
+
+    # 以降は共通（単一 or 複数）
+    nums = _parse_numbers(text)
+    if not nums: return False
+
+    if q["multi"]:
+        bad = [n for n in nums if n not in q["choices"]]
+        if bad: return False
+        state["answers"][key] = [q["choices"][n] for n in sorted(set(nums))]
+        return True
+    else:
+        if len(nums) != 1 or nums[0] not in q["choices"]:
+            return False
+        state["answers"][key] = q["choices"][nums[0]]
+        return True
+
+def _answers_brief(a: Dict[str, Any]) -> str:
+    return json.dumps(a, ensure_ascii=False, indent=2)
+
+SYSTEM_PROMPT = (
+    "You are AI Travel Navi Kansai.\n"
+    "必ずユーザーの選択（JSON）に厳密に従い、**選ばれていない地域は一切行程に含めない**こと。\n"
+    "質問はすべて完了済み。いまから最終出力を**一度に**返す。\n"
+    "出力構成：1)ホテル候補3件 2)日程表 3)実用ガイド 4)総評・注意点・代替案 5)次の操作メニュー。\n"
+    "画像は各ブロック1枚、許可ドメインは `https://www.japan-guide.com` / `https://upload.wikimedia.org` / "
+    "`https://images.unsplash.com` / 不明時は `https://placehold.co/800x500.png?text=施設名`。\n"
+    "GoogleマップURLは `https://www.google.com/maps/search/キーワード` 形式。\n"
+    "日本語モードでは日本語、英語モードでは英語で出力。分割禁止、中間文言禁止。"
+)
+
+def _call_openai_plan(answers: Dict[str, Any]) -> str:
+    lang = answers.get("lang", "ja")
+    locale_hint = "Japanese output." if lang == "ja" else "English output."
+    brief = _answers_brief(answers)
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT + "\n" + locale_hint},
+        {"role": "user", "content": "以下の回答に基づき、最適な旅行プランを一回で提示してください。\n回答JSON:\n" + brief}
+    ]
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.6,
+        messages=messages,
+    )
+    return res.choices[0].message.content
+
+IMG_URL_RE = re.compile(r"https?://(?:www\.)?(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co)/[^\s)]+", re.I)
+
+def _detect_image_urls(text: str, limit=5) -> List[str]:
+    urls = []
+    for m in IMG_URL_RE.finditer(text):
+        urls.append(m.group(0))
+        if len(urls) >= limit: break
+    return urls
+
+def _split_long_text(text: str, maxlen=4900) -> List[str]:
+    if len(text) <= maxlen: return [text]
+    parts, buf = [], []
+    count = 0
+    for line in text.splitlines(True):
+        if count + len(line) > maxlen:
+            parts.append("".join(buf))
+            buf, count = [line], len(line)
+        else:
+            buf.append(line); count += len(line)
+    if buf: parts.append("".join(buf))
+    return parts
+
+def _reply_text(reply_token: str, text: str):
+    chunks = _split_long_text(text)
+    msgs = [TextSendMessage(text=c) for c in chunks]
+    line_bot_api.reply_message(reply_token, msgs)
+
+def _push_images(uid: str, urls: List[str]):
+    for u in urls:
+        try:
+            line_bot_api.push_message(uid, ImageSendMessage(original_content_url=u, preview_image_url=u))
+        except LineBotApiError:
+            app.logger.exception("Image push failed: %s", u)
+
+# ====== メインハンドラ ======
 @handler.add(MessageEvent, message=TextMessage)
 def on_message(event: MessageEvent):
-    user_id = event.source.user_id
-    user_text = (event.message.text or "").strip()
+    uid = event.source.user_id
+    text = (event.message.text or "").strip()
+    last_to[event.reply_token] = uid
 
-    # リセット系
-    if user_text.lower() in RESTART_WORDS or user_text in RESTART_WORDS:
-        conversations.pop(user_id, None)  # 履歴クリア
-        _safe_reply(event.reply_token, START_MSG)
+    # リセット
+    if text.lower() in RESTART or text in RESTART:
+        users.pop(uid, None)
+        _reply_text(event.reply_token, WELCOME)
         return
 
-    # 初回ユーザーは言語選択から
-    if user_id not in conversations or len(conversations[user_id]) == 0:
-        _safe_reply(event.reply_token, START_MSG)
-        # 初回は履歴に system だけ積んでおく
-        conversations[user_id].clear()
-        conversations[user_id].append({"role": "system", "content": SYSTEM_PROMPT})
-        # ユーザー発話も履歴化（以降の文脈用）
-        conversations[user_id].append({"role": "user", "content": user_text})
+    # 初期化
+    if uid not in users or not users[uid]:
+        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
+
+    state = users[uid]
+    step = state["step"]
+
+    # まず入力を検証して保存（初回も同じルート）
+    if not _validate_and_store(uid, step, text):
+        _reply_text(event.reply_token, _render_question(step))
         return
 
-    # 既に会話中：履歴にユーザー発話を追加
-    conversations[user_id].append({"role": "user", "content": user_text})
+    # 次のステップへ
+    step += 1
+    state["step"] = step
 
-    # OpenAI へ：system を先頭に、当該ユーザーの履歴を丸ごと送る
-    messages = list(conversations[user_id])
-    if messages[0].get("role") != "system":
-        messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+    # まだ質問が残っている
+    if step < len(Q):
+        _reply_text(event.reply_token, _render_question(step))
+        return
 
+    # ---- 全部そろった：OpenAIに投げる ----
+    answers = state["answers"].copy()
     try:
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.6,
-            messages=messages,
-        )
-        reply = completion.choices[0].message.content
+        plan = _call_openai_plan(answers)
     except Exception as e:
         app.logger.exception("OpenAI API error")
-        reply = (
-            "サーバ側で一時的なエラーが発生しました。\n"
-            "少し時間をおいてからもう一度お試しください。\n"
-            "（debug: " + type(e).__name__ + "）"
-        )
+        _reply_text(event.reply_token,
+            "サーバ側で一時的なエラーが発生しました。時間をおいて再試行してください。\n(debug: %s)" % type(e).__name__)
+        return
 
-    # 返信＆履歴に AI 応答を追記
-    _safe_reply(event.reply_token, reply)
-    conversations[user_id].append({"role": "assistant", "content": reply})
+    # 本文
+    _reply_text(event.reply_token, plan)
+    # 先頭から最大5枚の画像をプッシュ（本文とは独立）
+    imgs = _detect_image_urls(plan, limit=5)
+    if imgs:
+        _push_images(uid, imgs)
 
-# -----------------------------
-# LINE 返信（自動分割）
-# -----------------------------
-def _safe_reply(reply_token: str, text: str) -> None:
-    try:
-        MAX = 4900  # LINEの1メッセージ上限に安全マージン
-        chunks = [text[i:i + MAX] for i in range(0, len(text), MAX)] or [""]
-        messages = [TextSendMessage(text=c) for c in chunks]
-        line_bot_api.reply_message(reply_token, messages)
-    except LineBotApiError:
-        app.logger.exception("LineBotApiError while replying")
+    # セッションを終了（次回は最初から）
+    users.pop(uid, None)
 
-# -----------------------------
-# ローカル実行
-# -----------------------------
+# ====== ローカル実行 ======
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=True)
-
-
-
-
-
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
