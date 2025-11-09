@@ -259,8 +259,8 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
         "   - チェックリスト\n"
         "4️⃣ 総評・注意点・代替案（屋内ミュージアム等）\n"
         "5️⃣ 次の操作メニュー\n\n"
-        "【ITINERARY_RULES】\n" + ITINERARY_RULES +
-        ITINERARY_RULES = r"""
+        "【ITINERARY_RULES】
+       
 【🗓️ 日程テンプレ（厳守）】
 - 旅程は各日の冒頭に見出し：`### Day {N}: YYYY年MM月DD日（曜）` を必ず入れる。
 - 各日、**少なくとも6ブロック**（観光3+体験1+昼食1+夕食1 以上）。
@@ -435,5 +435,6 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
