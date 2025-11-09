@@ -1,157 +1,143 @@
 # -*- coding: utf-8 -*-
-import os, sys, time, re, logging, random
-from typing import Dict, List, Tuple
-from collections import defaultdict
+import os
+import re
+import sys
+import json
+import time
+import logging
+import unicodedata
+from collections import defaultdict, deque
+from datetime import datetime
 
 from flask import Flask, request, abort
+
+# LINE SDK
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 )
-from openai import OpenAI
-from openai._exceptions import RateLimitError, APIError, APITimeoutError
 
-# ====== 環境変数 ======
+# OpenAI v1
+from openai import OpenAI
+
+# =========================
+# 環境変数 & 初期化
+# =========================
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-if not LINE_CHANNEL_SECRET or not LINE_CHANNEL_ACCESS_TOKEN:
-    raise RuntimeError("LINE env missing")
-if not OPENAI_API_KEY:
-    raise RuntimeError("OPENAI_API_KEY missing")
 
-# ====== 基本 ======
+if not LINE_CHANNEL_SECRET or not LINE_CHANNEL_ACCESS_TOKEN:
+    raise RuntimeError("LINE の環境変数が未設定です（LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN）")
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY が未設定です")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
+
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
-oai = OpenAI(api_key=OPENAI_API_KEY)
 
-# ====== プロンプト（ホットリロード） ======
-PROMPT_PATH = os.path.join(os.path.dirname(__file__), "prompt.txt")
-_prompt_text, _prompt_mtime = None, 0.0
-DEFAULT_PROMPT = (
-    "あなたは「AI旅ナビ関西（AI Travel Navi Kansai）」です。"
-    "関西（京都・大阪・奈良・神戸・滋賀・和歌山）に精通した旅行コンシェルジュ。"
-    "【重要】サーバ側で集めた回答（JSON）が与えられるので、"
-    "それを唯一の真実として用い、質問は一切行わず、"
-    "ホテル3件→日程表→実用ガイド→総評/注意/代替案→操作メニュー を"
-    "1回の出力で完成させてください。"
-    "禁止：途中の中間メッセージ・分割出力・Markdownリンク画像。"
-    "画像は各ブロック1枚・許可ドメイン（japan-guide.com / upload.wikimedia.org / images.unsplash.com / placehold.co）のみ。"
+# Renderのgunicornは複数ワーカーを立てるとインメモリ状態が分離されます。
+# かならず Procfile を `--workers 1` にしてください（下に例あり）。
+
+# =========================
+# ユーザー状態（インメモリ）
+# ※Render再起動で消えます。スケールしたい場合は Redis/DB を使ってください。
+# =========================
+MAX_TURNS = 20
+users = defaultdict(lambda: {
+    "step": 0,
+    "answers": {},            # QAの値を保存
+    "history": deque(maxlen=MAX_TURNS)  # OpenAIへ渡す文脈（systemは都度付与）
+})
+
+RESTART_WORDS = {"start", "restart", "reset", "最初から", "やり直す", "スタート"}
+
+ALLOWED_IMG_DOMAINS = (
+    "images.unsplash.com",
+    "upload.wikimedia.org",
+    "www.japan-guide.com",
+    "japan-guide.com",
+    "placehold.co",
 )
-def load_system_prompt() -> str:
-    global _prompt_text, _prompt_mtime
-    try:
-        st = os.stat(PROMPT_PATH)
-        if st.st_mtime != _prompt_mtime:
-            with open(PROMPT_PATH, "r", encoding="utf-8") as f:
-                _prompt_text = f.read().strip() or DEFAULT_PROMPT
-            _prompt_mtime = st.st_mtime
-            app.logger.info("[PROMPT] reloaded")
-    except FileNotFoundError:
-        _prompt_text = DEFAULT_PROMPT
-        _prompt_mtime = 0.0
-    return _prompt_text
 
-# ====== 画像抽出（本文→Imageメッセージに分離） ======
-IMG_ALLOW = (
-    r"https://(?:www\.)?japan-guide\.com/[^)\s]+",
-    r"https://upload\.wikimedia\.org/[^)\s]+",
-    r"https://images\.unsplash\.com/[^)\s]+",
-    r"https://placehold\.co/[^)\s]+",
-)
-IMG_MD = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
-PLAIN_URL = re.compile(r"(https?://[^\s)]+)")
-
-def extract_image_urls(text: str) -> List[str]:
-    urls: List[str] = [m.group(1) for m in IMG_MD.finditer(text)]
-    for m in PLAIN_URL.finditer(text):
-        u = m.group(1)
-        if any(re.match(p, u) for p in IMG_ALLOW):
-            if u not in urls:
-                urls.append(u)
-    return urls[:5]
-
-def strip_md_images(text: str) -> str:
-    return IMG_MD.sub("", text)
-
-def reply_text(reply_token: str, text: str) -> None:
-    try:
-        MAX = 4900
-        chunks = [text[i:i+MAX] for i in range(0, len(text), MAX)] or [""]
-        line_bot_api.reply_message(reply_token, [TextSendMessage(text=c) for c in chunks])
-    except LineBotApiError:
-        app.logger.exception("reply error")
-
-def push_images(uid: str, urls: List[str]) -> None:
-    try:
-        batch = []
-        for u in urls:
-            batch.append(ImageSendMessage(original_content_url=u, preview_image_url=u))
-            if len(batch) == 5:
-                line_bot_api.push_message(uid, batch); batch=[]
-        if batch: line_bot_api.push_message(uid, batch)
-    except LineBotApiError:
-        app.logger.exception("push images error")
-
-# ====== OpenAI（リトライ） ======
-def call_openai(messages: List[dict], temperature=0.6, retries=3) -> str:
-    delay = 1.2
-    for i in range(retries):
-        try:
-            res = oai.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=temperature,
-                messages=messages,
-            )
-            return res.choices[0].message.content
-        except (RateLimitError, APITimeoutError, APIError):
-            time.sleep(delay + random.random()); delay *= 1.8
-        except Exception:
-            app.logger.exception("OpenAI fatal"); break
-    raise RuntimeError("OpenAI failed")
-
-# ====== 質問スロット定義（FSM） ======
+# =========================
+# 質問定義（0〜10）
+# =========================
 Q = [
-    # 0 言語
-    {"key":"lang","title":"どちらの言語でご案内しますか？","multi":False,
-     "options":["日本語（Japanese）","English（英語）"]},
-    # 1 地域
-    {"key":"regions","title":"地域を教えてください。（複数選択可）","multi":True,
-     "options":["京都","大阪","奈良","神戸","滋賀","和歌山"]},
-    # 2 出発日
-    {"key":"date","title":"出発日を YYYY-MM-DD で入力してください（例：2025-03-20）","multi":"free"},
-    # 3 日程
-    {"key":"duration","title":"日程を選んでください。","multi":False,
-     "options":["日帰り","1泊2日","2泊3日","3泊以上"]},
-    # 4 テーマ
-    {"key":"themes","title":"テーマを選んでください。（複数選択可）","multi":True,
-     "options":["グルメ","歴史文化","自然癒し","夜景","温泉","家族","ショッピング","体験メイン","その他"]},
-    # 5 予算
-    {"key":"budget","title":"1人あたりの予算を選んでください。","multi":False,
-     "options":["~¥5,000","~¥10,000","~¥20,000","¥30,000以上"]},
-    # 6 ホテルタイプ
-    {"key":"hotel","title":"ホテルタイプを選んでください。","multi":False,
-     "options":["高級","中価格","コスパ","和風旅館","こだわらない"]},
-    # 7 交通手段
-    {"key":"transport","title":"交通手段を選んでください。（複数選択可）","multi":True,
-     "options":["公共交通","車","徒歩中心","指定なし"]},
-    # 8 同行者
-    {"key":"companions","title":"同行者を選んでください。","multi":False,
-     "options":["ひとり","カップル","友人","家族","外国人友人","その他"]},
-    # 9 出発時間帯
-    {"key":"depart","title":"出発時間帯は？","multi":False,
-     "options":["6–8時","9–11時","12–14時","15–17時","18時以降"]},
-    # 10 帰着時間帯
-    {"key":"return","title":"帰着時間帯はどのくらいを予定？","multi":False,
-     "options":["14–17時","17–19時","19–21時","21時以降","未定"]},
+    {   # 0 言語
+        "key": "lang",
+        "title": "どちらの言語でご案内しますか？",
+        "options": ["日本語（Japanese）", "English（英語）"],
+        "multi": False
+    },
+    {   # 1 地域
+        "key": "region",
+        "title": "地域を選んでください。（複数選択可）",
+        "options": ["京都", "大阪", "奈良", "神戸", "滋賀", "和歌山"],
+        "multi": True
+    },
+    {   # 2 出発日
+        "key": "date",
+        "title": "出発日を YYYY-MM-DD で入力してください（例：2025-03-20）",
+        "options": None,
+        "multi": "free"
+    },
+    {   # 3 日程
+        "key": "days",
+        "title": "日程を選んでください。",
+        "options": ["日帰り", "1泊2日", "2泊3日", "3泊以上"],
+        "multi": False
+    },
+    {   # 4 テーマ
+        "key": "theme",
+        "title": "テーマを選んでください。（複数選択可）",
+        "options": ["グルメ", "歴史文化", "自然癒し", "夜景", "温泉", "家族", "ショッピング", "体験メイン", "その他"],
+        "multi": True
+    },
+    {   # 5 予算
+        "key": "budget",
+        "title": "予算（1人）を選んでください。",
+        "options": ["~¥5,000", "~¥10,000", "~¥20,000", "¥30,000以上"],
+        "multi": False
+    },
+    {   # 6 ホテルタイプ
+        "key": "hotel",
+        "title": "ホテルタイプを選んでください。",
+        "options": ["高級", "中価格", "コスパ", "和風旅館", "こだわらない"],
+        "multi": False
+    },
+    {   # 7 交通手段
+        "key": "transport",
+        "title": "交通手段を選んでください。（複数選択可）",
+        "options": ["公共交通", "車", "徒歩中心", "指定なし"],
+        "multi": True
+    },
+    {   # 8 同行者
+        "key": "party",
+        "title": "同行者を選んでください。",
+        "options": ["ひとり", "カップル", "友人", "家族", "外国人友人", "その他"],
+        "multi": False
+    },
+    {   # 9 出発時間帯
+        "key": "depart",
+        "title": "出発時間帯を選んでください。",
+        "options": ["6–8時", "9–11時", "12–14時", "15–17時", "18時以降"],
+        "multi": False
+    },
+    {   # 10 帰着時間帯
+        "key": "return",
+        "title": "帰着時間帯を選んでください。",
+        "options": ["14–17時", "17–19時", "19–21時", "21時以降", "未定"],
+        "multi": False
+    },
 ]
 
-RESTART_WORDS = {"start","restart","reset","スタート","最初から","やり直す"}
-
-START_MSG = (
+WELCOME_JA = (
     "🔄 最初から\n"
     "こんにちは！私はAI旅ナビ関西です🧭\n"
     "どちらの言語でご案内しますか？\n"
@@ -159,152 +145,307 @@ START_MSG = (
     "2️⃣ English（英語）"
 )
 
-# ユーザー状態： step(いまの質問index), answers(辞書)
-State = Dict[str, object]
-users: Dict[str, State] = defaultdict(lambda: {"step":0, "answers":{}})
+WELCOME_EN = (
+    "🔄 Restart\n"
+    "Hi! I'm AI Travel Navi Kansai 🧭\n"
+    "Choose your language:\n"
+    "1️⃣ Japanese\n"
+    "2️⃣ English"
+)
 
-# ====== 質問表示 ======
-def question_text(step:int) -> str:
+# =========================
+# 文字正規化（数字入力の揺れ対策）
+# =========================
+def normalize_indices_text(s: str) -> str:
+    # 全角 -> 半角 + 絵文字の数字を除去して数字と , - のみ残す
+    s = unicodedata.normalize("NFKC", s)
+    # 1️⃣ のようなキートップは数字だけ残るようにフィルタ
+    buf = []
+    for ch in s:
+        if ch.isdigit() or ch in ",-":
+            buf.append(ch)
+    s = "".join(buf)
+    s = s.replace("，", ",")
+    return s
+
+# =========================
+# 質問の整形
+# =========================
+def render_question(step: int) -> str:
     q = Q[step]
-    if q["multi"] == "free":
-        opt = ""
-    else:
-        nums = "\n".join([f"{i+1} {o}" for i,o in enumerate(q["options"])])
-        opt = "\n" + nums
-    return f"{q['title']}{opt}\n\n🔄 最初から"
+    title = q["title"]
+    opts = q["options"]
 
-# ====== 入力の解釈 ======
-def parse_answer(text:str, step:int):
+    tail = "\n\n↩️ 最初から"
+    if opts is None:  # 自由入力
+        return f"{title}{tail}"
+
+    # 番号付きリスト
+    lines = [title]
+    for i, o in enumerate(opts, 1):
+        lines.append(f"{i}️⃣ {o}")
+    return "\n".join(lines) + tail
+
+# =========================
+# 入力のパース
+# =========================
+def parse_answer(text: str, step: int):
     q = Q[step]
-    text = text.strip()
-    # free 書式（出発日）
-    if q["multi"] == "free":
-        # だいたいの検証だけ
-        return text if re.match(r"^\d{4}-\d{2}-\d{2}$", text) else None
+    raw = (text or "").strip()
 
-    # 数字 or カンマ区切り
+    # リスタート
+    if raw.lower() in RESTART_WORDS or raw in RESTART_WORDS:
+        return "__RESTART__"
+
+    # 日付
+    if q["multi"] == "free":
+        try:
+            _ = datetime.strptime(raw, "%Y-%m-%d")
+            return raw
+        except Exception:
+            return None
+
+    # 番号選択
+    norm = normalize_indices_text(raw)
+    if not norm:
+        return None
+
     try:
-        picks = [t.strip() for t in text.replace("，",",").split(",")]
-        idxs = []
-        for p in picks:
-            if not p: continue
-            n = int(p)
-            if 1 <= n <= len(q["options"]):
-                idxs.append(n-1)
-            else:
+        if q["multi"]:
+            idxs = [int(x) for x in norm.split(",") if x]
+            if not idxs:
                 return None
-        if not idxs: return None
-        if not q["multi"] and len(idxs)>1: return None
-        vals = [q["options"][i] for i in idxs]
-        return vals if q["multi"] else vals[0]
+            if min(idxs) < 1 or max(idxs) > len(q["options"]):
+                return None
+            return [q["options"][i-1] for i in idxs]
+        else:
+            i = int(norm)
+            if 1 <= i <= len(q["options"]):
+                return q["options"][i-1]
+            return None
     except Exception:
         return None
 
-# ====== すべて埋まったら最終生成 ======
-def make_final_json(a:dict) -> dict:
-    return {
-        "language": a.get("lang"),
-        "regions": a.get("regions",[]),
-        "depart_date": a.get("date"),
-        "duration": a.get("duration"),
-        "themes": a.get("themes",[]),
-        "budget_per_person": a.get("budget"),
-        "hotel_type": a.get("hotel"),
-        "transport": a.get("transport",[]),
-        "companions": a.get("companions"),
-        "depart_time_band": a.get("depart"),
-        "return_time_band": a.get("return"),
-    }
-
-def final_prompt(json_obj:dict) -> List[dict]:
-    lang = json_obj.get("language","日本語")
-    # 出力言語ヒント
-    lang_hint = "日本語" if "日本" in lang else "English"
-    system = load_system_prompt()
-    user = (
-        f"以下の固定JSONに基づき、{lang_hint}で、ホテル候補3件→日程表→実用ガイド→総評→操作メニューを"
-        f"1回のメッセージで完成させてください。画像ルール・禁止事項を厳守。\n"
-        f"JSON:\n{json_obj}"
+# =========================
+# プロンプト読み込み
+# =========================
+def load_system_prompt() -> str:
+    default_prompt = (
+        "あなたは「AI旅ナビ関西（AI Travel Navi Kansai）」です。"
+        "関西（京都・大阪・奈良・神戸・滋賀・和歌山）の観光・体験・グルメ・宿泊に精通した"
+        "プロの旅行コンシェルジュとして、次のルールで**LINE向けに**出力してください。"
+        "1) すべての質問が完了したら即時に最終プランを **1回** だけで提示。"
+        "2) 最終出力の構成は必ず『①ホテル候補(3件) → ②日程表 → ③実用ガイド(交通/食事/体験/予算/チェックリスト) → ④総評/注意点/代替案 → ⑤次の操作メニュー』の順。"
+        "3) 画像は各ブロック1枚。ドメインは images.unsplash.com / upload.wikimedia.org / japan-guide.com / placehold.co のみ。"
+        "   Markdown 画像の形式で構いません（例：📸\\n![説明](URL)）。"
+        "4) 途中経過の『了解しました/少々お待ちください』などの中間メッセージは禁止。"
+        "5) 出力は改行多めで読みやすく、絵文字を適度に使用。"
+        "6) 英語モードの場合は英語表記（時間 9:00 AM / 5:30 PM, 地名は英語）。"
+        "7) ホテルには必ず『公式URL』と『GoogleマップURL』を付けること。"
+        "8) 画像URLは行頭の📸の直後に1行で置く。"
+        "9) 文字数はLINEで読みやすいよう、冗長な説明は避けつつも情報を十分に。"
     )
-    return [{"role":"system","content":system},{"role":"user","content":user}]
+    p = os.path.join(os.path.dirname(__file__), "prompt.txt")
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            t = f.read().strip()
+            return t if t else default_prompt
+    except FileNotFoundError:
+        return default_prompt
 
-# ====== ルーティング ======
+SYSTEM_PROMPT = load_system_prompt()
+
+def build_user_brief(ans: dict) -> str:
+    """OpenAIに渡す要約（ユーザー回答の再掲）"""
+    return json.dumps(ans, ensure_ascii=False)
+
+# =========================
+# 画像URL抽出 → LINE ImageMessage で送信
+# （Markdown画像をLINEで確実に表示させるため）
+# =========================
+IMG_MD_RE = re.compile(r"!\[[^\]]*\]\((https?://[^\s)]+)\)")
+URL_RE = re.compile(r"(https?://[^\s)]+)")
+
+def extract_image_urls(text: str) -> list[str]:
+    urls = []
+
+    # Markdown画像
+    for m in IMG_MD_RE.finditer(text):
+        urls.append(m.group(1))
+
+    # 予備：素のURL行からも拾う
+    for m in URL_RE.finditer(text):
+        u = m.group(1)
+        if any(dom in u for dom in ALLOWED_IMG_DOMAINS):
+            urls.append(u)
+
+    # 重複を順序保持で排除
+    seen = set()
+    out = []
+    for u in urls:
+        if any(dom in u for dom in ALLOWED_IMG_DOMAINS):
+            if u not in seen:
+                seen.add(u)
+                out.append(u)
+    return out[:10]  # 送信は最大10枚
+
+def reply_with_text_and_images(reply_token: str, text: str):
+    """長文テキストを分割送信し、続けて画像を個別バブルで送信"""
+    try:
+        MAX = 4900
+        chunks = [text[i:i+MAX] for i in range(0, len(text), MAX)] or [""]
+        line_bot_api.reply_message(reply_token, [TextSendMessage(text=c) for c in chunks])
+    except LineBotApiError:
+        app.logger.exception("LineBotApiError while replying text")
+        return
+
+    # 画像は別 push にする（reply の 1 回で同時送信すると制限に引っかかるため）
+    try:
+        urls = extract_image_urls(text)
+        if not urls:
+            return
+        time.sleep(0.8)  # 軽いディレイ（レート負荷低減）
+        msgs = [ImageSendMessage(original_content_url=u, preview_image_url=u) for u in urls]
+        # 5件ずつに分割して push（LINEは一度に5件程度が安全）
+        for i in range(0, len(msgs), 5):
+            line_bot_api.push_message(
+                users_last_to[reply_token],  # 後述の map でユーザーIDを取得
+                msgs[i:i+5]
+            )
+            time.sleep(0.6)
+    except Exception:
+        app.logger.exception("send images failed")
+
+# reply_token -> user_id を覚えておく（画像 push 用）
+users_last_to = {}
+
+# =========================
+# ルーティング
+# =========================
 @app.get("/")
-def ok(): return "ok", 200
+def health():
+    return "ok", 200
 
 @app.get("/healthz")
-def hz(): return "ok", 200
+def healthz():
+    return "ok", 200
 
 @app.get("/py")
-def py(): return sys.version, 200
+def py():
+    return sys.version, 200
 
 @app.post("/callback")
 def callback():
-    sig = request.headers.get("X-Line-Signature","")
+    signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
+    app.logger.info(f"[LINE] body={body[:1000]}...")
     try:
-        handler.handle(body, sig)
+        handler.handle(body, signature)
     except InvalidSignatureError:
+        app.logger.exception("Invalid signature")
         abort(400)
     except Exception:
-        app.logger.exception("webhook error"); abort(500)
+        app.logger.exception("Webhook handle error")
+        abort(500)
     return "OK", 200
 
-# ====== メッセージ ======
+# =========================
+# メッセージハンドラ
+# =========================
 @handler.add(MessageEvent, message=TextMessage)
-def on_text(event:MessageEvent):
+def on_text(event: MessageEvent):
     uid = event.source.user_id
-    text = (event.message.text or "").strip()
+    txt = (event.message.text or "").strip()
+    users_last_to[event.reply_token] = uid  # 画像pushの宛先
 
-    # リセット
-    if text in RESTART_WORDS or text.lower() in RESTART_WORDS:
+    # リスタート
+    if txt.lower() in RESTART_WORDS or txt in RESTART_WORDS:
         users.pop(uid, None)
-        reply_text(event.reply_token, START_MSG)
+        _reply(event.reply_token, WELCOME_JA)
         return
 
-    st = users[uid]
-    step = st["step"]
-    ans: dict = st["answers"]
-
-    # 初回誘導
-    if step == 0 and not ans:
-        reply_text(event.reply_token, question_text(0))
+    # 初回は言語選択
+    if uid not in users or users[uid]["step"] == 0:
+        users[uid]["step"] = 0
+        _reply(event.reply_token, WELCOME_JA)
+        # 次の入力で0番の回答を取りに行く
+        users[uid]["step"] = 0
         return
 
-    # 入力→検証→保存
-    val = parse_answer(text, step)
-    if val is None:
-        reply_text(event.reply_token, "入力形式が正しくありません。番号（複数可はカンマ区切り）または例に従って入力してください。\n\n"+question_text(step))
+    step = users[uid]["step"]
+    ans = parse_answer(txt, step)
+
+    # 無効回答
+    if ans is None:
+        _reply(event.reply_token, "入力形式が正しくありません。もう一度番号でお答えください。\n\n" + render_question(step))
         return
 
-    ans[Q[step]["key"]] = val
-    st["step"] = step + 1
-
-    # まだ質問がある
-    if st["step"] < len(Q):
-        reply_text(event.reply_token, question_text(st["step"]))
+    # リスタート指示
+    if ans == "__RESTART__":
+        users.pop(uid, None)
+        _reply(event.reply_token, WELCOME_JA)
         return
 
-    # ここで全部埋まった → 最終プラン生成
-    json_obj = make_final_json(ans)
-    messages = final_prompt(json_obj)
+    # 保存
+    users[uid]["answers"][Q[step]["key"]] = ans
+    step += 1
+    users[uid]["step"] = step
+
+    # まだ質問が残っている
+    if step < len(Q):
+        _reply(event.reply_token, render_question(step))
+        return
+
+    # ===== 全質問揃った → OpenAI に依頼して最終プランを生成 =====
+    answers = users[uid]["answers"].copy()
+    lang = "ja" if answers.get("lang") in ["日本語（Japanese）", "1", 1] else "en"
+
+    sys_prompt = SYSTEM_PROMPT
+    brief = build_user_brief(answers)
+
     try:
-        out = call_openai(messages, temperature=0.6)
-    except Exception:
-        reply_text(event.reply_token, "サーバ側で一時的なエラーが発生しました。少し時間をおいて再度お試しください。")
+        messages = [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content":
+                ( "以下の回答に基づき、指示に従って**最終プランを1回で**提示してください。\n"
+                  "回答: " + brief )
+            },
+        ]
+        # すでに残っている簡易履歴（任意）
+        hist = list(users[uid]["history"])
+        messages = [{"role":"system","content":sys_prompt}] + hist + [{"role":"user","content": "回答: " + brief}]
+
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.6,
+            messages=messages,
+        )
+        out = completion.choices[0].message.content
+    except Exception as e:
+        app.logger.exception("OpenAI API error")
+        _reply(event.reply_token, "サーバ側で一時的なエラーが発生しました。少し時間をおいて再試行してください。\n(debug: %s)" % type(e).__name__)
         return
 
-    # 画像抽出→分離送信
-    imgs = extract_image_urls(out)
-    text_only = strip_md_images(out).strip()
-    reply_text(event.reply_token, text_only or " ")
-    if imgs: push_images(uid, imgs)
+    # 返信（長文は自動分割）+ 画像を別送
+    reply_with_text_and_images(event.reply_token, out)
 
-    # 完了後は状態をリセット（再利用しやすく）
+    # 次回は冒頭からに戻す（連投防止）
     users.pop(uid, None)
 
-# ====== ローカル ======
+# 短文返信（分割なし）
+def _reply(reply_token: str, text: str):
+    try:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=text))
+    except LineBotApiError:
+        app.logger.exception("reply failed")
+
+
+# =========================
+# ローカル起動
+# =========================
 if __name__ == "__main__":
+    # Procfileでgunicornを起動する本番とは別。ローカル検証用。
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT","5000")), debug=True)
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True)
