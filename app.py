@@ -10,6 +10,7 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+from linebot.models import TemplateSendMessage, ButtonsTemplate, URITemplateAction
 
 # OpenAI v1
 from openai import OpenAI
@@ -316,7 +317,6 @@ def build_next_prompt(answers: Dict[str, Any]) -> str:
 
 
 # ---------- OpenAI 呼び出し ----------
-# ---------- OpenAI呼び出し共通 ----------
 def _call_openai_text(user_prompt: str) -> str:
     res = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -334,6 +334,54 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # ① ホテル
     hotels = _call_openai_text(build_hotel_prompt(answers))
     _reply_text(reply_token, hotels)
+def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
+    """
+    ホテル出力（①〜③のブロック）を解析して、
+    「公式サイトを見る」「Googleマップ」ボタン付きカードとして送信。
+    """
+    import re
+
+    blocks = re.split(r"\n[-─]{6,}\n|\n{2,}", hotels_text.strip())
+    msgs = []
+
+    for b in blocks:
+        if not b.strip():
+            continue
+
+        # タイトル行（例: ① 南紀白浜マリオットホテル）
+        first_line = next((ln.strip() for ln in b.splitlines() if ln.strip()), "")
+        title = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", first_line) or "ホテル"
+
+        # URL抽出
+        off = OFFICIAL_URL_RE.search(b)
+        mp  = MAP_URL_RE.search(b)
+        official_url = off.group(1) if off else None
+        map_url      = mp.group(1)  if mp  else None
+
+        # ボタンを構築
+        actions = []
+        if official_url:
+            actions.append(URITemplateAction(label="公式サイトを見る", uri=official_url))
+        if map_url:
+            actions.append(URITemplateAction(label="Googleマップ", uri=map_url))
+
+        if not actions:
+            continue
+
+        tmpl = TemplateSendMessage(
+            alt_text=title,
+            template=ButtonsTemplate(
+                title=title[:40],
+                text="リンクを選択してください",
+                actions=actions[:4]
+            )
+        )
+        msgs.append(tmpl)
+
+    if msgs:
+        line_bot_api.reply_message(reply_token, msgs[:5])  # 上限対策
+    else:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=hotels_text))
 
     # ② 日程表
     schedule = _call_openai_text(build_schedule_prompt(answers))
@@ -342,7 +390,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     if got < need:
         schedule += f"\n\n（補足）現在 {got} 日分です。{need} 日分になるよう続きも含めて出力してください。"
     line_bot_api.push_message(uid, TextSendMessage(text=schedule))
-
+_send_schedule_as_buttons(uid, schedule)
     # ③ 実用ガイド
     guide = _call_openai_text(build_guide_prompt(answers))
     line_bot_api.push_message(uid, TextSendMessage(text=guide))
@@ -507,6 +555,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
