@@ -216,27 +216,27 @@ def build_hotel_prompt(answers: Dict[str, Any]) -> str:
     return f"""
 以下は「ホテル候補」セクションの出力指示です。
 ユーザー回答に従って、宿泊施設のみを出力してください。
-
+極めて重要：「公式サイトを見る」および「Googleマップ」の行には、実際のURLを自動補完して出力してください。
 【ユーザー回答(JSON参照用)】
 {answers_json}
 
 出力形式：
 ① 🏨 ホテル正式名称
 特徴：1行要約
-🔗 公式：URL
-📍 Googleマップ：URL
+🔗 公式サイトを見る
+📍 Googleマップ
 💰 価格目安：〜円／泊
 ──────────────────────────────
 ② 🏨 ホテル正式名称
 特徴：1行要約
-🔗 公式：URL
-📍 Googleマップ：URL
+🔗 公式サイトを見る
+📍 Googleマップ
 💰 価格目安：〜円／泊
 ──────────────────────────────
 ③ 🏨 ホテル正式名称
 特徴：1行要約
-🔗 公式：URL
-📍 Googleマップ：URL
+🔗 公式サイトを見る
+📍 Googleマップ
 💰 価格目安：〜円／泊
 ──────────────────────────────
 """
@@ -256,8 +256,8 @@ Day1
 🕘 9:00–10:30　🏯 観光：施設名（エリア）
 短評：見どころ・体験内容を2〜3行で
 🕒 所要：60〜90分　🚶アクセス：交通手段・所要
-🔗 公式：URL
-📍 Googleマップ：URL
+🔗 公式サイトを見る
+📍 Googleマップ
 🕰 営業：時間／休：定休
 ↓
 （以降、ブロックごとに「↓」で区切る）
@@ -280,15 +280,15 @@ def build_guide_prompt(answers: Dict[str, Any]) -> str:
 🍽 店名（エリア）
 短評：料理や雰囲気
 💰 価格帯：〜円程度　🕰 営業：時間／休：定休
-🔗 公式：URL
-📍 Googleマップ：URL
+🔗 公式サイトを見る
+📍 Googleマップ
 ──────────────────────────────
 3) 🎟️ 体験予約（3件）
 🎯 施設名（エリア）
 短評：体験内容や特徴を2〜3行
 💰 料金：〜円　⌛ 所要：〜分／予約：要・不要
-🔗 公式：URL
-📍 Googleマップ：URL
+🔗 公式サイトを見る
+📍 Googleマップ
 ──────────────────────────────
 4) 💰 合計予算
 ──────────────────────────────
@@ -305,6 +305,7 @@ def build_review_prompt(answers: Dict[str, Any]) -> str:
 
 
 def build_next_prompt(answers: Dict[str, Any]) -> str:
+    
     return """
 以下は「次の操作メニュー」セクションです。
 この行のみ出力してください。
@@ -505,6 +506,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
