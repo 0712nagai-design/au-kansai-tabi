@@ -314,9 +314,8 @@ def build_next_prompt(answers: Dict[str, Any]) -> str:
 
 
 # ---------- OpenAI 呼び出し ----------
-def _call_openai_plan(answers: dict) -> str:
-    user_prompt = build_final_prompt(answers)
-
+# ---------- OpenAI呼び出し共通 ----------
+def _call_openai_text(user_prompt: str) -> str:
     res = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.6,
@@ -325,14 +324,35 @@ def _call_openai_plan(answers: dict) -> str:
             {"role": "user", "content": user_prompt},
         ],
     )
-    text = res.choices[0].message.content or ""
+    return (res.choices[0].message.content or "").strip()
 
-    # 必要日数チェック（足りなければ追記指示）
+
+# ---------- 5セクション順送り ----------
+def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
+    # ① ホテル
+    hotels = _call_openai_text(build_hotel_prompt(answers))
+    _reply_text(reply_token, hotels)
+
+    # ② 日程表
+    schedule = _call_openai_text(build_schedule_prompt(answers))
     need = _required_days(answers)
-    got = _count_days_in_text(text)
+    got  = _count_days_in_text(schedule)
     if got < need:
-        text += f"\n\n（補足）現在 {got} 日分です。{need} 日分になるよう続きも含めて出力してください。"
-    return text
+        schedule += f"\n\n（補足）現在 {got} 日分です。{need} 日分になるよう続きも含めて出力してください。"
+    line_bot_api.push_message(uid, TextSendMessage(text=schedule))
+
+    # ③ 実用ガイド
+    guide = _call_openai_text(build_guide_prompt(answers))
+    line_bot_api.push_message(uid, TextSendMessage(text=guide))
+
+    # ④ 総評
+    review = _call_openai_text(build_review_prompt(answers))
+    line_bot_api.push_message(uid, TextSendMessage(text=review))
+
+    # ⑤ 次の操作メニュー
+    nxt = _call_openai_text(build_next_prompt(answers))
+    line_bot_api.push_message(uid, TextSendMessage(text=nxt))
+
 
 
 
@@ -467,14 +487,16 @@ def on_message(event: MessageEvent):
         _reply_text(event.reply_token, _render_question(step))
         return
 
-    # === 全質問終了 → プラン生成 ===
-    answers = state["answers"].copy()
-    try:
-        plan = _call_openai_plan(answers)
-    except Exception as e:
-        app.logger.exception("OpenAI API error")
-        _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
-        return
+   # === 全質問終了 → 5セクションを順に送信 ===
+answers = state["answers"].copy()
+try:
+    send_plan_parts(event.reply_token, uid, answers)
+except Exception as e:
+    app.logger.exception("OpenAI API error")
+    _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
+    return
+
+
 
     # 本文（旅程）を返信
     _reply_text(event.reply_token, plan)
@@ -491,6 +513,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
