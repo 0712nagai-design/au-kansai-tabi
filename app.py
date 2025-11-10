@@ -319,18 +319,27 @@ IMG_URL_RE = re.compile(
 )
 
 def _detect_image_urls(text: str, limit=5) -> List[str]:
-    # 画像・地図以外のURL抽出（リンクプレビュー用）
+    urls = []
+    for m in IMG_URL_RE.finditer(text):
+        urls.append(m.group(0))
+        if len(urls) >= limit:
+            break
+    return urls
+
+
+# 画像・地図のドメインはプレビュー除外
 NON_PREVIEW_DOMAINS = re.compile(
     r"(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co|google\.com/maps|goo\.gl/maps)",
-    re.I
+    re.I,
 )
 URL_RE = re.compile(r"https?://[^\s)]+", re.I)
 
 def _extract_preview_urls(text: str, limit=6) -> List[str]:
-    urls = []
+    """LINE のリンクプレビューを出したいURLだけを抽出"""
+    urls: List[str] = []
     for m in URL_RE.finditer(text):
         u = m.group(0)
-        if NON_PREVIEW_DOMAINS.search(u):   # 画像や地図リンクは除外
+        if NON_PREVIEW_DOMAINS.search(u):  # 画像や地図リンクは除外
             continue
         if u not in urls:
             urls.append(u)
@@ -377,20 +386,22 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-# --- リスタート（ここを置き換え） ---
-if text in RESTART or text.lower() in RESTART:
-    users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
-    _reply_text(event.reply_token, WELCOME)
-    return
+    # リスタート：状態を初期化して WELCOME だけ返す（質問は二度出さない）
+    if text in RESTART or text.lower() in RESTART:
+        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
+        _reply_text(event.reply_token, WELCOME)
+        return
 
-# --- 初期化（ここも置き換え） ---
-if uid not in users or not users[uid]:
-    users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
-    _reply_text(event.reply_token, WELCOME)   # ここで言語質問を含む WELCOME だけを送る
-    return
+    # セッション初期化：最初も WELCOME だけ返す（言語質問を重複表示しない）
+    if uid not in users or not users[uid]:
+        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
+        _reply_text(event.reply_token, WELCOME)
+        return
 
+    state = users[uid]
+    step = state["step"]
 
-    # 現在ステップの入力検証
+    # 現在ステップに対する入力を検証・保存
     if not _validate_and_store(uid, step, text):
         _reply_text(event.reply_token, _render_question(step))
         return
@@ -399,12 +410,12 @@ if uid not in users or not users[uid]:
     step += 1
     state["step"] = step
 
-    # まだ質問が残っている
+    # まだ質問が残っていれば次の質問を提示
     if step < len(Q):
         _reply_text(event.reply_token, _render_question(step))
         return
 
-    # 全質問終了 → 生成
+    # === 全質問終了 → プラン生成 ===
     answers = state["answers"].copy()
     try:
         plan = _call_openai_plan(answers)
@@ -413,28 +424,25 @@ if uid not in users or not users[uid]:
         _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
         return
 
+    # 本文（旅程）を返信
     _reply_text(event.reply_token, plan)
+
+    # 画像URLを push（既存仕様）
     imgs = _detect_image_urls(plan, limit=5)
     if imgs:
         _push_images(uid, imgs)
-# 本文送信
-_reply_text(event.reply_token, plan)
 
-# 画像URLを Push（従来どおり）
-imgs = _detect_image_urls(plan, limit=5)
-if imgs:
-    _push_images(uid, imgs)
+    # 公式サイトなどのURLを push（リンクプレビュー狙い）
+    preview_urls = _extract_preview_urls(plan, limit=6)
+    for u in preview_urls:
+        try:
+            line_bot_api.push_message(uid, TextSendMessage(text=u))
+        except LineBotApiError:
+            app.logger.exception("Preview URL push failed: %s", u)
 
-# 🔗 公式サイトなどのURLを単体で Push（リンクプレビューを出す）
-preview_urls = _extract_preview_urls(plan, limit=6)
-for u in preview_urls:
-    try:
-        line_bot_api.push_message(uid, TextSendMessage(text=u))
-    except LineBotApiError:
-        app.logger.exception("Preview URL push failed: %s", u)
+    # セッション終了
+    users.pop(uid, None)
 
-# セッション終了
-users.pop(uid, None)
 
     
 
@@ -443,6 +451,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
