@@ -319,6 +319,25 @@ IMG_URL_RE = re.compile(
 )
 
 def _detect_image_urls(text: str, limit=5) -> List[str]:
+    # 画像・地図以外のURL抽出（リンクプレビュー用）
+NON_PREVIEW_DOMAINS = re.compile(
+    r"(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co|google\.com/maps|goo\.gl/maps)",
+    re.I
+)
+URL_RE = re.compile(r"https?://[^\s)]+", re.I)
+
+def _extract_preview_urls(text: str, limit=6) -> List[str]:
+    urls = []
+    for m in URL_RE.finditer(text):
+        u = m.group(0)
+        if NON_PREVIEW_DOMAINS.search(u):   # 画像や地図リンクは除外
+            continue
+        if u not in urls:
+            urls.append(u)
+        if len(urls) >= limit:
+            break
+    return urls
+
     urls = []
     for m in IMG_URL_RE.finditer(text):
         urls.append(m.group(0))
@@ -358,20 +377,18 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-    # リスタート
-    if text in RESTART or text.lower() in RESTART:
-        users.pop(uid, None)
-        _reply_text(event.reply_token, WELCOME)
-        return
+# --- リスタート（ここを置き換え） ---
+if text in RESTART or text.lower() in RESTART:
+    users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
+    _reply_text(event.reply_token, WELCOME)
+    return
 
-    # 初期化
-    if uid not in users or not users[uid]:
-        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
-        _reply_text(event.reply_token, _render_question(0))
-        return
+# --- 初期化（ここも置き換え） ---
+if uid not in users or not users[uid]:
+    users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
+    _reply_text(event.reply_token, WELCOME)   # ここで言語質問を含む WELCOME だけを送る
+    return
 
-    state = users[uid]
-    step = state["step"]
 
     # 現在ステップの入力検証
     if not _validate_and_store(uid, step, text):
@@ -400,15 +417,33 @@ def on_message(event: MessageEvent):
     imgs = _detect_image_urls(plan, limit=5)
     if imgs:
         _push_images(uid, imgs)
+# 本文送信
+_reply_text(event.reply_token, plan)
 
-    # セッション終了
-    users.pop(uid, None)
+# 画像URLを Push（従来どおり）
+imgs = _detect_image_urls(plan, limit=5)
+if imgs:
+    _push_images(uid, imgs)
+
+# 🔗 公式サイトなどのURLを単体で Push（リンクプレビューを出す）
+preview_urls = _extract_preview_urls(plan, limit=6)
+for u in preview_urls:
+    try:
+        line_bot_api.push_message(uid, TextSendMessage(text=u))
+    except LineBotApiError:
+        app.logger.exception("Preview URL push failed: %s", u)
+
+# セッション終了
+users.pop(uid, None)
+
+    
 
 # ====================== ローカル実行 ======================
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
