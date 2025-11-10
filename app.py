@@ -41,7 +41,7 @@ MAX_TURNS = 30
 State = Dict[str, Any]
 users: Dict[str, State] = defaultdict(dict)
 
-RESTART = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
+RESTART = {"start", "restart", "reset", "スタート", "最初から", "やり直す", "最初から"}
 
 # ====================== 質問定義 ======================
 REGIONS = {1: "京都", 2: "大阪", 3: "奈良", 4: "神戸", 5: "滋賀", 6: "和歌山"}
@@ -56,18 +56,19 @@ COMPANION = {1: "ひとり", 2: "カップル", 3: "友人", 4: "家族", 5: "�
 DEPT = {1: "6–8時", 2: "9–11時", 3: "12–14時", 4: "15–17時", 5: "18時以降"}
 ARRV = {1: "14–17時", 2: "17–19時", 3: "19–21時", 4: "21時以降", 5: "未定"}
 
+# UIボタン構成
 Q = [
     {"key": "lang", "title": "どちらの言語でご案内しますか？", "choices": {1: "日本語", 2: "English"}, "multi": False},
     {"key": "region", "title": "地域を教えてください（複数選択→最後に［完了］）", "choices": REGIONS, "multi": True},
     {"key": "date", "title": "出発日を選んでください（例: 2025-03-20 を直接入力）", "choices": {}, "multi": False},
-    {"key": "stay", "title": "日程を選んでください。", "choices": {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊以上"}, "multi": False},
-    {"key": "theme", "title": "テーマを選んでください（複数選択→［完了］）", "choices": THEMES, "multi": True},
+    {"key": "stay", "title": "日程を選択してください。", "choices": {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊以上"}, "multi": False},
+    {"key": "theme", "title": "テーマを選んでください（複数選択→最後に［完了］）", "choices": THEMES, "multi": True},
     {"key": "budget", "title": "予算（1人）を選んでください。", "choices": BUDGETS, "multi": False},
     {"key": "hotel", "title": "ホテルタイプを選んでください。", "choices": HOTELS, "multi": False},
-    {"key": "transport", "title": "交通手段（複数選択→［完了］）", "choices": TRANSPORT, "multi": True},
+    {"key": "transport", "title": "交通手段を選んでください（複数選択→最後に［完了］）", "choices": TRANSPORT, "multi": True},
     {"key": "companion", "title": "同行者を選んでください。", "choices": COMPANION, "multi": False},
     {"key": "dept", "title": "出発時間帯を選んでください。", "choices": DEPT, "multi": False},
-    {"key": "arrv", "title": "帰着時間帯はどのくらい？", "choices": ARRV, "multi": False},
+    {"key": "arrv", "title": "帰着時間帯を選んでください。", "choices": ARRV, "multi": False},
 ]
 
 WELCOME = (
@@ -96,43 +97,30 @@ def callback():
         abort(400)
     return "OK", 200
 
-# ====================== ユーティリティ ======================
-def _render_question_text(idx: int, state: State) -> str:
-    q = Q[idx]
-    chosen = state.get("pending_multi_set") if q["multi"] else None
-    chosen_str = ""
-    if q["multi"] and chosen:
-        # すでに選択したラベルを表示
-        labels = []
-        for n in sorted(chosen):
-            labels.append(q["choices"].get(n, str(n)))
-        if labels:
-            chosen_str = "\n（選択中： " + "、".join(labels) + " ）"
-    return q["title"] + chosen_str
+# ====================== 質問レンダリング（クイックリプライ） ======================
+def _quick_buttons(choices: Dict[int, str], multi: bool, show_done: bool) -> QuickReply:
+    btns = []
+    for n, label in choices.items():
+        btns.append(QuickReplyButton(action=MessageAction(label=f"{n} {label}", text=str(n))))
+    if multi and show_done:
+        btns.append(QuickReplyButton(action=MessageAction(label="✅ 完了", text="完了")))
+    # 先頭に「最初から」
+    btns.insert(0, QuickReplyButton(action=MessageAction(label="↪ 最初から", text="最初から")))
+    return QuickReply(items=btns)
 
-def _build_quick_reply(idx: int) -> QuickReply:
+def _render_question(idx: int, state: State) -> TextSendMessage:
     q = Q[idx]
-    items = []
-    # 選択肢ボタン（最大13）
-    for n, label in q.get("choices", {}).items():
-        items.append(QuickReplyButton(action=MessageAction(label=f"{n} {label}", text=str(n))))
-        if len(items) >= 12:  # 13枠のうち1枠は［完了］/［最初から］で使う
-            break
-    # 複数選択なら［完了］
+    title = q["title"]
+    # 選択中ラベル（複数選択時）
     if q["multi"]:
-        items.append(QuickReplyButton(action=MessageAction(label="✅ 完了", text="完了")))
-    # 共通：最初から
-    items.append(QuickReplyButton(action=MessageAction(label="🔁 最初から", text="最初から")))
-    return QuickReply(items=items[:13])
+        selected = state.get("multi_temp", {}).get(q["key"], [])
+        suffix = f"\n（選択中：{'、'.join(selected) if selected else 'なし'}）\n→最後に［完了］"
+    else:
+        suffix = ""
+    qr = _quick_buttons(q.get("choices", {}), q["multi"], True if q["multi"] else False)
+    return TextSendMessage(text=title + suffix, quick_reply=qr)
 
-def _send_question(reply_token: str, state: State):
-    idx = state["step"]
-    text = _render_question_text(idx, state)
-    line_bot_api.reply_message(
-        reply_token,
-        TextSendMessage(text=text, quick_reply=_build_quick_reply(idx))
-    )
-
+# ====================== ユーティリティ ======================
 FW_TO_HW = str.maketrans({
     "０":"0","１":"1","２":"2","３":"3","４":"4","５":"5","６":"6","７":"7","８":"8","９":"9",
     "．":".","，":",","、":",","・":",","　":" "
@@ -144,13 +132,72 @@ def _parse_numbers(s: str) -> Optional[List[int]]:
     for sep in [".", "･", "・", "、", "　", "，", " ", "/", "／"]:
         s = s.replace(sep, ",")
     s = re.sub(r",+", ",", s).strip(",")
-    if not re.fullmatch(r"[0-9,]+", s):
-        return None
+    if not re.fullmatch(r"[0-9,]+", s): return None
     try:
         nums = [int(x) for x in s.split(",") if x != ""]
         return nums if nums else None
     except Exception:
         return None
+
+def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
+    text = text.strip()
+    for n, label in choices.items():
+        if text == str(n) or text == label:
+            return n
+    return None
+
+def _validate_and_store(uid: str, step: int, text: str) -> bool:
+    state = users[uid]
+    q = Q[step]; key = q["key"]
+    state.setdefault("answers", {})
+    state.setdefault("multi_temp", {})
+
+    # 直接ラベル/番号対応
+    if q["choices"]:
+        n = _label_to_num(q["choices"], text)
+        if n is not None:
+            if q["multi"]:
+                sel = state["multi_temp"].setdefault(key, [])
+                label = q["choices"][n]
+                if label not in sel:
+                    sel.append(label)
+                return True
+            else:
+                state["answers"][key] = q["choices"][n] if key != "lang" else ("ja" if n == 1 else "en")
+                return True
+
+    # 日付
+    if key == "date":
+        try:
+            datetime.strptime(text.strip(), "%Y-%m-%d")
+            state["answers"][key] = text.strip()
+            return True
+        except Exception:
+            return False
+
+    # 複数選択の完了
+    if q["multi"] and text.strip() == "完了":
+        picked = state["multi_temp"].get(key, [])
+        if not picked: return False
+        state["answers"][key] = picked
+        return True
+
+    # 数字入力（後方互換）
+    nums = _parse_numbers(text)
+    if nums:
+        if q["multi"]:
+            bad = [n for n in nums if n not in q["choices"]]
+            if bad: return False
+            labels = [q["choices"][n] for n in nums]
+            state["multi_temp"][key] = sorted(set(state["multi_temp"].get(key, []) + labels), key=labels.index)
+            return True
+        else:
+            if len(nums) != 1 or nums[0] not in q["choices"]:
+                return False
+            state["answers"][key] = q["choices"][nums[0]] if key != "lang" else ("ja" if nums[0] == 1 else "en")
+            return True
+
+    return False
 
 def answers_brief(a: Dict[str, Any]) -> str:
     def pick(v, default="未選択"):
@@ -224,7 +271,6 @@ def build_schedule_prompt(answers: Dict[str, Any]) -> str:
 厳守事項：
 - 最終日には「宿泊」ブロックを入れない（チェックイン/宿泊は最終日前日まで）
 - 各日6ブロック以上を目標
-- 「所要」の前の絵文字は ⌛ を使用すること（例：⌛ 所要：60分）
 
 出力例：
 Day1
@@ -260,7 +306,7 @@ def build_guide_prompt(answers: Dict[str, Any]) -> str:
 3) 🎟️ 体験予約（3件）
 🎯 施設名（エリア）
 短評：体験内容や特徴を2〜3行
-💰 料金：〜円　⌛ 所要：〜分／予約：要・不要
+💰 料金：〜円　⌛ 所要：〜分／予約：要・不要　🕰 営業：時間／休：定休
 🔗 公式：URL
 📍 Googleマップ：URL
 ──────────────────────────────
@@ -297,34 +343,25 @@ def _call_openai_text(user_prompt: str) -> str:
     return (res.choices[0].message.content or "").strip()
 
 # ---------- 画像/URL 検出 ----------
-IMG_URL_RE = re.compile(
-    r"https?://(?:www\.)?(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co)/[^\s)]+",
-    re.I,
-)
+IMG_URL_RE = re.compile(r"https?://(?:www\.)?(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co)/[^\s)]+", re.I)
+NON_PREVIEW_DOMAINS = re.compile(r"(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co|google\.com/maps|goo\.gl/maps)", re.I)
+URL_RE = re.compile(r"https?://[^\s)]+", re.I)
+
 def _detect_image_urls(text: str, limit=5) -> List[str]:
     urls = []
     for m in IMG_URL_RE.finditer(text):
         urls.append(m.group(0))
-        if len(urls) >= limit:
-            break
+        if len(urls) >= limit: break
     return urls
-
-NON_PREVIEW_DOMAINS = re.compile(
-    r"(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co|google\.com/maps|goo\.gl/maps)",
-    re.I,
-)
-URL_RE = re.compile(r"https?://[^\s)]+", re.I)
 
 def _extract_preview_urls(text: str, limit=6) -> List[str]:
     urls: List[str] = []
     for m in URL_RE.finditer(text):
         u = m.group(0)
-        if NON_PREVIEW_DOMAINS.search(u):
+        if NON_PREVIEW_DOMAINS.search(u):  # 画像や地図は除外
             continue
-        if u not in urls:
-            urls.append(u)
-        if len(urls) >= limit:
-            break
+        if u not in urls: urls.append(u)
+        if len(urls) >= limit: break
     return urls
 
 OFFICIAL_URL_RE = re.compile(r"^(?:🔗\s*)?(?:公式|Official)\s*[:：]\s*(https?://[^\s)]+)", re.M)
@@ -337,19 +374,18 @@ DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
 ACT_TITLE_RE  = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
-# ======== 文字列サニタイズ / 情報抽出 ========
-TIME_RANGE_RE = re.compile(r"(?P<t1>\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(?P<t2>\d{1,2}[:：]\d{2})")
-PRICE_LINE_RE = re.compile(r"^[\s　]*[💰\$]?\s*(?:価格帯|料金|料金目安|目安)\s*[:：]\s*(?P<price>.+)$", re.M)
-OPEN_LINE_RE  = re.compile(r"^[\s　]*[🕰⏰]?\s*(?:営業)\s*[:：]\s*(?P<open>.+)$", re.M)
+# ======== 文字列サニタイズ ========
+TIME_RANGE_RE = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:：]\d{2})\b")
+PRICE_RE = re.compile(r"(?:💰|料金|価格帯)\s*[:：]\s*([^\n／]+)")
+HOURS_RE = re.compile(r"(?:🕰|営業時間|営業)\s*[:：]\s*([^\n]+)")
 
-TIME_TOKEN_RE = re.compile(r"\[?\s*\d{1,2}[:：]\d{2}\s*[–\-~〜]\s*\d{1,2}[:：]\d{2}\s*\]?")
-TRAIL_TIME_RE = re.compile(r"\b\d{1,2}[:：]\d{2}\b")
-
-def _strip_time(s: str) -> str:
-    s = TIME_TOKEN_RE.sub("", s)
-    s = TRAIL_TIME_RE.sub("", s)
-    s = re.sub(r"\s{2,}", " ", s).strip(" -|[]（）")
-    return s.strip()
+def _strip_links(text: str) -> str:
+    text = OFFICIAL_URL_RE.sub("", text)
+    text = MAP_URL_RE.sub("", text)
+    # 余白調整
+    text = re.sub(r"\n{2,}", "\n\n", text).strip()
+    # 見やすいよう区切り線追加
+    return text + "\n" + ("─"*30)
 
 def _clean_url(u: str) -> str:
     if not u: return ""
@@ -358,34 +394,19 @@ def _clean_url(u: str) -> str:
     if u.startswith("http://"): u = "https://" + u[len("http://"):]
     return u
 
-def _strip_urls_from_text(text: str) -> str:
-    lines = []
-    for ln in text.splitlines():
-        if OFFICIAL_URL_RE.search(ln) or MAP_URL_RE.search(ln):
-            continue
-        # 余白を広めに：ブロック見出しの前後に空行
-        lines.append(ln)
-    out = "\n".join(lines).strip()
-    out = out.replace("\n↓\n", "\n\n↓\n\n")  # ブロック境界の間隔を広く
-    out = out.replace("🕒 所要", "⌛ 所要")   # ⌛に統一
-    return out
-
-def _spacious_join(blocks: List[str]) -> str:
-    # 各ブロックの間に空行を多めに
-    cleaned = [ _strip_urls_from_text(b).strip() for b in blocks if b.strip() ]
-    return ("\n\n\n").join(cleaned)
-
 # ======== 送信用ヘルパー ========
 def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
     for i in range(0, len(msgs), size):
         chunk = msgs[i:i+size]
         line_bot_api.push_message(uid, chunk if len(chunk) > 1 else chunk[0])
 
-def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
+def _send_hotels_as_buttons(uid: str, hotels_text: str):
+    """ホテルはpush送信に変更（3件すべて確実に表示）"""
     blocks = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
     msgs = []
     for b in blocks:
-        if not b.strip(): continue
+        b = b.strip()
+        if not b: continue
         first_line = next((ln.strip() for ln in b.splitlines() if ln.strip()), "")
         title = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", first_line) or "ホテル"
         off = OFFICIAL_URL_RE.search(b)
@@ -397,13 +418,14 @@ def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
         msgs.append(
             TemplateSendMessage(
                 alt_text=title,
-                template=ButtonsTemplate(title=title[:40], text="リンクを選択してください", actions=actions[:4])
+                template=ButtonsTemplate(
+                    title=title[:40],
+                    text="リンクを選択してください",
+                    actions=actions[:4]
+                )
             )
         )
-    if msgs:
-        line_bot_api.reply_message(reply_token, msgs[:5])
-    else:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text=hotels_text))
+    if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
 def _extract_blocks_by_head(section_text: str, head_re: re.Pattern):
     lines = section_text.splitlines()
@@ -418,36 +440,23 @@ def _title_from_head_block(block: str, head_re: re.Pattern) -> str:
     m = head_re.search(block or "")
     return (m.group("title").strip() if m else "スポット")
 
-def _build_buttons_from_blocks(blocks, head_re):
-    msgs = []
-    for b in blocks:
-        title = _strip_time(_title_from_head_block(b, head_re))
-        off = OFFICIAL_URL_RE.search(b)
-        mp  = MAP_URL_RE.search(b)
-        if not (off or mp):
-            continue
-        # サブ：営業時間 / 料金目安
-        sub = []
-        mopen = OPEN_LINE_RE.search(b)
-        if mopen: sub.append(f"営業: {mopen.group('open').strip()}")
-        mprice = PRICE_LINE_RE.search(b)
-        if mprice: sub.append(f"目安: {mprice.group('price').strip()}")
-        subtitle = " / ".join(sub) if sub else "リンクを選択してください"
-
-        msgs.append(
-            TemplateSendMessage(
-                alt_text=title,
-                template=ButtonsTemplate(
-                    title=title[:40],
-                    text=subtitle[:60],
-                    actions=[
-                        URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))) if off else None,
-                        URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))) if mp else None
-                    ][:2]
-                )
-            )
-        )
-    return msgs
+def _info_from_block(block: str):
+    # 時間帯（タイトル用）
+    mtime = TIME_RANGE_RE.search(block)
+    time_range = mtime.group(0).replace("：", ":") if mtime else ""
+    # タイトル（スポット名）
+    mtitle = ACT_TITLE_RE.search(block)
+    name = (mtitle.group("title").strip() if mtitle else "スポット")
+    # サブ（営業時間＋料金）
+    mh = HOURS_RE.search(block)
+    hp = mh.group(1).strip() if mh else ""
+    mp = PRICE_RE.search(block)
+    price = mp.group(1).strip() if mp else ""
+    subtitle_parts = []
+    if hp: subtitle_parts.append(f"営業時間：{hp}")
+    if price: subtitle_parts.append(f"目安：{price}")
+    subtitle = " ／ ".join(subtitle_parts) if subtitle_parts else "リンクを選択してください"
+    return time_range, name, subtitle
 
 def _split_days(schedule_text: str):
     parts = []
@@ -460,50 +469,33 @@ def _split_days(schedule_text: str):
 def _blocks_in_day(day_text: str):
     return [b.strip() for b in BLOCK_SPLIT_RE.split(day_text.strip()) if b.strip()]
 
-def _title_from_block(block: str):
-    m = ACT_TITLE_RE.search(block)
-    if m: return m.group("title").strip()
-    first = next((ln.strip() for ln in block.splitlines() if ln.strip()), "")
-    return (first[:40] or "スポット")
-
-def _build_schedule_buttons_for_day(day_title: str, day_body: str):
+def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
     msgs = []
-    first_block = True
+    first_of_day = True
     for block in _blocks_in_day(day_body):
         off = OFFICIAL_URL_RE.search(block)
         mp  = MAP_URL_RE.search(block)
-        if not (off or mp):
-            continue
-
-        # タイトル：時間＋場所（先頭だけに "DayX | " プレフィックス）
-        mtime = TIME_RANGE_RE.search(block)
-        time_label = (f"{mtime.group('t1').replace('：',':')}–{mtime.group('t2').replace('：',':')}" if mtime else "")
-        place = _strip_time(_title_from_block(block))
-        title = f"{(day_title + ' | ') if first_block else ''}{(time_label + ' ') if time_label else ''}{place}".strip()
-
-        # サブ：営業時間 / 料金
-        sub = []
-        mopen = OPEN_LINE_RE.search(block)
-        if mopen: sub.append(f"営業: {mopen.group('open').strip()}")
-        mprice = PRICE_LINE_RE.search(block)
-        if mprice: sub.append(f"目安: {mprice.group('price').strip()}")
-        subtitle = " / ".join(sub) if sub else "リンクを選択してください"
-
+        if not (off or mp): continue
+        time_range, name, subtitle = _info_from_block(block)
+        title = f"{'Day' + day_title.replace('Day', '') if first_of_day else ''} {time_range} {name}".strip()
+        # 先頭カードに"DayX"を付与、それ以外は時間＋場所
+        if first_of_day:
+            title = f"{day_title}｜{time_range} {name}".strip()
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
         if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
         msgs.append(
             TemplateSendMessage(
-                alt_text=place[:60],
+                alt_text=f"{day_title}-{name}",
                 template=ButtonsTemplate(
                     title=title[:40],
-                    text=subtitle[:60],
+                    text=subtitle[:60] if subtitle else "リンクを選択してください",
                     actions=actions[:4]
                 )
             )
         )
-        first_block = False
-    return msgs
+        first_of_day = False
+    if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
 # ======== 必要日数まで日程表を追生成 ========
 def _generate_full_schedule(answers: Dict[str, Any]) -> str:
@@ -524,65 +516,74 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
         guard += 1
     return schedule
 
-# ======== ホテル 3件保証 ========
-def _ensure_three_hotels(answers: Dict[str, Any]) -> str:
-    hotels = _call_openai_text(build_hotel_prompt(answers))
-    def _count_blocks(t: str) -> int:
-        return len([b for b in re.split(r"\n[-─]{6,}\n|\n{2,}", (t or "").strip()) if b.strip()])
-    if _count_blocks(hotels) >= 3:
-        return hotels
-    retry_prompt = build_hotel_prompt(answers) + "\n必ず 3 件、欠番なく出力してください。"
-    return _call_openai_text(retry_prompt)
-
-# ---------- 5セクション順送り（最終仕様） ----------
+# ---------- 指定順で送信 ----------
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # ① ホテル（説明 → ボタン）※説明は余白広め
-    hotels = _ensure_three_hotels(answers)
-    h_blocks = [b for b in re.split(r"\n[-─]{6,}\n|\n{2,}", hotels.strip()) if b.strip()]
-    line_bot_api.push_message(uid, TextSendMessage(text=_spacious_join(h_blocks)))
-    _send_hotels_as_buttons(reply_token, hotels)
+    # ① ホテル 説明 → ボタン
+    hotels = _call_openai_text(build_hotel_prompt(answers))
+    # 説明（軽い区切りと余白）
+    line_bot_api.reply_message(reply_token, TextSendMessage(text=hotels.strip() + "\n" + ("─"*30)))
+    # ボタン（pushで3件確実に表示）
+    _send_hotels_as_buttons(uid, hotels)
 
-    # ② 日程表（Dayごとに テキスト(余白広め・URL除去) → ボタン）
+    # ② 日程表（各Day：テキスト→ボタン）
     schedule = _generate_full_schedule(answers)
     for day_title, day_body in _split_days(schedule):
-        day_blocks = _blocks_in_day(day_body)
-        line_bot_api.push_message(uid, TextSendMessage(text=_spacious_join(day_blocks)))
-        day_btns = _build_schedule_buttons_for_day(day_title, day_body)
-        if day_btns:
-            _push_messages_in_chunks(uid, day_btns, size=5)
+        # 説明テキストから公式/地図URL行を削除し、見やすい余白を追加
+        body_clean = _strip_links(day_body.strip())
+        line_bot_api.push_message(uid, TextSendMessage(text=body_clean))
+        _send_schedule_buttons_for_day(uid, day_title, day_body)
 
-    # ③ 実用ガイド：交通→食事(説明→ボタン)→体験(説明→ボタン)→合計予算→チェックリスト
+    # ③ 実用ガイド（食事→ボタン→体験→ボタン→合計予算→チェックリスト）
     guide = _call_openai_text(build_guide_prompt(answers))
     sections = SECTION_SPLIT_RE.split(guide)
 
-    def _find(name):
-        return next((s for s in sections if name in s), "")
+    # 食事
+    food_idx = next((i for i, s in enumerate(sections) if "食事おすすめ" in s), None)
+    if food_idx is not None:
+        food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:3]
+        if food_blocks_all:
+            # 説明はURL行を除去
+            line_bot_api.push_message(uid, TextSendMessage(text=_strip_links("\n\n".join(food_blocks_all))))
+            msgs = []
+            for b in food_blocks_all:
+                # タイトル／サブ
+                _, name, subtitle = _info_from_block(b)
+                off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
+                actions = []
+                if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
+                if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
+                msgs.append(TemplateSendMessage(
+                    alt_text=name,
+                    template=ButtonsTemplate(title=name[:40], text=subtitle[:60] or "リンクを選択してください", actions=actions[:4])
+                ))
+            if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
-    text_transport = _find("交通（")
-    text_food = _find("食事おすすめ")
-    text_exp  = _find("体験予約")
-    text_budget = _find("合計予算")
-    text_check  = _find("チェックリスト")
+    # 体験
+    exp_idx  = next((i for i, s in enumerate(sections) if "体験予約" in s), None)
+    if exp_idx is not None:
+        exp_blocks_all = _extract_blocks_by_head(sections[exp_idx], EXPER_HEAD_RE)[:3]
+        if exp_blocks_all:
+            line_bot_api.push_message(uid, TextSendMessage(text=_strip_links("\n\n".join(exp_blocks_all))))
+            msgs = []
+            for b in exp_blocks_all:
+                _, name, subtitle = _info_from_block(b)
+                off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
+                actions = []
+                if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
+                if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
+                msgs.append(TemplateSendMessage(
+                    alt_text=name,
+                    template=ButtonsTemplate(title=name[:40], text=subtitle[:60] or "リンクを選択してください", actions=actions[:4])
+                ))
+            if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
-    if text_transport.strip():
-        line_bot_api.push_message(uid, TextSendMessage(text=_strip_urls_from_text(text_transport)))
-
-    if text_food.strip():
-        food_blocks = _extract_blocks_by_head(text_food, FOOD_HEAD_RE)[:3]
-        if food_blocks:
-            line_bot_api.push_message(uid, TextSendMessage(text=_spacious_join(food_blocks)))
-            _push_messages_in_chunks(uid, _build_buttons_from_blocks(food_blocks, FOOD_HEAD_RE), size=5)
-
-    if text_exp.strip():
-        exp_blocks = _extract_blocks_by_head(text_exp, EXPER_HEAD_RE)[:3]
-        if exp_blocks:
-            line_bot_api.push_message(uid, TextSendMessage(text=_spacious_join(exp_blocks)))
-            _push_messages_in_chunks(uid, _build_buttons_from_blocks(exp_blocks, EXPER_HEAD_RE), size=5)
-
-    if text_budget.strip():
-        line_bot_api.push_message(uid, TextSendMessage(text=_strip_urls_from_text(text_budget)))
-    if text_check.strip():
-        line_bot_api.push_message(uid, TextSendMessage(text=_strip_urls_from_text(text_check)))
+    # 合計予算 & チェックリスト
+    budget_idx = next((i for i, s in enumerate(sections) if "合計予算" in s), None)
+    checklist_idx = next((i for i, s in enumerate(sections) if "チェックリスト" in s), None)
+    if budget_idx is not None:
+        line_bot_api.push_message(uid, TextSendMessage(text=sections[budget_idx].strip()))
+    if checklist_idx is not None:
+        line_bot_api.push_message(uid, TextSendMessage(text=sections[checklist_idx].strip()))
 
     # ④ 総評
     review = _call_openai_text(build_review_prompt(answers))
@@ -605,46 +606,24 @@ SYSTEM_PROMPT = (
     "食事と体験は**固有の店名・施設名**を必ず記載し、各項目に Google マップ検索URL と営業時間・定休の情報を付けること。\n"
     "体験は**最低3つ**提示すること（候補として3件、各々に料金目安・所要時間・予約要否を明記）。\n"
     "重要：**旅程の最終日には宿泊/チェックインのブロックを入れない。** 宿泊は最終日前日までに限定する。\n"
-    "表記：『所要』の前は必ず ⌛ を用いる。\n"
 )
 
-# ---------- 画像・URL 抽出系（そのまま） ----------
-def _extract_official_urls(text: str, limit: int = 12) -> List[str]:
-    urls: List[str] = []
-    for m in OFFICIAL_URL_RE.finditer(text):
-        u = m.group(1)
-        if NON_PREVIEW_DOMAINS.search(u):
-            continue
-        if u not in urls:
-            urls.append(u)
-        if len(urls) >= limit:
-            break
-    return urls
-
+# ---------- テキスト分割・送信 ----------
 def _split_long_text(text: str, maxlen=4900) -> List[str]:
-    if len(text) <= maxlen:
-        return [text]
+    if len(text) <= maxlen: return [text]
     parts, buf, count = [], [], 0
     for line in text.splitlines(True):
         if count + len(line) > maxlen:
             parts.append("".join(buf)); buf, count = [line], len(line)
         else:
             buf.append(line); count += len(line)
-    if buf:
-        parts.append("".join(buf))
+    if buf: parts.append("".join(buf))
     return parts
 
 def _reply_text(reply_token: str, text: str):
     chunks = _split_long_text(text)
     msgs = [TextSendMessage(text=c) for c in chunks]
     line_bot_api.reply_message(reply_token, msgs)
-
-def _push_images(uid: str, urls: List[str]):
-    for u in urls:
-        try:
-            line_bot_api.push_message(uid, ImageSendMessage(original_content_url=u, preview_image_url=u))
-        except LineBotApiError:
-            app.logger.exception("Image push failed: %s", u)
 
 # ====================== メインハンドラ ======================
 @handler.add(MessageEvent, message=TextMessage)
@@ -654,90 +633,40 @@ def on_message(event: MessageEvent):
 
     # リスタート
     if text in RESTART or text.lower() in RESTART:
-        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
-        # 複数選択一時保存
-        users[uid]["pending_multi_set"] = set()
-        _reply_text(event.reply_token, WELCOME)
-        # 最初の質問をクイックリプライで
-        _send_question(event.reply_token, users[uid])
+        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
+        line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
     # 初回
     if uid not in users or not users[uid]:
-        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "pending_multi_set": set()}
-        _reply_text(event.reply_token, WELCOME)
-        _send_question(event.reply_token, users[uid])
+        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
+        line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
     state = users[uid]
     step = state["step"]
-    q = Q[step]
 
-    # --- 入力処理（ボタン前提） ---
-    if q["multi"]:
-        # 複数選択：数字→蓄積、完了→確定
-        if text == "完了":
-            if state["pending_multi_set"]:
-                # 確定して次へ
-                chosen = sorted(set(int(x) for x in state["pending_multi_set"]))
-                state["answers"][q["key"]] = [q["choices"][n] for n in chosen if n in q["choices"]]
-                state["pending_multi_set"] = set()
-                state["step"] += 1
-                if state["step"] < len(Q):
-                    _send_question(event.reply_token, state)
-                else:
-                    # 全質問終了
-                    answers = state["answers"].copy()
-                    try:
-                        send_plan_parts(event.reply_token, uid, answers)
-                    except Exception as e:
-                        app.logger.exception("OpenAI API error")
-                        _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
-                        return
-                    users.pop(uid, None)
-                return
-            else:
-                # 何も選ばれていない
-                _send_question(event.reply_token, state)
-                return
-        else:
-            nums = _parse_numbers(text)
-            if nums:
-                # 選択を一時セットに追加
-                for n in nums:
-                    if n in q["choices"]:
-                        state["pending_multi_set"].add(n)
-            _send_question(event.reply_token, state)
-            return
-    else:
-        # 単一選択
-        nums = _parse_numbers(text)
-        if nums and len(nums) == 1 and nums[0] in q.get("choices", {nums[0]: str(nums[0])}):
-            state["answers"][q["key"]] = ( "ja" if (q["key"]=="lang" and nums[0]==1)
-                                           else "en" if (q["key"]=="lang" and nums[0]==2)
-                                           else q["choices"][nums[0]] )
-            state["step"] += 1
-            if state["step"] < len(Q):
-                _send_question(event.reply_token, state)
-                return
-        else:
-            # 日付入力など
-            if q["key"] == "date":
-                try:
-                    datetime.strptime(text.strip(), "%Y-%m-%d")
-                    state["answers"][q["key"]] = text.strip()
-                    state["step"] += 1
-                    if state["step"] < len(Q):
-                        _send_question(event.reply_token, state)
-                        return
-                except Exception:
-                    _send_question(event.reply_token, state)
-                    return
-            else:
-                _send_question(event.reply_token, state)
-                return
+    # 入力検証
+    if not _validate_and_store(uid, step, text):
+        # そのまま同じ質問をボタン付きで再提示
+        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
+        return
 
-    # === 全質問終了 → 指定順に送信 ===
+    # 複数選択中（完了待ち）のときは同じ質問を継続（一覧が隠れにくいよう再掲）
+    if Q[step]["multi"] and text != "完了":
+        # 再表示（選択中を表示）
+        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
+        return
+
+    # 次のステップへ
+    step += 1
+    state["step"] = step
+
+    if step < len(Q):
+        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
+        return
+
+    # === 全質問終了 → 指定順で送信 ===
     answers = state["answers"].copy()
     try:
         send_plan_parts(event.reply_token, uid, answers)
