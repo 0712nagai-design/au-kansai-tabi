@@ -217,6 +217,7 @@ def build_hotel_prompt(answers: Dict[str, Any]) -> str:
 以下は「ホテル候補」セクションの出力指示です。
 ユーザー回答に従って、宿泊施設のみを出力してください。
 極めて重要：「公式サイトを見る」および「Googleマップ」の行には、実際のURLを自動補完して出力してください。
+URLは公式サイト・Googleマップと短縮化
 【ユーザー回答(JSON参照用)】
 {answers_json}
 
@@ -247,7 +248,7 @@ def build_schedule_prompt(answers: Dict[str, Any]) -> str:
     return f"""
 以下は「日程表」セクションの出力指示です。
 他の項目は出さず、旅程のみを生成してください。
-
+極めて重要：「公式サイトを見る」および「Googleマップ」の行には、実際のURLを自動補完して出力してください。
 【ユーザー回答(JSON参照用)】
 {answers_json}
 
@@ -269,7 +270,7 @@ def build_guide_prompt(answers: Dict[str, Any]) -> str:
     return f"""
 以下は「実用ガイド」セクションの出力指示です。
 交通・食事・体験・予算・チェックリストのみを出力してください。
-
+極めて重要：「公式サイトを見る」および「Googleマップ」の行には、実際のURLを自動補完して出力してください。
 【ユーザー回答(JSON参照用)】
 {answers_json}
 
@@ -506,6 +507,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
