@@ -101,15 +101,15 @@ def _render_question(idx: int) -> str:
     lines = [q["title"]]
     if q["choices"]:
         for n, label in q["choices"].items():
-            lines.append(f"{n}\u20E3 {label}")  # 1⃣ の見た目
+            lines.append(f"{n}\u20E3 {label}")
     lines.append("🔁 最初から")
     return "\n".join(lines)
 
-# 数値選択パース
 FW_TO_HW = str.maketrans({
     "０":"0","１":"1","２":"2","３":"3","４":"4","５":"5","６":"6","７":"7","８":"8","９":"9",
     "．":".","，":",","、":",","・":",","　":" "
 })
+
 def _parse_numbers(s: str) -> Optional[List[int]]:
     if not s: return None
     s = s.translate(FW_TO_HW)
@@ -306,7 +306,7 @@ def _call_openai_text(user_prompt: str) -> str:
     )
     return (res.choices[0].message.content or "").strip()
 
-# ---------- 画像検出・送信 ----------
+# ---------- 画像/URL  ----------
 IMG_URL_RE = re.compile(
     r"https?://(?:www\.)?(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co)/[^\s)]+",
     re.I,
@@ -319,7 +319,6 @@ def _detect_image_urls(text: str, limit=5) -> List[str]:
             break
     return urls
 
-# プレビュー除外
 NON_PREVIEW_DOMAINS = re.compile(
     r"(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co|google\.com/maps|goo\.gl/maps)",
     re.I,
@@ -337,17 +336,9 @@ def _extract_preview_urls(text: str, limit=6) -> List[str]:
             break
     return urls
 
-# 公式URLだけ
-OFFICIAL_URL_RE = re.compile(
-    r"^(?:🔗\s*)?(?:公式|Official)\s*[:：]\s*(https?://[^\s)]+)",
-    re.M
-)
+OFFICIAL_URL_RE = re.compile(r"^(?:🔗\s*)?(?:公式|Official)\s*[:：]\s*(https?://[^\s)]+)", re.M)
+MAP_URL_RE = re.compile(r"^(?:📍\s*)?(?:Google ?マップ|Google ?Maps)\s*[:：]\s*(https?://[^\s)]+)", re.M | re.I)
 
-# ======== ボタン化用 正規表現 ========
-MAP_URL_RE = re.compile(
-    r"^(?:📍\s*)?(?:Google ?マップ|Google ?Maps)\s*[:：]\s*(https?://[^\s)]+)",
-    re.M | re.I
-)
 SECTION_SPLIT_RE = re.compile(r"\n[-─]{6,}\n")
 FOOD_HEAD_RE  = re.compile(r"^\s*🍽\s*(?P<title>[^（\(\n]+)", re.M)
 EXPER_HEAD_RE = re.compile(r"^\s*🎯\s*(?P<title>[^（\(\n]+)", re.M)
@@ -355,7 +346,14 @@ DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
 ACT_TITLE_RE  = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
-# ======== カード本文（説明/価格/営業時間）抽出 ========
+# ---- 時間抽出（10:00–12:00 / 10:00-12:00 / 10:00〜12:00 など）
+TIME_RE = re.compile(r"(?P<time>\d{1,2}:\d{2}\s*[–\-~～〜]\s*\d{1,2}:\d{2})")
+
+def _extract_time(block: str) -> str:
+    m = TIME_RE.search(block)
+    return (m.group("time").replace("~","〜").replace("~","〜") if m else "")
+
+# ---- 説明/価格/営業時間 抜粋
 SUMMARY_RE = re.compile(r"^(?:短評|概要)\s*[:：]\s*(.+)", re.M)
 PRICE_RE   = re.compile(r"^(?:価格目安|価格帯|料金)\s*[:：]\s*([^\n]+)", re.M)
 HOURS_RE   = re.compile(r"^(?:営業|営業時間)\s*[:：]\s*([^\n／]+)(?:\s*／\s*(?:休|定休)\s*[:：]?\s*([^\n]+))?", re.M)
@@ -389,7 +387,7 @@ def _build_card_text_from_block(block: str) -> str:
     if hours_line: lines.append(_clip(hours_line, 50))
     return "\n".join(lines) or "リンクを選択してください"
 
-# ======== URLサニタイズ ========
+# ---- URLサニタイズ & 本文のリンク行削除
 def _clean_url(u: str) -> str:
     if not u: return ""
     u = u.replace("\u200b","").replace("\u200c","").replace("\u200d","").replace("\ufeff","")
@@ -398,7 +396,6 @@ def _clean_url(u: str) -> str:
         u = "https://" + u[len("http://"):]
     return u
 
-# ======== テキスト本文からリンク行だけ削除 ========
 STRIP_LINK_LINES_RE = re.compile(
     r"^\s*(?:🔗\s*)?(?:公式|Official)\s*[:：].*$|^\s*(?:📍\s*)?(?:Google ?マップ|Google ?Maps)\s*[:：].*$",
     re.M
@@ -406,14 +403,35 @@ STRIP_LINK_LINES_RE = re.compile(
 def _strip_link_lines(text: str) -> str:
     return STRIP_LINK_LINES_RE.sub("", text).replace("\n\n\n", "\n\n").strip()
 
-# ======== ボタン化ヘルパー ========
+# ====================== ホテル分割強化 ======================
+# 既存：区切り線 / 空行
+# 強化：①②③… / "1)" / "1." の見出しでも分割
+HOTEL_ITEM_HEAD = re.compile(r"^\s*(?:[①-⑳]|[1-9]\s*[)\.])\s", re.M)
+
+def _split_hotel_blocks(hotels_text: str) -> List[str]:
+    blocks = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
+    blocks = [b for b in blocks if b.strip()]
+    if len(blocks) >= 2:
+        return blocks
+    # 見出しで分解
+    lines = hotels_text.splitlines()
+    idxs = [i for i, ln in enumerate(lines) if HOTEL_ITEM_HEAD.match(ln)]
+    if len(idxs) >= 2:
+        out = []
+        for j, start in enumerate(idxs):
+            end = idxs[j+1] if j+1 < len(idxs) else len(lines)
+            out.append("\n".join(lines[start:end]).strip())
+        return out
+    return blocks  # 最後の砦
+
+# ====================== 送信系 ======================
 def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
     for i in range(0, len(msgs), size):
         chunk = msgs[i:i+size]
         line_bot_api.push_message(uid, chunk if len(chunk) > 1 else chunk[0])
 
 def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
-    blocks = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
+    blocks = _split_hotel_blocks(hotels_text)
     msgs = []
     for b in blocks:
         if not b.strip(): continue
@@ -504,28 +522,31 @@ def _title_from_block(block: str):
     first = next((ln.strip() for ln in block.splitlines() if ln.strip()), "")
     return (first[:40] or "スポット")
 
-def _send_schedule_as_buttons(uid: str, schedule_text: str):
+def _send_schedule_day_buttons(uid: str, day_title: str, day_body: str):
+    """1日分だけカードを作る（タイトルに時間レンジを付与）"""
     msgs = []
-    for day_title, day_body in _split_days(schedule_text):
-        for block in _blocks_in_day(day_body):
-            off = OFFICIAL_URL_RE.search(block)
-            mp  = MAP_URL_RE.search(block)
-            if not (off or mp): continue
-            title = _title_from_block(block)
-            actions = []
-            if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
-            if mp:  actions.append(URITemplateAction(label="Googleマップ",     uri=_clean_url(mp.group(1))))
-            text_body = _build_card_text_from_block(block)
-            msgs.append(
-                TemplateSendMessage(
-                    alt_text=f"{day_title}-{title}",
-                    template=ButtonsTemplate(
-                        title=title[:40],
-                        text=_clip(text_body, 120),
-                        actions=actions[:4]
-                    )
+    for block in _blocks_in_day(day_body):
+        off = OFFICIAL_URL_RE.search(block)
+        mp  = MAP_URL_RE.search(block)
+        if not (off or mp): 
+            continue
+        title_plain = _title_from_block(block)
+        timerange = _extract_time(block)
+        card_title = (f"[{timerange}] {title_plain}" if timerange else title_plain)[:40]
+        actions = []
+        if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
+        if mp:  actions.append(URITemplateAction(label="Googleマップ",     uri=_clean_url(mp.group(1))))
+        text_body = _build_card_text_from_block(block)
+        msgs.append(
+            TemplateSendMessage(
+                alt_text=f"{day_title}-{title_plain}",
+                template=ButtonsTemplate(
+                    title=card_title,
+                    text=_clip(text_body, 120),
+                    actions=actions[:4]
                 )
             )
+        )
     if msgs:
         _push_messages_in_chunks(uid, msgs, size=5)
 
@@ -550,18 +571,18 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
 
 # ---------- 5セクション順送り ----------
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # ① ホテル（ボタンは原文から）
+    # ① ホテル（ボタンを確実に複数化）
     hotels_raw = _call_openai_text(build_hotel_prompt(answers))
     _send_hotels_as_buttons(reply_token, hotels_raw)
-    # （ホテル本文を出したい場合は _strip_link_lines(hotels_raw) をpushする）
 
-    # ② 日程表：原文→ボタン、削除版→本文
+    # ② 日程表：Dayごとに「ボタン → 本文」の順で交互に送る
     schedule_raw = _generate_full_schedule(answers)
-    _send_schedule_as_buttons(uid, schedule_raw)
-    schedule_clean = _strip_link_lines(schedule_raw)
-    line_bot_api.push_message(uid, TextSendMessage(text=schedule_clean))
+    for day_title, day_body in _split_days(schedule_raw):
+        _send_schedule_day_buttons(uid, day_title, day_body)              # 先にボタン
+        day_text_clean = _strip_link_lines(day_body)                      # 本文はリンク行を削除
+        line_bot_api.push_message(uid, TextSendMessage(text=day_text_clean))
 
-    # ③ 実用ガイド：原文→ボタン、削除版→本文
+    # ③ 実用ガイド：ボタンを先に、本文はリンク行削除版
     guide_raw = _call_openai_text(build_guide_prompt(answers))
     _send_guide_as_buttons(uid, guide_raw)
     guide_clean = _strip_link_lines(guide_raw)
