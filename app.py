@@ -363,13 +363,6 @@ def _extract_preview_urls(text: str, limit=6) -> List[str]:
         if len(urls) >= limit:
             break
     return urls
-
-    urls = []
-    for m in IMG_URL_RE.finditer(text):
-        urls.append(m.group(0))
-        if len(urls) >= limit:
-            break
-    return urls
 # 🔗 公式サイトなどのURLを単体で Push（リンクプレビューを出す）
 preview_urls = _extract_preview_urls(plan, limit=6)
 for u in preview_urls:
@@ -377,6 +370,14 @@ for u in preview_urls:
         line_bot_api.push_message(uid, TextSendMessage(text=u))
     except LineBotApiError:
         app.logger.exception("Preview URL push failed: %s", u)
+
+    urls = []
+    for m in IMG_URL_RE.finditer(text):
+        urls.append(m.group(0))
+        if len(urls) >= limit:
+            break
+    return urls
+
 
 def _split_long_text(text: str, maxlen=4900) -> List[str]:
     if len(text) <= maxlen:
@@ -475,6 +476,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
