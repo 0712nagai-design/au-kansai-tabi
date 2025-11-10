@@ -117,7 +117,7 @@ def _parse_numbers(s: str) -> Optional[List[int]]:
     # 全角→半角に寄せる
     s = s.translate(FW_TO_HW)
     # さまざまな区切り記号をカンマに統一
-    for sep in [".", "･", "・", "、", "，", " ", "　", "/", "／"]:
+    for sep in [".", "･", "・", "、", "　", "，", " ", "/", "／"]:
         s = s.replace(sep, ",")
     # 余分なカンマを整理
     s = re.sub(r",+", ",", s).strip(",")
@@ -343,11 +343,11 @@ NON_PREVIEW_DOMAINS = re.compile(
 URL_RE = re.compile(r"https?://[^\s)]+", re.I)
 
 def _extract_preview_urls(text: str, limit=6) -> List[str]:
-    """一般URLのリンクプレビュー用（使わないなら呼ばなくてOK）"""
+    """一般URLのリンクプレビュー用（使わないならOK）"""
     urls: List[str] = []
     for m in URL_RE.finditer(text):
         u = m.group(0)
-        if NON_PREVIEW_DOMAINS.search(u):  # 画像や地図は除外
+        if NON_PREVIEW_DOMAINS.search(u):
             continue
         if u not in urls:
             urls.append(u)
@@ -373,16 +373,25 @@ DAY_HEAD_RE      = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE   = re.compile(r"\n\s*↓\s*\n", re.M)
 ACT_TITLE_RE     = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
-# ======== 追加: ボタン化ヘルパー関数群（既存は変更しない） ========
+# ======== 追加: URLサニタイズ関数 ========
+def _clean_url(u: str) -> str:
+    if not u:
+        return ""
+    # ゼロ幅/不可視や全角空白、句読点・閉じカッコを除去
+    u = u.replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\ufeff", "")
+    u = u.strip().strip("。．、，)）]］>＞")
+    if u.startswith("http://"):
+        u = "https://" + u[len("http://"):]
+    return u
+
+# ======== 追加: ボタン化ヘルパー関数群 ========
 def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
-    """LINEの一括送信上限に合わせて分割push送信"""
     for i in range(0, len(msgs), size):
         chunk = msgs[i:i+size]
         line_bot_api.push_message(uid, chunk if len(chunk) > 1 else chunk[0])
 
 def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
-    """ホテル出力をボタン化して reply（URLが無ければ元テキストにフォールバック）"""
-    blocks = re.split(r"\n[-─]{6,}\n|\n{2,}", hotels_text.strip())
+    blocks = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
     msgs = []
     for b in blocks:
         if not b.strip():
@@ -391,13 +400,11 @@ def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
         title = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", first_line) or "ホテル"
         off = OFFICIAL_URL_RE.search(b)
         mp  = MAP_URL_RE.search(b)
-
         actions = []
-        if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=off.group(1)))
-        if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=mp.group(1)))
+        if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
+        if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
         if not actions:
             continue
-
         msgs.append(
             TemplateSendMessage(
                 alt_text=title,
@@ -414,7 +421,6 @@ def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
         line_bot_api.reply_message(reply_token, TextSendMessage(text=hotels_text))
 
 def _extract_blocks_by_head(section_text: str, head_re: re.Pattern):
-    """🍽 / 🎯 見出しごとにブロックを抽出"""
     lines = section_text.splitlines()
     idxs = [i for i, ln in enumerate(lines) if head_re.search(ln)]
     blocks = []
@@ -431,8 +437,8 @@ def _build_buttons_from_blocks(blocks, head_re):
         off = OFFICIAL_URL_RE.search(b)
         mp  = MAP_URL_RE.search(b)
         actions = []
-        if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=off.group(1)))
-        if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=mp.group(1)))
+        if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
+        if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
         if not actions:
             continue
         msgs.append(
@@ -448,7 +454,6 @@ def _build_buttons_from_blocks(blocks, head_re):
     return msgs
 
 def _send_guide_as_buttons(uid: str, guide_text: str):
-    """ガイドから食事/体験のボタン群をpush"""
     sections = SECTION_SPLIT_RE.split(guide_text)
     food_idx = next((i for i, s in enumerate(sections) if "食事おすすめ" in s), None)
     exp_idx  = next((i for i, s in enumerate(sections) if "体験予約" in s), None)
@@ -461,7 +466,6 @@ def _send_guide_as_buttons(uid: str, guide_text: str):
         _push_messages_in_chunks(uid, msgs, size=5)
 
 def _split_days(schedule_text: str):
-    """'Day1..' を [(title,text),...] に分割"""
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
     for i, (title, start) in enumerate(positions):
@@ -470,7 +474,6 @@ def _split_days(schedule_text: str):
     return parts
 
 def _blocks_in_day(day_text: str):
-    """1日を '↓' でブロック化"""
     return [b.strip() for b in BLOCK_SPLIT_RE.split(day_text.strip()) if b.strip()]
 
 def _title_from_block(block: str):
@@ -481,7 +484,6 @@ def _title_from_block(block: str):
     return (first[:40] or "スポット")
 
 def _send_schedule_as_buttons(uid: str, schedule_text: str):
-    """日程表アクティビティをボタン化してpush"""
     msgs = []
     for day_title, day_body in _split_days(schedule_text):
         for block in _blocks_in_day(day_body):
@@ -491,8 +493,8 @@ def _send_schedule_as_buttons(uid: str, schedule_text: str):
                 continue
             title = _title_from_block(block)
             actions = []
-            if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=off.group(1)))
-            if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=mp.group(1)))
+            if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
+            if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
             first_line = next((ln.strip() for ln in block.splitlines() if ln.strip()), "")
             desc = f"{day_title}｜{first_line}" if first_line else day_title
             msgs.append(
@@ -508,25 +510,41 @@ def _send_schedule_as_buttons(uid: str, schedule_text: str):
     if msgs:
         _push_messages_in_chunks(uid, msgs, size=5)
 
-# ---------- 5セクション順送り ----------
-def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # ① ホテル（←テキスト返信をボタン返信に置換）
-    hotels = _call_openai_text(build_hotel_prompt(answers))
-    _send_hotels_as_buttons(reply_token, hotels)
-
-    # ② 日程表（テキスト送信は従来どおり＋ボタンpushを追記）
+# ======== 追加: 必要日数まで日程表を追生成・連結 ========
+def _generate_full_schedule(answers: Dict[str, Any]) -> str:
     schedule = _call_openai_text(build_schedule_prompt(answers))
     need = _required_days(answers)
     got  = _count_days_in_text(schedule)
-    if got < need:
-        schedule += f"\n\n（補足）現在 {got} 日分です。{need} 日分になるよう続きも含めて出力してください。"
-    line_bot_api.push_message(uid, TextSendMessage(text=schedule))
-    _send_schedule_as_buttons(uid, schedule)   # ← 追記
 
-    # ③ 実用ガイド（テキスト送信は従来どおり＋ボタンpushを追記）
+    guard = 0
+    while got < need and guard < 4:  # 無限ループ防止
+        cont_prompt = (
+            build_schedule_prompt(answers)
+            + f"\n補足：すでに Day1〜Day{got} まで作成済み。"
+              f"続きの Day{got+1} 以降のみを、同じフォーマットで出力してください。"
+              f"過去の日を繰り返さないこと。"
+        )
+        extra = _call_openai_text(cont_prompt)
+        schedule = (schedule.rstrip() + "\n" + extra.lstrip()).strip()
+        got = _count_days_in_text(schedule)
+        guard += 1
+    return schedule
+
+# ---------- 5セクション順送り ----------
+def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
+    # ① ホテル（テキスト→ボタン）
+    hotels = _call_openai_text(build_hotel_prompt(answers))
+    _send_hotels_as_buttons(reply_token, hotels)
+
+    # ② 日程表（必要日数まで自動追生成して送信→ボタンpush）
+    schedule = _generate_full_schedule(answers)
+    line_bot_api.push_message(uid, TextSendMessage(text=schedule))
+    _send_schedule_as_buttons(uid, schedule)
+
+    # ③ 実用ガイド（テキスト→ボタンpush）
     guide = _call_openai_text(build_guide_prompt(answers))
     line_bot_api.push_message(uid, TextSendMessage(text=guide))
-    _send_guide_as_buttons(uid, guide)         # ← 追記
+    _send_guide_as_buttons(uid, guide)
 
     # ④ 総評
     review = _call_openai_text(build_review_prompt(answers))
@@ -595,13 +613,13 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-    # リスタート：状態を初期化して WELCOME だけ返す（質問は二度出さない）
+    # リスタート
     if text in RESTART or text.lower() in RESTART:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
         _reply_text(event.reply_token, WELCOME)
         return
 
-    # セッション初期化：最初も WELCOME だけ返す
+    # 初回
     if uid not in users or not users[uid]:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
         _reply_text(event.reply_token, WELCOME)
@@ -610,7 +628,7 @@ def on_message(event: MessageEvent):
     state = users[uid]
     step = state["step"]
 
-    # 現在ステップに対する入力を検証・保存
+    # 入力検証
     if not _validate_and_store(uid, step, text):
         _reply_text(event.reply_token, _render_question(step))
         return
@@ -619,12 +637,11 @@ def on_message(event: MessageEvent):
     step += 1
     state["step"] = step
 
-    # まだ質問が残っていれば次の質問を提示
     if step < len(Q):
         _reply_text(event.reply_token, _render_question(step))
         return
 
-    # === 全質問終了 → 5セクションを順に送信 ===
+    # === 全質問終了 → 5セクション送信 ===
     answers = state["answers"].copy()
     try:
         send_plan_parts(event.reply_token, uid, answers)
@@ -633,7 +650,6 @@ def on_message(event: MessageEvent):
         _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
         return
 
-    # セッション終了
     users.pop(uid, None)
 
 # ====================== ローカル実行 ======================
@@ -641,5 +657,3 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
-
