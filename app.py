@@ -243,7 +243,7 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 　🔗 公式：生URL
 　📍 Googleマップ：生URL
 　🕰 営業：時間／休：定休
-　──────────────────────────────  ←**各ブロックの最後に必ず入れる**
+　↓  ←**各ブロックの最後に必ず入れる（区切り記号はこの1文字だけ）**
 
 　※「Day1」「Day2」などは**各日の最初のブロックのみに表示**し、同じ日のブロック内では省略する。
 　※「昼食」「夕食」は**店名を必須**（例：○○食堂）＋短評＋価格帯＋営業時間＋GoogleマップURL。
@@ -455,19 +455,7 @@ def on_message(event: MessageEvent):
     # 本文（旅程）を返信
     _reply_text(event.reply_token, plan)
 
-    # 画像URL（必要なら）
-    imgs = _detect_image_urls(plan, limit=5)
-    if imgs:
-        _push_images(uid, imgs)
-
-    # 各施設の「🔗 公式：…」だけをリンクカードで送る（個別URLの乱発を避けるならここをコメントアウトでもOK）
-    official_urls = _extract_official_urls(plan, limit=12)
-    for u in official_urls:
-        try:
-            line_bot_api.push_message(uid, TextSendMessage(text=u))
-        except LineBotApiError:
-            app.logger.exception("Official URL push failed: %s", u)
-
+   
     # セッション終了
     users.pop(uid, None)
 
@@ -479,6 +467,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
