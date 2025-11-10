@@ -464,7 +464,7 @@ def on_message(event: MessageEvent):
         _reply_text(event.reply_token, WELCOME)
         return
 
-    # セッション初期化：最初も WELCOME だけ返す（言語質問を重複表示しない）
+    # セッション初期化：最初も WELCOME だけ返す
     if uid not in users or not users[uid]:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS)}
         _reply_text(event.reply_token, WELCOME)
@@ -487,32 +487,26 @@ def on_message(event: MessageEvent):
         _reply_text(event.reply_token, _render_question(step))
         return
 
-   # === 全質問終了 → 5セクションを順に送信 ===
-answers = state["answers"].copy()
-try:
-    send_plan_parts(event.reply_token, uid, answers)
-except Exception as e:
-    app.logger.exception("OpenAI API error")
-    _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
-    return
+    # === 全質問終了 → 5セクションを順に送信 ===
+    answers = state["answers"].copy()
+    try:
+        send_plan_parts(event.reply_token, uid, answers)
+    except Exception as e:
+        app.logger.exception("OpenAI API error")
+        _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
+        return
 
-
-
-    # 本文（旅程）を返信
-    _reply_text(event.reply_token, plan)
-
-   
     # セッション終了
     users.pop(uid, None)
 
-
-    
 
 # ====================== ローカル実行 ======================
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
+
 
 
 
