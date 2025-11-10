@@ -105,23 +105,17 @@ def _render_question(idx: int) -> str:
     lines.append("🔁 最初から")
     return "\n".join(lines)
 
-# 数値選択のパースを強化（カンマ/ドット/中黒/全角など全て区切りに）
+# 数値選択パース
 FW_TO_HW = str.maketrans({
     "０":"0","１":"1","２":"2","３":"3","４":"4","５":"5","６":"6","７":"7","８":"8","９":"9",
     "．":".","，":",","、":",","・":",","　":" "
 })
-
 def _parse_numbers(s: str) -> Optional[List[int]]:
-    if not s:
-        return None
-    # 全角→半角に寄せる
+    if not s: return None
     s = s.translate(FW_TO_HW)
-    # さまざまな区切り記号をカンマに統一
-    for sep in [".", "･", "・", "、", "　", "，", " ", "/", "／"]:
+    for sep in [".","･","・","、","　","，"," ","/","／"]:
         s = s.replace(sep, ",")
-    # 余分なカンマを整理
     s = re.sub(r",+", ",", s).strip(",")
-    # 数字とカンマだけになっているか
     if not re.fullmatch(r"[0-9,]+", s):
         return None
     try:
@@ -130,15 +124,12 @@ def _parse_numbers(s: str) -> Optional[List[int]]:
     except Exception:
         return None
 
-
 def _validate_and_store(uid: str, step: int, text: str) -> bool:
-    """有効なら users[uid]['answers'] に保存して True を返す。無効なら False。"""
     state = users[uid]
     q = Q[step]
     key = q["key"]
     if "answers" not in state: state["answers"] = {}
 
-    # 言語
     if key == "lang":
         nums = _parse_numbers(text)
         if nums and len(nums) == 1 and nums[0] in (1, 2):
@@ -146,7 +137,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
             return True
         return False
 
-    # 地域（複数）
     if key == "region":
         nums = _parse_numbers(text)
         if not nums: return False
@@ -155,7 +145,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         state["answers"][key] = [REGIONS[n] for n in sorted(set(nums))]
         return True
 
-    # 日付
     if key == "date":
         try:
             datetime.strptime(text.strip(), "%Y-%m-%d")
@@ -164,7 +153,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         except Exception:
             return False
 
-    # 共通（単一/複数）
     nums = _parse_numbers(text)
     if not nums: return False
 
@@ -180,12 +168,10 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         return True
 
 def answers_brief(a: Dict[str, Any]) -> str:
-    """回答の短い要約（キー名はこの実装のものに合わせる）"""
     def pick(v, default="未選択"):
         if v is None or v == "": return default
         if isinstance(v, list): return "、".join(map(str, v)) if v else default
         return str(v)
-
     return (
         f"- 地域：{pick(a.get('region'))}\n"
         f"- 出発日：{pick(a.get('date'))}\n"
@@ -205,7 +191,6 @@ def _count_days_in_text(text: str) -> int:
     return max(a, b)
 
 def _required_days(answers: dict) -> int:
-    """stay から必要日数を返す（最低2日）"""
     stay = str(answers.get("stay", "2"))
     table = {"日帰り": 1, "1泊2日": 2, "2泊3日": 3, "3泊以上": 3}
     d = table.get(stay, 2)
@@ -326,7 +311,6 @@ IMG_URL_RE = re.compile(
     r"https?://(?:www\.)?(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co)/[^\s)]+",
     re.I,
 )
-
 def _detect_image_urls(text: str, limit=5) -> List[str]:
     urls = []
     for m in IMG_URL_RE.finditer(text):
@@ -335,15 +319,13 @@ def _detect_image_urls(text: str, limit=5) -> List[str]:
             break
     return urls
 
-# 画像・地図のドメインはプレビュー除外（統一版）
+# プレビュー除外
 NON_PREVIEW_DOMAINS = re.compile(
     r"(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co|google\.com/maps|goo\.gl/maps)",
     re.I,
 )
 URL_RE = re.compile(r"https?://[^\s)]+", re.I)
-
 def _extract_preview_urls(text: str, limit=6) -> List[str]:
-    """一般URLのリンクプレビュー用（使わないならOK）"""
     urls: List[str] = []
     for m in URL_RE.finditer(text):
         u = m.group(0)
@@ -355,36 +337,76 @@ def _extract_preview_urls(text: str, limit=6) -> List[str]:
             break
     return urls
 
-# 公式URLだけを抽出
+# 公式URLだけ
 OFFICIAL_URL_RE = re.compile(
     r"^(?:🔗\s*)?(?:公式|Official)\s*[:：]\s*(https?://[^\s)]+)",
     re.M
 )
 
-# ======== 追加: ボタン化用の正規表現（最小追記） ========
+# ======== ボタン化用 正規表現 ========
 MAP_URL_RE = re.compile(
     r"^(?:📍\s*)?(?:Google ?マップ|Google ?Maps)\s*[:：]\s*(https?://[^\s)]+)",
     re.M | re.I
 )
 SECTION_SPLIT_RE = re.compile(r"\n[-─]{6,}\n")
-FOOD_HEAD_RE     = re.compile(r"^\s*🍽\s*(?P<title>[^（\(\n]+)", re.M)
-EXPER_HEAD_RE    = re.compile(r"^\s*🎯\s*(?P<title>[^（\(\n]+)", re.M)
-DAY_HEAD_RE      = re.compile(r"^Day\s*\d+", re.M | re.I)
-BLOCK_SPLIT_RE   = re.compile(r"\n\s*↓\s*\n", re.M)
-ACT_TITLE_RE     = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
+FOOD_HEAD_RE  = re.compile(r"^\s*🍽\s*(?P<title>[^（\(\n]+)", re.M)
+EXPER_HEAD_RE = re.compile(r"^\s*🎯\s*(?P<title>[^（\(\n]+)", re.M)
+DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
+BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
+ACT_TITLE_RE  = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
-# ======== 追加: URLサニタイズ関数 ========
+# ======== カード本文（説明/価格/営業時間）抽出 ========
+SUMMARY_RE = re.compile(r"^(?:短評|概要)\s*[:：]\s*(.+)", re.M)
+PRICE_RE   = re.compile(r"^(?:価格目安|価格帯|料金)\s*[:：]\s*([^\n]+)", re.M)
+HOURS_RE   = re.compile(r"^(?:営業|営業時間)\s*[:：]\s*([^\n／]+)(?:\s*／\s*(?:休|定休)\s*[:：]?\s*([^\n]+))?", re.M)
+
+def _clip(s: str, n: int) -> str:
+    s = (s or "").strip()
+    return s if len(s) <= n else s[:max(0, n-1)] + "…"
+
+def _build_card_text_from_block(block: str) -> str:
+    m_sum = SUMMARY_RE.search(block)
+    if m_sum:
+        summary = m_sum.group(1).strip()
+    else:
+        first = next((ln.strip() for ln in block.splitlines() if ln.strip()), "")
+        summary = re.sub(r"^\s*🕘?\s*\d{1,2}:\d{2}.*", "", first).strip() or "リンクを選択してください"
+
+    m_price = PRICE_RE.search(block)
+    price = m_price.group(1).strip() if m_price else ""
+
+    m_hours = HOURS_RE.search(block)
+    if m_hours:
+        hours  = (m_hours.group(1) or "").strip()
+        closed = (m_hours.group(2) or "").strip()
+        hours_line = f"営業：{hours}／休：{closed}" if closed else (f"営業：{hours}" if hours else "")
+    else:
+        hours_line = ""
+
+    lines = []
+    if summary:    lines.append(_clip(summary, 60))
+    if price:      lines.append(_clip(f"価格：{price}", 40))
+    if hours_line: lines.append(_clip(hours_line, 50))
+    return "\n".join(lines) or "リンクを選択してください"
+
+# ======== URLサニタイズ ========
 def _clean_url(u: str) -> str:
-    if not u:
-        return ""
-    # ゼロ幅/不可視や全角空白、句読点・閉じカッコを除去
-    u = u.replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\ufeff", "")
+    if not u: return ""
+    u = u.replace("\u200b","").replace("\u200c","").replace("\u200d","").replace("\ufeff","")
     u = u.strip().strip("。．、，)）]］>＞")
     if u.startswith("http://"):
         u = "https://" + u[len("http://"):]
     return u
 
-# ======== 追加: ボタン化ヘルパー関数群 ========
+# ======== テキスト本文からリンク行だけ削除 ========
+STRIP_LINK_LINES_RE = re.compile(
+    r"^\s*(?:🔗\s*)?(?:公式|Official)\s*[:：].*$|^\s*(?:📍\s*)?(?:Google ?マップ|Google ?Maps)\s*[:：].*$",
+    re.M
+)
+def _strip_link_lines(text: str) -> str:
+    return STRIP_LINK_LINES_RE.sub("", text).replace("\n\n\n", "\n\n").strip()
+
+# ======== ボタン化ヘルパー ========
 def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
     for i in range(0, len(msgs), size):
         chunk = msgs[i:i+size]
@@ -394,23 +416,22 @@ def _send_hotels_as_buttons(reply_token: str, hotels_text: str):
     blocks = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
     msgs = []
     for b in blocks:
-        if not b.strip():
-            continue
+        if not b.strip(): continue
         first_line = next((ln.strip() for ln in b.splitlines() if ln.strip()), "")
         title = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", first_line) or "ホテル"
         off = OFFICIAL_URL_RE.search(b)
         mp  = MAP_URL_RE.search(b)
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
-        if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-        if not actions:
-            continue
+        if mp:  actions.append(URITemplateAction(label="Googleマップ",     uri=_clean_url(mp.group(1))))
+        if not actions: continue
+        text_body = _build_card_text_from_block(b)
         msgs.append(
             TemplateSendMessage(
                 alt_text=title,
                 template=ButtonsTemplate(
                     title=title[:40],
-                    text="リンクを選択してください",
+                    text=text_body or "リンクを選択してください",
                     actions=actions[:4]
                 )
             )
@@ -438,15 +459,15 @@ def _build_buttons_from_blocks(blocks, head_re):
         mp  = MAP_URL_RE.search(b)
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
-        if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-        if not actions:
-            continue
+        if mp:  actions.append(URITemplateAction(label="Googleマップ",     uri=_clean_url(mp.group(1))))
+        if not actions: continue
+        text_body = _build_card_text_from_block(b)
         msgs.append(
             TemplateSendMessage(
                 alt_text=title,
                 template=ButtonsTemplate(
                     title=title[:40],
-                    text="リンクを選択してください",
+                    text=text_body or "リンクを選択してください",
                     actions=actions[:4]
                 )
             )
@@ -489,20 +510,18 @@ def _send_schedule_as_buttons(uid: str, schedule_text: str):
         for block in _blocks_in_day(day_body):
             off = OFFICIAL_URL_RE.search(block)
             mp  = MAP_URL_RE.search(block)
-            if not (off or mp):
-                continue
+            if not (off or mp): continue
             title = _title_from_block(block)
             actions = []
             if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
-            if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-            first_line = next((ln.strip() for ln in block.splitlines() if ln.strip()), "")
-            desc = f"{day_title}｜{first_line}" if first_line else day_title
+            if mp:  actions.append(URITemplateAction(label="Googleマップ",     uri=_clean_url(mp.group(1))))
+            text_body = _build_card_text_from_block(block)
             msgs.append(
                 TemplateSendMessage(
                     alt_text=f"{day_title}-{title}",
                     template=ButtonsTemplate(
                         title=title[:40],
-                        text=desc[:60] if desc else "リンクを選択してください",
+                        text=_clip(text_body, 120),
                         actions=actions[:4]
                     )
                 )
@@ -510,14 +529,13 @@ def _send_schedule_as_buttons(uid: str, schedule_text: str):
     if msgs:
         _push_messages_in_chunks(uid, msgs, size=5)
 
-# ======== 追加: 必要日数まで日程表を追生成・連結 ========
+# ======== 必要日数まで日程表を追生成 ========
 def _generate_full_schedule(answers: Dict[str, Any]) -> str:
     schedule = _call_openai_text(build_schedule_prompt(answers))
     need = _required_days(answers)
     got  = _count_days_in_text(schedule)
-
     guard = 0
-    while got < need and guard < 4:  # 無限ループ防止
+    while got < need and guard < 4:
         cont_prompt = (
             build_schedule_prompt(answers)
             + f"\n補足：すでに Day1〜Day{got} まで作成済み。"
@@ -532,19 +550,22 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
 
 # ---------- 5セクション順送り ----------
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # ① ホテル（テキスト→ボタン）
-    hotels = _call_openai_text(build_hotel_prompt(answers))
-    _send_hotels_as_buttons(reply_token, hotels)
+    # ① ホテル（ボタンは原文から）
+    hotels_raw = _call_openai_text(build_hotel_prompt(answers))
+    _send_hotels_as_buttons(reply_token, hotels_raw)
+    # （ホテル本文を出したい場合は _strip_link_lines(hotels_raw) をpushする）
 
-    # ② 日程表（必要日数まで自動追生成して送信→ボタンpush）
-    schedule = _generate_full_schedule(answers)
-    line_bot_api.push_message(uid, TextSendMessage(text=schedule))
-    _send_schedule_as_buttons(uid, schedule)
+    # ② 日程表：原文→ボタン、削除版→本文
+    schedule_raw = _generate_full_schedule(answers)
+    _send_schedule_as_buttons(uid, schedule_raw)
+    schedule_clean = _strip_link_lines(schedule_raw)
+    line_bot_api.push_message(uid, TextSendMessage(text=schedule_clean))
 
-    # ③ 実用ガイド（テキスト→ボタンpush）
-    guide = _call_openai_text(build_guide_prompt(answers))
-    line_bot_api.push_message(uid, TextSendMessage(text=guide))
-    _send_guide_as_buttons(uid, guide)
+    # ③ 実用ガイド：原文→ボタン、削除版→本文
+    guide_raw = _call_openai_text(build_guide_prompt(answers))
+    _send_guide_as_buttons(uid, guide_raw)
+    guide_clean = _strip_link_lines(guide_raw)
+    line_bot_api.push_message(uid, TextSendMessage(text=guide_clean))
 
     # ④ 総評
     review = _call_openai_text(build_review_prompt(answers))
@@ -573,7 +594,7 @@ def _extract_official_urls(text: str, limit: int = 12) -> List[str]:
     urls: List[str] = []
     for m in OFFICIAL_URL_RE.finditer(text):
         u = m.group(1)
-        if NON_PREVIEW_DOMAINS.search(u):  # 地図や画像系は除外
+        if NON_PREVIEW_DOMAINS.search(u):
             continue
         if u not in urls:
             urls.append(u)
