@@ -343,8 +343,7 @@ def _detect_image_urls(text: str, limit=5) -> List[str]:
             break
     return urls
 
-
-# 画像・地図のドメインはプレビュー除外
+# 画像・地図のドメインはプレビュー除外（統一版）
 NON_PREVIEW_DOMAINS = re.compile(
     r"(?:japan-guide\.com|upload\.wikimedia\.org|images\.unsplash\.com|placehold\.co|google\.com/maps|goo\.gl/maps)",
     re.I,
@@ -352,42 +351,32 @@ NON_PREVIEW_DOMAINS = re.compile(
 URL_RE = re.compile(r"https?://[^\s)]+", re.I)
 
 def _extract_preview_urls(text: str, limit=6) -> List[str]:
-    """LINE のリンクプレビューを出したいURLだけを抽出"""
+    """一般URLのリンクプレビュー用（使わないなら呼ばなくてOK）"""
     urls: List[str] = []
     for m in URL_RE.finditer(text):
         u = m.group(0)
-        if NON_PREVIEW_DOMAINS.search(u):  # 画像や地図リンクは除外
+        if NON_PREVIEW_DOMAINS.search(u):  # 画像や地図は除外
             continue
         if u not in urls:
             urls.append(u)
         if len(urls) >= limit:
             break
     return urls
-# ========= 公式URL抽出（LINEプレビュー用） =========
-NON_PREVIEW_DOMAINS = re.compile(
-    r"(?:google\.com/maps|goo\.gl/maps)", re.I
-)
+
+# 公式URLだけを抽出してプレビュー（施設ごとカード）用
 OFFICIAL_URL_RE = re.compile(
     r"^(?:🔗\s*)?(?:公式|Official)\s*[:：]\s*(https?://[^\s)]+)",
     re.M
 )
 
 def _extract_official_urls(text: str, limit: int = 12) -> List[str]:
-    """日程表の各ブロックにある『公式URL』だけを抽出して返す"""
     urls: List[str] = []
     for m in OFFICIAL_URL_RE.finditer(text):
         u = m.group(1)
-        if NON_PREVIEW_DOMAINS.search(u):   # 地図リンクは除外
+        if NON_PREVIEW_DOMAINS.search(u):  # 地図や画像系は除外
             continue
         if u not in urls:
             urls.append(u)
-        if len(urls) >= limit:
-            break
-    return urls
-
-    urls = []
-    for m in IMG_URL_RE.finditer(text):
-        urls.append(m.group(0))
         if len(urls) >= limit:
             break
     return urls
@@ -463,24 +452,24 @@ def on_message(event: MessageEvent):
         _reply_text(event.reply_token, f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})")
         return
 
-   # 本文（旅程）を返信
-_reply_text(event.reply_token, plan)
+    # 本文（旅程）を返信
+    _reply_text(event.reply_token, plan)
 
-# （任意）画像URLの push が要らなければこの3行は削除
-imgs = _detect_image_urls(plan, limit=5)
-if imgs:
-    _push_images(uid, imgs)
+    # 画像URL（必要なら）
+    imgs = _detect_image_urls(plan, limit=5)
+    if imgs:
+        _push_images(uid, imgs)
 
-# ★ここから追加：各施設の『公式URL』を単体で push → リンクカード表示
-official_urls = _extract_official_urls(plan, limit=12)  # 件数は好みで
-for u in official_urls:
-    try:
-        line_bot_api.push_message(uid, TextSendMessage(text=u))
-    except LineBotApiError:
-        app.logger.exception("Official URL push failed: %s", u)
+    # 各施設の「🔗 公式：…」だけをリンクカードで送る（個別URLの乱発を避けるならここをコメントアウトでもOK）
+    official_urls = _extract_official_urls(plan, limit=12)
+    for u in official_urls:
+        try:
+            line_bot_api.push_message(uid, TextSendMessage(text=u))
+        except LineBotApiError:
+            app.logger.exception("Official URL push failed: %s", u)
 
-# セッション終了
-users.pop(uid, None)
+    # セッション終了
+    users.pop(uid, None)
 
 
     
@@ -490,6 +479,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
