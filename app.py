@@ -104,15 +104,31 @@ def _render_question(idx: int) -> str:
     lines.append("🔁 最初から")
     return "\n".join(lines)
 
+# 数値選択のパースを強化（カンマ/ドット/中黒/全角など全て区切りに）
+FW_TO_HW = str.maketrans({
+    "０":"0","１":"1","２":"2","３":"3","４":"4","５":"5","６":"6","７":"7","８":"8","９":"9",
+    "．":".","，":",","、":",","・":",","　":" "
+})
+
 def _parse_numbers(s: str) -> Optional[List[int]]:
-    if not s: return None
-    s = s.replace("，", ",").replace("・", ",").replace(" ", "")
-    if not re.fullmatch(r"[0-9,]+", s): return None
+    if not s:
+        return None
+    # 全角→半角に寄せる
+    s = s.translate(FW_TO_HW)
+    # さまざまな区切り記号をカンマに統一
+    for sep in [".", "･", "・", "、", "，", " ", "　", "/", "／"]:
+        s = s.replace(sep, ",")
+    # 余分なカンマを整理
+    s = re.sub(r",+", ",", s).strip(",")
+    # 数字とカンマだけになっているか
+    if not re.fullmatch(r"[0-9,]+", s):
+        return None
     try:
-        nums = [int(x) for x in s.split(",") if x]
+        nums = [int(x) for x in s.split(",") if x != ""]
         return nums if nums else None
     except Exception:
         return None
+
 
 def _validate_and_store(uid: str, step: int, text: str) -> bool:
     """有効なら users[uid]['answers'] に保存して True を返す。無効なら False。"""
@@ -266,7 +282,8 @@ def build_final_prompt(answers: Dict[str, Any]) -> str:
 
 4️⃣ 総評・注意点・代替案（2–4行）
 
-5️⃣ 次の操作メニュー（指示文のまま）
+5️⃣ 次の操作メニュー（**この1行のみを必ず出力**）
+🔄 最初から
 
 【リンクルール】URLは**生URL**のみ（Markdownリンク禁止）
 【言語】lang=jaなら日本語、enなら英語で一貫
@@ -353,6 +370,13 @@ def _extract_preview_urls(text: str, limit=6) -> List[str]:
         if len(urls) >= limit:
             break
     return urls
+# 🔗 公式サイトなどのURLを単体で Push（リンクプレビューを出す）
+preview_urls = _extract_preview_urls(plan, limit=6)
+for u in preview_urls:
+    try:
+        line_bot_api.push_message(uid, TextSendMessage(text=u))
+    except LineBotApiError:
+        app.logger.exception("Preview URL push failed: %s", u)
 
 def _split_long_text(text: str, maxlen=4900) -> List[str]:
     if len(text) <= maxlen:
@@ -451,6 +475,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
