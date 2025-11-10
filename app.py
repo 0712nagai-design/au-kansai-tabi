@@ -313,11 +313,6 @@ def build_next_prompt(answers: Dict[str, Any]) -> str:
 """
 
 
-
-【リンクルール】URLは**生URL**のみ（Markdownリンク禁止）
-【言語】lang=jaなら日本語、enなら英語で一貫
-"""
-
 # ---------- OpenAI 呼び出し ----------
 def _call_openai_plan(answers: dict) -> str:
     user_prompt = build_final_prompt(answers)
@@ -496,6 +491,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
