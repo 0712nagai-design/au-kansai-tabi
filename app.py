@@ -104,14 +104,12 @@ def _quick_buttons(choices: Dict[int, str], multi: bool, show_done: bool) -> Qui
         btns.append(QuickReplyButton(action=MessageAction(label=f"{n} {label}", text=str(n))))
     if multi and show_done:
         btns.append(QuickReplyButton(action=MessageAction(label="✅ 完了", text="完了")))
-    # 先頭に「最初から」
     btns.insert(0, QuickReplyButton(action=MessageAction(label="↪ 最初から", text="最初から")))
     return QuickReply(items=btns)
 
 def _render_question(idx: int, state: State) -> TextSendMessage:
     q = Q[idx]
     title = q["title"]
-    # 選択中ラベル（複数選択時）
     if q["multi"]:
         selected = state.get("multi_temp", {}).get(q["key"], [])
         suffix = f"\n（選択中：{'、'.join(selected) if selected else 'なし'}）\n→最後に［完了］"
@@ -374,7 +372,7 @@ DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
 ACT_TITLE_RE  = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
-# ======== 文字列サニタイズ ========
+# ======== 文字列サニタイズ／抽出 ========
 TIME_RANGE_RE = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:：]\d{2})\b")
 PRICE_RE = re.compile(r"(?:💰|料金|価格帯)\s*[:：]\s*([^\n／]+)")
 HOURS_RE = re.compile(r"(?:🕰|営業時間|営業)\s*[:：]\s*([^\n]+)")
@@ -382,9 +380,7 @@ HOURS_RE = re.compile(r"(?:🕰|営業時間|営業)\s*[:：]\s*([^\n]+)")
 def _strip_links(text: str) -> str:
     text = OFFICIAL_URL_RE.sub("", text)
     text = MAP_URL_RE.sub("", text)
-    # 余白調整
     text = re.sub(r"\n{2,}", "\n\n", text).strip()
-    # 見やすいよう区切り線追加
     return text + "\n" + ("─"*30)
 
 def _clean_url(u: str) -> str:
@@ -393,6 +389,40 @@ def _clean_url(u: str) -> str:
     u = u.strip().strip("。．、，)）]］>＞")
     if u.startswith("http://"): u = "https://" + u[len("http://"):]
     return u
+
+def _normalize_time_range(raw: str) -> str:
+    """時間帯表記を正規化し、『00:xx』が混ざった場合は除去する"""
+    if not raw: return ""
+    t = raw.replace("：", ":").replace("〜", "-").replace("~", "-").replace("−", "-").replace("–", "-")
+    parts = [p.strip() for p in t.split("-") if p.strip()]
+    if len(parts) == 2:
+        start, end = parts
+        if start.startswith("00:"): start = ""
+        if end.startswith("00:"): end = ""
+        if start and end: return f"{start}〜{end}"
+        return start or end
+    # 片方しか取れなかった場合
+    if len(parts) == 1 and not parts[0].startswith("00:"):
+        return parts[0]
+    return ""
+
+def _info_from_block(block: str):
+    # 時間帯（タイトル用）→ 正規化して「00-」を除去
+    mtime = TIME_RANGE_RE.search(block)
+    time_range = _normalize_time_range(mtime.group(0) if mtime else "")
+    # タイトル（スポット名）
+    mtitle = ACT_TITLE_RE.search(block)
+    name = (mtitle.group("title").strip() if mtitle else "スポット")
+    # サブ（営業時間＋料金）
+    mh = HOURS_RE.search(block)
+    hours = mh.group(1).strip() if mh else ""
+    mp = PRICE_RE.search(block)
+    price = mp.group(1).strip() if mp else ""
+    subtitle_parts = []
+    if hours: subtitle_parts.append(f"営業時間：{hours}")
+    if price: subtitle_parts.append(f"目安：{price}")
+    subtitle = " ／ ".join(subtitle_parts) if subtitle_parts else "リンクを選択してください"
+    return time_range, name, subtitle
 
 # ======== 送信用ヘルパー ========
 def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
@@ -436,28 +466,6 @@ def _extract_blocks_by_head(section_text: str, head_re: re.Pattern):
         blocks.append("\n".join(lines[start:end]).strip())
     return blocks
 
-def _title_from_head_block(block: str, head_re: re.Pattern) -> str:
-    m = head_re.search(block or "")
-    return (m.group("title").strip() if m else "スポット")
-
-def _info_from_block(block: str):
-    # 時間帯（タイトル用）
-    mtime = TIME_RANGE_RE.search(block)
-    time_range = mtime.group(0).replace("：", ":") if mtime else ""
-    # タイトル（スポット名）
-    mtitle = ACT_TITLE_RE.search(block)
-    name = (mtitle.group("title").strip() if mtitle else "スポット")
-    # サブ（営業時間＋料金）
-    mh = HOURS_RE.search(block)
-    hp = mh.group(1).strip() if mh else ""
-    mp = PRICE_RE.search(block)
-    price = mp.group(1).strip() if mp else ""
-    subtitle_parts = []
-    if hp: subtitle_parts.append(f"営業時間：{hp}")
-    if price: subtitle_parts.append(f"目安：{price}")
-    subtitle = " ／ ".join(subtitle_parts) if subtitle_parts else "リンクを選択してください"
-    return time_range, name, subtitle
-
 def _split_days(schedule_text: str):
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
@@ -477,10 +485,8 @@ def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
         mp  = MAP_URL_RE.search(block)
         if not (off or mp): continue
         time_range, name, subtitle = _info_from_block(block)
-        title = f"{'Day' + day_title.replace('Day', '') if first_of_day else ''} {time_range} {name}".strip()
-        # 先頭カードに"DayX"を付与、それ以外は時間＋場所
-        if first_of_day:
-            title = f"{day_title}｜{time_range} {name}".strip()
+        # 先頭カードにDayXを付ける。時間帯が空なら名称のみ。
+        btn_title = f"{day_title}｜{time_range} {name}".strip() if first_of_day else f"{(time_range + ' ' if time_range else '')}{name}".strip()
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイトを見る", uri=_clean_url(off.group(1))))
         if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
@@ -488,7 +494,7 @@ def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
             TemplateSendMessage(
                 alt_text=f"{day_title}-{name}",
                 template=ButtonsTemplate(
-                    title=title[:40],
+                    title=btn_title[:40],
                     text=subtitle[:60] if subtitle else "リンクを選択してください",
                     actions=actions[:4]
                 )
@@ -520,15 +526,12 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # ① ホテル 説明 → ボタン
     hotels = _call_openai_text(build_hotel_prompt(answers))
-    # 説明（軽い区切りと余白）
     line_bot_api.reply_message(reply_token, TextSendMessage(text=hotels.strip() + "\n" + ("─"*30)))
-    # ボタン（pushで3件確実に表示）
     _send_hotels_as_buttons(uid, hotels)
 
     # ② 日程表（各Day：テキスト→ボタン）
     schedule = _generate_full_schedule(answers)
     for day_title, day_body in _split_days(schedule):
-        # 説明テキストから公式/地図URL行を削除し、見やすい余白を追加
         body_clean = _strip_links(day_body.strip())
         line_bot_api.push_message(uid, TextSendMessage(text=body_clean))
         _send_schedule_buttons_for_day(uid, day_title, day_body)
@@ -542,11 +545,10 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     if food_idx is not None:
         food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:3]
         if food_blocks_all:
-            # 説明はURL行を除去
             line_bot_api.push_message(uid, TextSendMessage(text=_strip_links("\n\n".join(food_blocks_all))))
             msgs = []
             for b in food_blocks_all:
-                # タイトル／サブ
+                # タイトル＝店名のみ、時間は入れない
                 _, name, subtitle = _info_from_block(b)
                 off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
                 actions = []
@@ -648,13 +650,11 @@ def on_message(event: MessageEvent):
 
     # 入力検証
     if not _validate_and_store(uid, step, text):
-        # そのまま同じ質問をボタン付きで再提示
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # 複数選択中（完了待ち）のときは同じ質問を継続（一覧が隠れにくいよう再掲）
+    # 複数選択中（完了待ち）は同じ質問を継続
     if Q[step]["multi"] and text != "完了":
-        # 再表示（選択中を表示）
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
