@@ -437,7 +437,7 @@ def _send_hotel_single(uid: str, hotels_text: str, reply_token: str):
         )
         line_bot_api.push_message(uid, btn)
 
-# ====================== 日程表（サマリ＋ボタン） ======================
+# ====================== 日程表ユーティリティ ======================
 def _split_days(schedule_text: str):
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
@@ -458,58 +458,67 @@ def _info_from_block(block: str):
         time_range = f"{t1}–{t2}"
     else:
         time_range = ""
-
     # 名称（カテゴリは落として施設名のみ）
     mtitle = ACT_TITLE_RE.search(block)
     name = (mtitle.group("title").strip() if mtitle else "スポット")
-
     # 料金・営業時間
     mprice = PRICE_RE.search(block)
     price = mprice.group(1).strip() if mprice else ""
-
     mhours = HOURS_RE.search(block)
     hours = mhours.group(1).strip() if mhours else ""
-
     return time_range, name, price, hours
 
 def _summary_text_from_block(block: str) -> str:
     time_range, name, price, hours = _info_from_block(block)
-    lines = []
-    title_line = f"{time_range} {name}".strip()
-    lines.append(title_line)
+    lines = [f"{time_range} {name}".strip()]
     if price: lines.append(f"💰 料金目安：{price}")
     if hours: lines.append(f"🕰 営業：{hours}")
     return "\n".join(lines)
 
-def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
-    msgs = []
-    for block in _blocks_in_day(day_body):
-        off = OFFICIAL_URL_RE.search(block)
-        mp  = MAP_URL_RE.search(block)
+# ====================== 日程表（Dayごと一括：テキスト→ボタン） ======================
+def _send_schedule_day_grouped(uid: str, day_title: str, day_body: str):
+    """
+    1日分を『まとめて』
+      ① Dayのテキスト（全ブロックのサマリを1通）
+      ② その後にボタン群
+    の順で送信する
+    """
+    blocks = _blocks_in_day(day_body)
+    summaries, buttons = [], []
 
-        # 1) サマリ（テキスト）
+    for block in blocks:
+        # テキストサマリ
         summary = _summary_text_from_block(block)
         if summary:
-            msgs.append(TextSendMessage(text=summary[:1000]))
+            summaries.append(summary)
 
-        # 2) URLがある場合のみボタン
-        if (off or mp):
+        # URLがあればボタン化
+        off = OFFICIAL_URL_RE.search(block)
+        mp  = MAP_URL_RE.search(block)
+        if off or mp:
             time_range, name, _, _ = _info_from_block(block)
             actions = []
             if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
             if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-            btn = TemplateSendMessage(
-                alt_text=name[:240] if name else "日程",
-                template=ButtonsTemplate(
-                    title=(name or "スポット")[:40],   # タイトル=場所
-                    text=(time_range or " ")[:60],      # サブタイトル=時間
-                    actions=actions[:4]
+            buttons.append(
+                TemplateSendMessage(
+                    alt_text=name[:240] if name else "日程",
+                    template=ButtonsTemplate(
+                        title=(name or "スポット")[:40],    # タイトル＝場所
+                        text=(time_range or " ")[:60],       # サブタイトル＝時間
+                        actions=actions[:4]
+                    )
                 )
             )
-            msgs.append(btn)
 
-    if msgs:
-        _push_messages_in_chunks(uid, msgs, size=5)
+    # ① Dayまとめテキスト（見出し付き）
+    if summaries:
+        all_text = f"📅 {day_title} の予定\n\n" + "\n\n".join(summaries)
+        line_bot_api.push_message(uid, TextSendMessage(text=all_text[:4000]))
+
+    # ② 続けてボタン群
+    if buttons:
+        _push_messages_in_chunks(uid, buttons, size=5)
 
 # ====================== 実用ガイド（食事/体験をボタン化） ======================
 def _extract_blocks_by_head(section_text: str, head_re: re.Pattern):
@@ -585,11 +594,10 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     hotels = _call_openai_text(build_hotel_prompt(answers))
     _send_hotel_single(uid, hotels, reply_token)
 
-    # ② 日程表（Dayごと：サマリ→ボタン）
+    # ② 日程表（Dayごと：テキスト→ボタンの順で一括送信）
     schedule = _generate_full_schedule(answers)
     for day_title, day_body in _split_days(schedule):
-        line_bot_api.push_message(uid, TextSendMessage(text=f"{day_title} の予定を表示します"))
-        _send_schedule_buttons_for_day(uid, day_title, day_body)
+        _send_schedule_day_grouped(uid, day_title, day_body)
 
     # ③ 実用ガイド：食事/体験はボタンのみ（短評なし）
     guide = _call_openai_text(build_guide_prompt(answers))
