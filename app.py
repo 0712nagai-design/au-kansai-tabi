@@ -12,7 +12,8 @@ from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, ImageSendMessage,
     TemplateSendMessage, ButtonsTemplate, URITemplateAction,
-    QuickReply, QuickReplyButton, MessageAction
+    QuickReply, QuickReplyButton, MessageAction,
+    FlexSendMessage   # ★ 追加：Flex を使う
 )
 
 # OpenAI v1
@@ -95,6 +96,104 @@ def callback():
     except InvalidSignatureError:
         abort(400)
     return "OK", 200
+
+# ====================== Flex 質問ボタン ======================
+def _flex_choice_button(label: str, out_text: str) -> dict:
+    # 大きい角丸ボタン（灰色）
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "cornerRadius": "12px",
+        "backgroundColor": "#EEF2F7",
+        "paddingAll": "14px",
+        "action": {"type": "message", "label": label, "text": out_text},
+        "contents": [{
+            "type": "text",
+            "text": label,
+            "weight": "bold",
+            "size": "lg",
+            "align": "center",
+            "color": "#111111",
+        }]
+    }
+
+def _render_question(idx: int, state: State):
+    q = Q[idx]
+    title = q["title"]
+    selected = state.get("multi_temp", {}).get(q["key"], [])
+    selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q["multi"] else ""
+
+    # 2列グリッドを構成
+    buttons = []
+    items = [ (n, f"{n} {label}") for n, label in q.get("choices", {}).items() ]
+    # 2個ずつ行に
+    row = []
+    for n, label in items:
+        row.append(_flex_choice_button(label, str(n)))
+        if len(row) == 2:
+            buttons.append({"type": "box", "layout": "horizontal", "spacing": "12px", "contents": row})
+            row = []
+    if row:
+        # 奇数個のとき左寄せで1個だけ行
+        buttons.append({"type": "box", "layout": "horizontal", "spacing": "12px", "contents": row})
+
+    # フッター（複数選択時：大きい緑バーの完了）
+    footer_contents = []
+    if q["multi"]:
+        footer_contents.append({
+            "type": "box",
+            "layout": "vertical",
+            "cornerRadius": "12px",
+            "backgroundColor": "#22C55E",
+            "paddingAll": "14px",
+            "margin": "16px",
+            "action": {"type": "message", "label": "✅ 完了", "text": "完了"},
+            "contents": [{
+                "type": "text",
+                "text": "✅ 完了",
+                "weight": "bold",
+                "size": "lg",
+                "align": "center",
+                "color": "#FFFFFF"
+            }]
+        })
+
+    # 画面下に「↪ 最初から」
+    footer_contents.append({
+        "type": "text",
+        "text": "↪ 最初から",
+        "size": "sm",
+        "color": "#4F46E5",
+        "margin": "md",
+        "align": "center",
+        "action": {"type": "message", "label": "最初から", "text": "最初から"}
+    })
+
+    bubble = {
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "12px",
+            "paddingAll": "16px",
+            "contents": [
+                {"type": "text", "text": title, "wrap": True, "size": "xl", "weight": "bold"},
+                {"type": "text", "text": selected_line, "size": "sm", "color": "#6B7280", "wrap": True} if selected_line else {"type": "filler"},
+                {"type": "separator", "margin": "sm"},
+                *buttons
+            ]
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "4px",
+            "contents": footer_contents
+        },
+        "styles": {"body": {"backgroundColor": "#FFFFFF"}}
+    }
+    return FlexSendMessage(alt_text=title, contents=bubble)
+
+
 
 # ====================== 質問レンダリング（クイックリプライ大型） ======================
 def _quick_buttons(choices: Dict[int, str], multi: bool, show_done: bool) -> QuickReply:
@@ -633,3 +732,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
