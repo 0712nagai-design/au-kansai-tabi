@@ -180,10 +180,7 @@ def _render_question(idx: int, state: State):
     return FlexSendMessage(alt_text=title, contents=bubble)
 
 # ====================== ユーティリティ ======================
-FW_TO_HW = str.maketrans({
-    "０":"0","１":"1","２":"2","３":"3","４":"4","５":"5","６":"6","７":"7","８":"8","９":"9",
-    "．":".","　":" "
-})
+FW_TO_HW = str.maketrans({"０":"0","１":"1","２":"2","３":"3","４":"4","５":"5","６":"6","７":"7","８":"8","９":"9","．":".","　":" "})
 
 def _parse_numbers(s: str) -> Optional[List[int]]:
     if not s: return None
@@ -495,7 +492,7 @@ def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
         if summary:
             msgs.append(TextSendMessage(text=summary[:1000]))
 
-        # 2) URLが揃っている場合のみボタン
+        # 2) URLがある場合のみボタン
         if (off or mp):
             time_range, name, _, _ = _info_from_block(block)
             actions = []
@@ -504,8 +501,8 @@ def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
             btn = TemplateSendMessage(
                 alt_text=name[:240] if name else "日程",
                 template=ButtonsTemplate(
-                    title=(name or "スポット")[:40],  # タイトルは場所名のみ
-                    text=(time_range or " ")[:60],     # サブタイトルは時間だけ
+                    title=(name or "スポット")[:40],   # タイトル=場所
+                    text=(time_range or " ")[:60],      # サブタイトル=時間
                     actions=actions[:4]
                 )
             )
@@ -536,9 +533,11 @@ def _call_openai_text(user_prompt: str) -> str:
     )
     return (res.choices[0].message.content or "").strip()
 
-# ====================== 旅程生成補助 ======================
+# ====================== 旅程生成補助（密度保証つき） ======================
 def _generate_full_schedule(answers: Dict[str, Any]) -> str:
     schedule = _call_openai_text(build_schedule_prompt(answers))
+
+    # 必要日数まで拡張
     need = _required_days(answers)
     got  = _count_days_in_text(schedule)
     guard = 0
@@ -553,6 +552,31 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
         schedule = (schedule.rstrip() + "\n" + extra.lstrip()).strip()
         got = _count_days_in_text(schedule)
         guard += 1
+
+    # 各日のブロック密度（6件以上）を保証
+    schedule = _ensure_day_density(schedule, answers)
+    return schedule
+
+def _ensure_day_density(schedule: str, answers: Dict[str, Any]) -> str:
+    """各日が6ブロック以上になるよう不足分を追記する。最大2パス。"""
+    for _ in range(2):
+        updated = False
+        parts = _split_days(schedule)
+        for day_title, day_body in parts:
+            blocks = _blocks_in_day(day_body)
+            if len(blocks) >= 6:
+                continue
+            need_more = 6 - len(blocks)
+            prompt = (
+                build_schedule_prompt(answers) +
+                f"\n補足：{day_title} の続きとして、同じフォーマットで{need_more}ブロック以上を追加してください。"
+                f"\n{day_title} のみを出力。既存の内容は繰り返さないこと。"
+            )
+            extra = _call_openai_text(prompt)
+            schedule = (schedule.rstrip() + "\n" + extra.lstrip()).strip()
+            updated = True
+        if not updated:
+            break
     return schedule
 
 # ====================== 送信フロー（完全版） ======================
@@ -577,7 +601,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:6]
         msgs = []
         for b in food_blocks_all:
-            # ボタン：タイトル=店名 / サブタイトル=営業時間
             mtitle = FOOD_HEAD_RE.search(b)
             name = (mtitle.group("title").strip() if mtitle else "飲食店")
             mhours = HOURS_RE.search(b)
@@ -672,5 +695,3 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
-    
