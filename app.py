@@ -267,35 +267,77 @@ def _required_days(answers: dict) -> int:
     return max(d, 2)
 
 # ---------- 生成プロンプト ----------
-def build_hotel_prompt(answers: Dict[str, Any]) -> str:
-    answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
-    return f"""
-以下は「ホテル候補」セクションの出力指示です。
-ユーザー回答に従って、宿泊施設のみを出力してください。
-極めて重要：「公式サイト：URL」および「Googleマップ：URL」の行に、実際のURLを出力してください。
-【ユーザー回答(JSON参照用)】
-{answers_json}
+# ----------- ホテル出力（1件のみ、導入＋説明＋ボタン） -----------
+def _parse_hotel_block(block: str):
+    """ホテル情報を1件分パース"""
+    name = ""
+    desc = ""
+    price = ""
+    off = None
+    mp = None
 
-出力形式：
-① 🏨 ホテル正式名称
-特徴：1行要約
-🔗 公式：URL
-📍 Googleマップ：URL
-💰 価格目安：〜円／泊
-──────────────────────────────
-② 🏨 ホテル正式名称
-特徴：1行要約
-🔗 公式：URL
-📍 Googleマップ：URL
-💰 価格目安：〜円／泊
-──────────────────────────────
-③ 🏨 ホテル正式名称
-特徴：1行要約
-🔗 公式：URL
-📍 Googleマップ：URL
-💰 価格目安：〜円／泊
-──────────────────────────────
-"""
+    lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
+    if lines:
+        name = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", lines[0])
+
+    mdesc  = re.search(r"^特徴[:：]\s*(.+)$", block, re.M)
+    mprice = re.search(r"(?:💰|価格目安|料金目安)[:：]\s*([^\n]+)", block)
+    moff   = OFFICIAL_URL_RE.search(block)
+    mmap   = MAP_URL_RE.search(block)
+
+    if mdesc:  desc = mdesc.group(1).strip()
+    if mprice: price = mprice.group(1).strip()
+    if moff:   off   = _clean_url(moff.group(1))
+    if mmap:   mp    = _clean_url(mmap.group(1))
+
+    return {
+        "name": name or "ホテル",
+        "desc": desc,
+        "price": price,
+        "official": off,
+        "map": mp
+    }
+
+
+def _send_hotel_single(uid: str, hotels_text: str, reply_token: str):
+    """ホテルは1件のみ出力：導入→説明→ボタン"""
+    block = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
+    block = next((b for b in block if b.strip()), "")
+    if not block:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text="ホテル候補が見つかりませんでした。"))
+        return
+
+    info = _parse_hotel_block(block)
+
+    # ① 導入メッセージ
+    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 あなたにおすすめのホテルはこちらです👇"))
+
+    # ② 説明テキスト（URL行なし）
+    text_lines = [f"🏨 {info['name']}"]
+    if info["desc"]:
+        text_lines.append(info["desc"])
+    if info["price"]:
+        text_lines.append(f"💰 価格目安：{info['price']}")
+    text = "\n".join(text_lines)
+    line_bot_api.push_message(uid, TextSendMessage(text=text))
+
+    # ③ ボタン（タイトル＝ホテル名／サブタイトル＝価格目安）
+    actions = []
+    if info["official"]:
+        actions.append(URITemplateAction(label="公式サイト", uri=info["official"]))
+    if info["map"]:
+        actions.append(URITemplateAction(label="Googleマップ", uri=info["map"]))
+
+    if actions:
+        btn = TemplateSendMessage(
+            alt_text=info["name"],
+            template=ButtonsTemplate(
+                title=info["name"][:40],
+                text=(f"価格目安：{info['price']}"[:60] if info["price"] else " "),
+                actions=actions[:4]
+            )
+        )
+        line_bot_api.push_message(uid, btn)
 
 def build_schedule_prompt(answers: Dict[str, Any]) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
@@ -505,10 +547,9 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
 
 # ---------- 指定順で送信（カードのみ） ----------
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # ① ホテル（カード）
+    # ① ホテル（1件のみ）
     hotels = _call_openai_text(build_hotel_prompt(answers))
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 ホテル候補を表示します"))
-    _send_hotels_as_buttons(uid, hotels)
+    _send_hotel_single(uid, hotels, reply_token)
 
     # ② 日程表（Dayごとカード）
     schedule = _generate_full_schedule(answers)
@@ -648,3 +689,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
