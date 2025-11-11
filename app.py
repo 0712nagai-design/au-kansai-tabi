@@ -8,11 +8,11 @@ from flask import Flask, request, abort
 
 # LINE SDK
 from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError, LineBotApiError
+from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, ImageSendMessage,
-    TemplateSendMessage, ButtonsTemplate, URITemplateAction, MessageAction,
-    FlexSendMessage
+    TemplateSendMessage, ButtonsTemplate, URITemplateAction,
+    QuickReply, QuickReplyButton, MessageAction
 )
 
 # OpenAI v1
@@ -58,19 +58,23 @@ ARRV = {1: "14–17時", 2: "17–19時", 3: "19–21時", 4: "21時以降", 5: 
 
 Q = [
     {"key": "lang", "title": "どちらの言語でご案内しますか？", "choices": {1: "日本語", 2: "English"}, "multi": False},
-    {"key": "region", "title": "地域を選んでください（複数可）", "choices": REGIONS, "multi": True},
-    {"key": "date", "title": "出発日を入力してください（例: 2025-03-20）", "choices": {}, "multi": False},
-    {"key": "stay", "title": "日程を選んでください", "choices": {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊以上"}, "multi": False},
-    {"key": "theme", "title": "テーマを選んでください（複数可）", "choices": THEMES, "multi": True},
-    {"key": "budget", "title": "予算（1人）を選んでください", "choices": BUDGETS, "multi": False},
-    {"key": "hotel", "title": "ホテルタイプを選んでください", "choices": HOTELS, "multi": False},
-    {"key": "transport", "title": "交通手段を選んでください（複数可）", "choices": TRANSPORT, "multi": True},
-    {"key": "companion", "title": "同行者を選んでください", "choices": COMPANION, "multi": False},
-    {"key": "dept", "title": "出発時間帯を選んでください", "choices": DEPT, "multi": False},
-    {"key": "arrv", "title": "帰着時間帯を選んでください", "choices": ARRV, "multi": False},
+    {"key": "region", "title": "地域を教えてください（複数選択→最後に［完了］）", "choices": REGIONS, "multi": True},
+    {"key": "date", "title": "出発日を選んでください（例: 2025-03-20 を直接入力）", "choices": {}, "multi": False},
+    {"key": "stay", "title": "日程を選択してください。", "choices": {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊以上"}, "multi": False},
+    {"key": "theme", "title": "テーマを選んでください（複数選択→最後に［完了］）", "choices": THEMES, "multi": True},
+    {"key": "budget", "title": "予算（1人）を選んでください。", "choices": BUDGETS, "multi": False},
+    {"key": "hotel", "title": "ホテルタイプを選んでください。", "choices": HOTELS, "multi": False},
+    {"key": "transport", "title": "交通手段を選んでください（複数選択→最後に［完了］）", "choices": TRANSPORT, "multi": True},
+    {"key": "companion", "title": "同行者を選んでください。", "choices": COMPANION, "multi": False},
+    {"key": "dept", "title": "出発時間帯を選んでください。", "choices": DEPT, "multi": False},
+    {"key": "arrv", "title": "帰着時間帯を選んでください。", "choices": ARRV, "multi": False},
 ]
 
-WELCOME = "🔄 最初から\nこんにちは！私はAI旅ナビ関西です🧭\nどちらの言語でご案内しますか？"
+WELCOME = (
+    "🔄 最初から\n"
+    "こんにちは！私はAI旅ナビ関西です🧭\n"
+    "どちらの言語でご案内しますか？"
+)
 
 # ====================== ルーティング ======================
 @app.get("/")
@@ -92,81 +96,26 @@ def callback():
         abort(400)
     return "OK", 200
 
-# ====================== Flex（質問カード） ======================
-def _flex_question_card(title: str, choices: Dict[int, str], multi: bool, selected_labels: List[str]) -> Dict[str, Any]:
-    """
-    Flex Bubble JSON を返す。
-    - 2列グリッドの大きめボタン
-    - 複数選択時はフッターに「✅ 完了」
-    - ヘッダーに「選択中」を表示
-    """
-    # ボタン配列（2列グリッド）
-    def _choice_button(num: int, label: str) -> Dict[str, Any]:
-        # 選択済みは色を強調
-        chosen = (label in selected_labels)
-        return {
-            "type": "button",
-            "style": "primary" if chosen else "secondary",
-            "height": "md",
-            "action": {"type": "message", "label": f"{num} {label}", "text": str(num)},
-            "color": "#34C759" if chosen else "#E9EDF1",
-        }
+# ====================== 質問レンダリング（クイックリプライ大型） ======================
+def _quick_buttons(choices: Dict[int, str], multi: bool, show_done: bool) -> QuickReply:
+    btns = []
+    for n, label in choices.items():
+        btns.append(QuickReplyButton(action=MessageAction(label=f"{n} {label}", text=str(n))))
+    if multi and show_done:
+        btns.append(QuickReplyButton(action=MessageAction(label="✅ 完了", text="完了")))
+    btns.insert(0, QuickReplyButton(action=MessageAction(label="↪ 最初から", text="最初から")))
+    return QuickReply(items=btns)
 
-    buttons: List[Dict[str, Any]] = []
-    for n, lab in choices.items():
-        buttons.append(_choice_button(n, lab))
-
-    # 2個ずつで行に分割
-    rows: List[Dict[str, Any]] = []
-    for i in range(0, len(buttons), 2):
-        row = {
-            "type": "box", "layout": "horizontal", "spacing": "md",
-            "contents": buttons[i:i+2]
-        }
-        if len(row["contents"]) == 1:  # 端数時は幅埋め
-            row["contents"].append({"type": "filler"})
-        rows.append(row)
-
-    header_sub = ""
-    if multi:
-        header_sub = f"（選択中：{'、'.join(selected_labels) if selected_labels else 'なし'}）"
-
-    footer_contents: List[Dict[str, Any]] = []
-    if multi:
-        footer_contents.append({
-            "type": "button", "style": "primary", "height": "md",
-            "action": {"type": "message", "label": "✅ 完了", "text": "完了"},
-            "color": "#2ECC71"
-        })
-    # 共通：最初から
-    footer_contents.append({
-        "type": "button", "style": "link",
-        "action": {"type": "message", "label": "↪ 最初から", "text": "最初から"}
-    })
-
-    bubble = {
-        "type": "bubble",
-        "size": "giga",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "lg",
-            "contents": [
-                {"type": "text", "text": title, "wrap": True, "weight": "bold", "size": "xl"},
-                {"type": "text", "text": header_sub, "wrap": True, "size": "sm", "color": "#6B7280"} if header_sub else {"type": "filler"},
-                {"type": "separator"},
-                {"type": "box", "layout": "vertical", "spacing": "md", "contents": rows}
-            ]
-        },
-        "footer": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": footer_contents}
-    }
-    return bubble
-
-def _render_question(idx: int, state: State) -> FlexSendMessage:
+def _render_question(idx: int, state: State) -> TextSendMessage:
     q = Q[idx]
-    selected = state.get("multi_temp", {}).get(q["key"], [])
-    bubble = _flex_question_card(q["title"], q.get("choices", {}), q["multi"], selected)
-    return FlexSendMessage(alt_text=q["title"], contents=bubble)
+    title = q["title"]
+    if q["multi"]:
+        selected = state.get("multi_temp", {}).get(q["key"], [])
+        suffix = f"\n（選択中：{'、'.join(selected) if selected else 'なし'}）\n→最後に［完了］"
+    else:
+        suffix = ""
+    qr = _quick_buttons(q.get("choices", {}), q["multi"], True if q["multi"] else False)
+    return TextSendMessage(text=title + suffix, quick_reply=qr)
 
 # ====================== ユーティリティ ======================
 FW_TO_HW = str.maketrans({
@@ -200,7 +149,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
     state.setdefault("answers", {})
     state.setdefault("multi_temp", {})
 
-    # 直接ラベル/番号対応
     if q["choices"]:
         n = _label_to_num(q["choices"], text)
         if n is not None:
@@ -214,7 +162,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
                 state["answers"][key] = q["choices"][n] if key != "lang" else ("ja" if n == 1 else "en")
                 return True
 
-    # 日付
     if key == "date":
         try:
             datetime.strptime(text.strip(), "%Y-%m-%d")
@@ -223,14 +170,12 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         except Exception:
             return False
 
-    # 複数選択の完了
     if q["multi"] and text.strip() == "完了":
         picked = state["multi_temp"].get(key, [])
         if not picked: return False
         state["answers"][key] = picked
         return True
 
-    # 数字入力（後方互換）
     nums = _parse_numbers(text)
     if nums:
         if q["multi"]:
@@ -246,6 +191,24 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
             return True
 
     return False
+
+def answers_brief(a: Dict[str, Any]) -> str:
+    def pick(v, default="未選択"):
+        if v is None or v == "": return default
+        if isinstance(v, list): return "、".join(map(str, v)) if v else default
+        return str(v)
+    return (
+        f"- 地域：{pick(a.get('region'))}\n"
+        f"- 出発日：{pick(a.get('date'))}\n"
+        f"- 日程：{pick(a.get('stay'))}\n"
+        f"- テーマ：{pick(a.get('theme'))}\n"
+        f"- 予算：{pick(a.get('budget'))}\n"
+        f"- ホテルタイプ：{pick(a.get('hotel'))}\n"
+        f"- 交通手段：{pick(a.get('transport'))}\n"
+        f"- 同行者：{pick(a.get('companion'))}\n"
+        f"- 出発時間帯：{pick(a.get('dept'))}\n"
+        f"- 帰着時間帯：{pick(a.get('arrv'))}\n"
+    )
 
 def _count_days_in_text(text: str) -> int:
     a = len(re.findall(r"\*\*\s*\d+日目", text))
@@ -299,8 +262,9 @@ def build_schedule_prompt(answers: Dict[str, Any]) -> str:
 {answers_json}
 
 厳守事項：
-- 最終日には「宿泊」ブロックを入れない（チェックイン/宿泊は最終日前日まで）
+- 最終日には「宿泊」ブロックを入れない
 - 各日6ブロック以上を目標
+- 1ブロックは「時間帯」「カテゴリ」「名称」「URL/営業時間」を含める
 
 出力例：
 Day1
@@ -379,16 +343,10 @@ DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
 ACT_TITLE_RE  = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
-# ======== 文字列サニタイズ / 情報抽出 ========
+# ======== 文字列サニタイズ ========
 TIME_RANGE_RE = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:：]\d{2})\b")
 PRICE_RE = re.compile(r"(?:💰|料金|価格帯)\s*[:：]\s*([^\n／]+)")
 HOURS_RE = re.compile(r"(?:🕰|営業時間|営業)\s*[:：]\s*([^\n]+)")
-
-def _strip_links(text: str) -> str:
-    text = OFFICIAL_URL_RE.sub("", text)
-    text = MAP_URL_RE.sub("", text)
-    text = re.sub(r"\n{2,}", "\n\n", text).strip()
-    return text + "\n" + ("─"*30)
 
 def _clean_url(u: str) -> str:
     if not u: return ""
@@ -403,59 +361,38 @@ def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
         chunk = msgs[i:i+size]
         line_bot_api.push_message(uid, chunk if len(chunk) > 1 else chunk[0])
 
+# -------- ホテル（カードのみ） --------
 def _send_hotels_as_buttons(uid: str, hotels_text: str):
     blocks = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
     msgs = []
     for b in blocks:
         b = b.strip()
-        if not b: continue
+        if not b:
+            continue
         first_line = next((ln.strip() for ln in b.splitlines() if ln.strip()), "")
         title = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", first_line) or "ホテル"
         off = OFFICIAL_URL_RE.search(b)
         mp  = MAP_URL_RE.search(b)
-        price = ""
-        m = re.search(r"価格目安[:：]\s*([^\n]+)", b)
-        if m: price = m.group(1).strip()
+        mprice = re.search(r"価格目安[:：]\s*([^\n]+)", b)
+        price_text = f"価格目安：{mprice.group(1).strip()}" if mprice else " "
+
+        if not (off or mp):
+            continue
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
         if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-        if not actions: continue
-        msgs.append(
-            TemplateSendMessage(
-                alt_text=title,
-                template=ButtonsTemplate(
-                    title=title[:40],
-                    text=(f"価格目安：{price}" if price else "リンクを選択してください"),
-                    actions=actions[:4]
-                )
+
+        msgs.append(TemplateSendMessage(
+            alt_text=title,
+            template=ButtonsTemplate(
+                title=title[:40],
+                text=price_text[:60],
+                actions=actions[:4]
             )
-        )
+        ))
     if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
-def _extract_blocks_by_head(section_text: str, head_re: re.Pattern):
-    lines = section_text.splitlines()
-    idxs = [i for i, ln in enumerate(lines) if head_re.search(ln)]
-    blocks = []
-    for j, start in enumerate(idxs):
-        end = idxs[j+1] if j+1 < len(idxs) else len(lines)
-        blocks.append("\n".join(lines[start:end]).strip())
-    return blocks
-
-def _info_from_block(block: str):
-    mtime = TIME_RANGE_RE.search(block)
-    time_range = mtime.group(0).replace("：", ":") if mtime else ""
-    mtitle = ACT_TITLE_RE.search(block)
-    name = (mtitle.group("title").strip() if mtitle else "スポット")
-    mh = HOURS_RE.search(block)
-    hp = mh.group(1).strip() if mh else ""
-    mp = PRICE_RE.search(block)
-    price = mp.group(1).strip() if mp else ""
-    subtitle_parts = []
-    if hp: subtitle_parts.append(f"営業時間：{hp}")
-    if price: subtitle_parts.append(f"目安：{price}")
-    subtitle = " ／ ".join(subtitle_parts) if subtitle_parts else "リンクを選択してください"
-    return time_range, name, subtitle
-
+# -------- スケジュール分割 --------
 def _split_days(schedule_text: str):
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
@@ -467,14 +404,33 @@ def _split_days(schedule_text: str):
 def _blocks_in_day(day_text: str):
     return [b.strip() for b in BLOCK_SPLIT_RE.split(day_text.strip()) if b.strip()]
 
+def _info_from_block(block: str):
+    mtime = TIME_RANGE_RE.search(block)
+    time_range = ""
+    if mtime:
+        t1 = mtime.group(1).replace("：", ":")
+        t2 = mtime.group(2).replace("：", ":")
+        time_range = f"{t1}–{t2}"
+    mtitle = ACT_TITLE_RE.search(block)
+    name = (mtitle.group("title").strip() if mtitle else "スポット")
+    mh = HOURS_RE.search(block)
+    hp = mh.group(1).strip() if mh else ""
+    mp = PRICE_RE.search(block)
+    price = mp.group(1).strip() if mp else ""
+    subtitle_parts = []
+    if hp: subtitle_parts.append(f"営業時間：{hp}")
+    if price: subtitle_parts.append(f"目安：{price}")
+    subtitle = " ／ ".join(subtitle_parts) if subtitle_parts else " "
+    return time_range, name, subtitle
+
 def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
     msgs = []
     for block in _blocks_in_day(day_body):
         off = OFFICIAL_URL_RE.search(block)
         mp  = MAP_URL_RE.search(block)
-        if not (off or mp): continue
+        if not (off or mp):
+            continue
         time_range, name, subtitle = _info_from_block(block)
-        # タイトルは「10:00–12:00 〇〇」形式（“観光・体験”などは入れない）
         title = f"{time_range} {name}".strip()
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
@@ -484,7 +440,7 @@ def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
                 alt_text=title[:240],
                 template=ButtonsTemplate(
                     title=title[:40],
-                    text=subtitle[:60] if subtitle else "リンクを選択してください",
+                    text=(subtitle[:60] if subtitle else " "),
                     actions=actions[:4]
                 )
             )
@@ -510,71 +466,62 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
         guard += 1
     return schedule
 
-# ---------- 指定順で送信 ----------
+# ---------- 指定順で送信（カードのみ） ----------
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # ① ホテル：テキスト → ボタン(push)
+    # ① ホテル（カードのみ）
     hotels = _call_openai_text(build_hotel_prompt(answers))
-    line_bot_api.reply_message(reply_token, TextSendMessage(text=hotels.strip() + "\n" + ("─"*30)))
+    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 ホテル候補を表示します"))
     _send_hotels_as_buttons(uid, hotels)
 
-    # ② 日程表：各Day テキスト（URL行除去）→ ボタン(push)
+    # ② 日程表（Dayごとにカードのみ）
     schedule = _generate_full_schedule(answers)
     for day_title, day_body in _split_days(schedule):
-        body_clean = _strip_links(day_body.strip())
-        line_bot_api.push_message(uid, TextSendMessage(text=body_clean))
+        line_bot_api.push_message(uid, TextSendMessage(text=f"{day_title} の予定を表示します"))
         _send_schedule_buttons_for_day(uid, day_title, day_body)
 
-    # ③ 実用ガイド：食事→ボタン→体験→ボタン→予算→チェック
+    # ③ 実用ガイド：食事/体験はカードのみ（短評は出さない）
     guide = _call_openai_text(build_guide_prompt(answers))
     sections = SECTION_SPLIT_RE.split(guide)
 
     # 食事
     food_idx = next((i for i, s in enumerate(sections) if "食事おすすめ" in s), None)
     if food_idx is not None:
-        food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:3]
-        if food_blocks_all:
-            line_bot_api.push_message(uid, TextSendMessage(text=_strip_links("\n\n".join(food_blocks_all))))
-            msgs = []
-            for b in food_blocks_all:
-                _, name, subtitle = _info_from_block(b)
-                off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
-                actions = []
-                if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
-                if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-                msgs.append(TemplateSendMessage(
-                    alt_text=name,
-                    template=ButtonsTemplate(title=name[:40], text=subtitle[:60] or "リンクを選択してください", actions=actions[:4])
-                ))
-            if msgs: _push_messages_in_chunks(uid, msgs, size=5)
+        food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:6]  # 昼3・夜3まで想定
+        msgs = []
+        for b in food_blocks_all:
+            _, name, subtitle = _info_from_block(b)
+            off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
+            if not (off or mp):
+                continue
+            actions = []
+            if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
+            if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
+            msgs.append(TemplateSendMessage(
+                alt_text=name,
+                template=ButtonsTemplate(title=name[:40], text=(subtitle[:60] if subtitle else " "), actions=actions[:4])
+            ))
+        if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
     # 体験
-    exp_idx  = next((i for i, s in enumerate(sections) if "体験予約" in s), None)
+    exp_idx = next((i for i, s in enumerate(sections) if "体験予約" in s), None)
     if exp_idx is not None:
         exp_blocks_all = _extract_blocks_by_head(sections[exp_idx], EXPER_HEAD_RE)[:3]
-        if exp_blocks_all:
-            line_bot_api.push_message(uid, TextSendMessage(text=_strip_links("\n\n".join(exp_blocks_all))))
-            msgs = []
-            for b in exp_blocks_all:
-                _, name, subtitle = _info_from_block(b)
-                off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
-                actions = []
-                if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
-                if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-                msgs.append(TemplateSendMessage(
-                    alt_text=name,
-                    template=ButtonsTemplate(title=name[:40], text=subtitle[:60] or "リンクを選択してください", actions=actions[:4])
-                ))
-            if msgs: _push_messages_in_chunks(uid, msgs, size=5)
+        msgs = []
+        for b in exp_blocks_all:
+            _, name, subtitle = _info_from_block(b)
+            off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
+            if not (off or mp):
+                continue
+            actions = []
+            if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
+            if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
+            msgs.append(TemplateSendMessage(
+                alt_text=name,
+                template=ButtonsTemplate(title=name[:40], text=(subtitle[:60] if subtitle else " "), actions=actions[:4])
+            ))
+        if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
-    # 合計予算 & チェックリスト
-    budget_idx = next((i for i, s in enumerate(sections) if "合計予算" in s), None)
-    checklist_idx = next((i for i, s in enumerate(sections) if "チェックリスト" in s), None)
-    if budget_idx is not None:
-        line_bot_api.push_message(uid, TextSendMessage(text=sections[budget_idx].strip()))
-    if checklist_idx is not None:
-        line_bot_api.push_message(uid, TextSendMessage(text=sections[checklist_idx].strip()))
-
-    # ④ 総評
+    # ④ 総評（短文）
     review = _call_openai_text(build_review_prompt(answers))
     line_bot_api.push_message(uid, TextSendMessage(text=review))
 
@@ -592,12 +539,12 @@ SYSTEM_PROMPT = (
     "https://placehold.co/800x500.png?text={施設名} を使用。URLは生URL（Markdownリンク禁止）。\n"
     "日程表と実用ガイドでは**画像URLを一切出さない**。\n"
     "日本語モード（ja）は日本語、英語モード（en）は英語で一貫出力。\n"
-    "食事と体験は固有の店名・施設名を必ず記載し、各項目にGoogleマップURLと営業時間・定休を付けること。\n"
-    "体験は最低3つ提示（料金目安・所要時間・予約要否を明記）。\n"
-    "重要：旅程の最終日には宿泊/チェックインのブロックを入れない。\n"
+    "食事と体験は**固有の店名・施設名**を必ず記載し、各項目に Google マップ検索URL と営業時間・定休の情報を付けること。\n"
+    "体験は**最低3つ**提示すること（候補として3件、各々に料金目安・所要時間・予約要否を明記）。\n"
+    "重要：**旅程の最終日には宿泊/チェックインのブロックを入れない。** 宿泊は最終日前日までに限定する。\n"
 )
 
-# ---------- テキスト分割 ----------
+# ---------- テキスト分割・送信 ----------
 def _split_long_text(text: str, maxlen=4900) -> List[str]:
     if len(text) <= maxlen: return [text]
     parts, buf, count = [], [], 0
@@ -611,7 +558,8 @@ def _split_long_text(text: str, maxlen=4900) -> List[str]:
 
 def _reply_text(reply_token: str, text: str):
     chunks = _split_long_text(text)
-    line_bot_api.reply_message(reply_token, [TextSendMessage(text=c) for c in chunks])
+    msgs = [TextSendMessage(text=c) for c in chunks]
+    line_bot_api.reply_message(reply_token, msgs)
 
 # ====================== メインハンドラ ======================
 @handler.add(MessageEvent, message=TextMessage)
@@ -619,13 +567,11 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-    # リスタート
     if text in RESTART or text.lower() in RESTART:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
-    # 初回
     if uid not in users or not users[uid]:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
@@ -634,17 +580,14 @@ def on_message(event: MessageEvent):
     state = users[uid]
     step = state["step"]
 
-    # 入力検証
     if not _validate_and_store(uid, step, text):
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # 複数選択中は完了待ち（カードを再掲）
     if Q[step]["multi"] and text != "完了":
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # 次のステップへ
     step += 1
     state["step"] = step
 
@@ -652,7 +595,6 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # === 全質問終了 → 送信 ===
     answers = state["answers"].copy()
     try:
         send_plan_parts(event.reply_token, uid, answers)
