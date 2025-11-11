@@ -281,7 +281,7 @@ HOURS_RE      = re.compile(r"(?:🕰|営業時間|営業)\s*[:：]\s*([^\n]+)")
 def _clean_url(u: str) -> str:
     if not u: return ""
     u = u.replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\ufeff", "")
-    u = u.strip().strip("。．、，)）]］>＞")
+    u = u.strip().strip("。 ．、，)）]］>＞")
     if u.startswith("http://"): u = "https://" + u[len("http://"):]
     return u
 
@@ -438,6 +438,8 @@ def _send_hotel_single(uid: str, hotels_text: str, reply_token: str):
         line_bot_api.push_message(uid, btn)
 
 # ====================== 日程表ユーティリティ ======================
+DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
+
 def _split_days(schedule_text: str):
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
@@ -475,50 +477,77 @@ def _summary_text_from_block(block: str) -> str:
     if hours: lines.append(f"🕰 営業：{hours}")
     return "\n".join(lines)
 
-# ====================== 日程表（Dayごと一括：テキスト→ボタン） ======================
+# ===== Day内の並び最適化＆まとめ→ボタン一括送信 =====
+def _parse_start_minutes(block: str) -> int:
+    m = TIME_RANGE_RE.search(block)
+    if not m:
+        return 24 * 60 + 1
+    try:
+        hh, mm = m.group(1).replace("：", ":").split(":")
+        return int(hh) * 60 + int(mm)
+    except Exception:
+        return 24 * 60 + 1
+
+def _normalize_day_blocks(day_body: str) -> List[str]:
+    blocks = _blocks_in_day(day_body)
+    seen, out = set(), []
+    for b in blocks:
+        tr, name, *_ = _info_from_block(b)
+        key = (tr, name)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(b)
+    out.sort(key=_parse_start_minutes)
+    return out
+
+def _compose_day_text(day_title: str, blocks: List[str]) -> str:
+    lines = [f"📅 {day_title} の予定（まとめ）"]
+    for i, b in enumerate(blocks, 1):
+        tr, name, price, hours = _info_from_block(b)
+        head = f"{i:02d}) {(tr or '時間未定')}　{name}"
+        tail = []
+        if price: tail.append(f"💰{price}")
+        if hours: tail.append(f"🕰{hours}")
+        if tail:
+            head += " ｜ " + " / ".join(tail)
+        lines.append(head)
+    return "\n".join(lines)[:4000]
+
 def _send_schedule_day_grouped(uid: str, day_title: str, day_body: str):
     """
-    1日分を『まとめて』
-      ① Dayのテキスト（全ブロックのサマリを1通）
-      ② その後にボタン群
-    の順で送信する
+    1日分を『まとめて』送る：
+      ① Dayの要約テキスト（全ブロックのサマリを1通に集約）
+      ② その後にボタン群（タイトル＝場所、サブタイトル＝時間）
     """
-    blocks = _blocks_in_day(day_body)
-    summaries, buttons = [], []
+    blocks = _normalize_day_blocks(day_body)
 
-    for block in blocks:
-        # テキストサマリ
-        summary = _summary_text_from_block(block)
-        if summary:
-            summaries.append(summary)
+    # ① まとめテキスト
+    text = _compose_day_text(day_title, blocks)
+    if text:
+        line_bot_api.push_message(uid, TextSendMessage(text=text))
 
-        # URLがあればボタン化
-        off = OFFICIAL_URL_RE.search(block)
-        mp  = MAP_URL_RE.search(block)
-        if off or mp:
-            time_range, name, _, _ = _info_from_block(block)
-            actions = []
-            if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
-            if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
-            buttons.append(
-                TemplateSendMessage(
-                    alt_text=name[:240] if name else "日程",
-                    template=ButtonsTemplate(
-                        title=(name or "スポット")[:40],    # タイトル＝場所
-                        text=(time_range or " ")[:60],       # サブタイトル＝時間
-                        actions=actions[:4]
-                    )
-                )
+    # ② ボタン群（URLがあるものだけ）
+    btns = []
+    for b in blocks:
+        off = OFFICIAL_URL_RE.search(b)
+        mp  = MAP_URL_RE.search(b)
+        tr, name, *_ = _info_from_block(b)
+        if not (off or mp):
+            continue
+        actions = []
+        if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
+        if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
+        btns.append(TemplateSendMessage(
+            alt_text=name[:240] if name else "日程",
+            template=ButtonsTemplate(
+                title=(name or "スポット")[:40],
+                text=(tr or " ")[:60],
+                actions=actions[:4]
             )
-
-    # ① Dayまとめテキスト（見出し付き）
-    if summaries:
-        all_text = f"📅 {day_title} の予定\n\n" + "\n\n".join(summaries)
-        line_bot_api.push_message(uid, TextSendMessage(text=all_text[:4000]))
-
-    # ② 続けてボタン群
-    if buttons:
-        _push_messages_in_chunks(uid, buttons, size=5)
+        ))
+    if btns:
+        _push_messages_in_chunks(uid, btns, size=5)
 
 # ====================== 実用ガイド（食事/体験をボタン化） ======================
 def _extract_blocks_by_head(section_text: str, head_re: re.Pattern):
