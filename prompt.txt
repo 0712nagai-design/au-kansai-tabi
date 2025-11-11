@@ -63,10 +63,6 @@
 
 🏨 THE BLOSSOM KYOTO  
 特徴：四条駅徒歩3分／上質モダン／外国人対応◎  
-📸  
-![THE BLOSSOM KYOTO 外観](https://upload.wikimedia.org/wikipedia/commons/5/56/Kyoto_Station_Building_Hotel_Granvia.jpg)  
-🔗 公式：https://theblossomhotel.jp/kyoto/  
-📍 Googleマップ：https://www.google.com/maps/search/THE+BLOSSOM+KYOTO  
 💰 約¥12,000〜¥18,000／泊  
 
 ──────────────────────────────
@@ -77,11 +73,7 @@
 
 🕘 9:00　🏯 観光：清水寺（東山）  
 木造舞台から望む京都市街が絶景。朝の時間帯は比較的空いており、撮影にも最適。  
-🕒 所要：約90分　🚶‍♀️アクセス：市バス「五条坂」徒歩10分  
-📸  
-![清水寺の写真](https://www.japan-guide.com/g18/3901_top.jpg)  
-🔗 公式サイト：https://www.kiyomizudera.or.jp/  
-📍 Googleマップ：https://www.google.com/maps/search/清水寺+京都  
+ 所要：約90分　🚶‍♀️アクセス：市バス「五条坂」徒歩10分   
 🕰 拝観 6:00–18:00（季節変動）／ 休：無休  
 
 ──────────────────────────────
@@ -230,3 +222,4 @@ Would you like to plan your trip in:
 - 出力が1回で完結しているか？  
 
 ──────────────────────────────
+
