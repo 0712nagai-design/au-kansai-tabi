@@ -343,10 +343,32 @@ DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
 ACT_TITLE_RE  = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
-# ======== 文字列サニタイズ ========
+# ======== 文字列サニタイズ & 抽出ヘルパー ========
 TIME_RANGE_RE = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:：]\d{2})\b")
 PRICE_RE = re.compile(r"(?:💰|料金|価格帯)\s*[:：]\s*([^\n／]+)")
 HOURS_RE = re.compile(r"(?:🕰|営業時間|営業)\s*[:：]\s*([^\n]+)")
+
+TITLE_CAT_RE = re.compile(r"^\s*(観光|体験|グルメ|昼|夕|朝)\s*[:：]\s*", re.I)
+DUP_SEG_RE   = re.compile(r"^\s*(?:00|30)–")  # 先頭の 00– / 30– を除去
+
+def _extract_blocks_by_head(section_text: str, head_re: re.Pattern):
+    lines = section_text.splitlines()
+    idxs = [i for i, ln in enumerate(lines) if head_re.search(ln)]
+    blocks = []
+    for j, start in enumerate(idxs):
+        end = idxs[j+1] if j+1 < len(idxs) else len(lines)
+        blocks.append("\n".join(lines[start:end]).strip())
+    return blocks
+
+def _clean_time_range(s: str) -> str:
+    if not s: return ""
+    s = s.replace("：", ":").replace("~", "–").replace("-", "–")
+    s = re.sub(r"\s+", "", s)
+    s = DUP_SEG_RE.sub("", s)
+    return s
+
+def _clean_spot_name(name: str) -> str:
+    return TITLE_CAT_RE.sub("", name or "").strip()
 
 def _clean_url(u: str) -> str:
     if not u: return ""
@@ -404,23 +426,22 @@ def _split_days(schedule_text: str):
 def _blocks_in_day(day_text: str):
     return [b.strip() for b in BLOCK_SPLIT_RE.split(day_text.strip()) if b.strip()]
 
+# -------- タイトル/副題抽出（短評なし） --------
 def _info_from_block(block: str):
     mtime = TIME_RANGE_RE.search(block)
-    time_range = ""
-    if mtime:
-        t1 = mtime.group(1).replace("：", ":")
-        t2 = mtime.group(2).replace("：", ":")
-        time_range = f"{t1}–{t2}"
+    time_range = _clean_time_range(mtime.group(0) if mtime else "")
     mtitle = ACT_TITLE_RE.search(block)
-    name = (mtitle.group("title").strip() if mtitle else "スポット")
+    raw_name = (mtitle.group("title").strip() if mtitle else "スポット")
+    name = _clean_spot_name(raw_name)
+
     mh = HOURS_RE.search(block)
     hp = mh.group(1).strip() if mh else ""
     mp = PRICE_RE.search(block)
     price = mp.group(1).strip() if mp else ""
-    subtitle_parts = []
-    if hp: subtitle_parts.append(f"営業時間：{hp}")
-    if price: subtitle_parts.append(f"目安：{price}")
-    subtitle = " ／ ".join(subtitle_parts) if subtitle_parts else " "
+    parts = []
+    if hp:    parts.append(f"営業時間：{hp}")
+    if price: parts.append(f"目安：{price}")
+    subtitle = " ／ ".join(parts) if parts else " "
     return time_range, name, subtitle
 
 def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
@@ -431,7 +452,7 @@ def _send_schedule_buttons_for_day(uid: str, day_title: str, day_body: str):
         if not (off or mp):
             continue
         time_range, name, subtitle = _info_from_block(block)
-        title = f"{time_range} {name}".strip()
+        title = f"{time_range} {name}".strip()  # 観光/体験などの語は入れない
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
         if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
@@ -473,7 +494,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 ホテル候補を表示します"))
     _send_hotels_as_buttons(uid, hotels)
 
-    # ② 日程表（Dayごとにカードのみ）
+    # ② 日程表（Dayごとにカードのみ。見出しテキスト不要なら次行を削除可）
     schedule = _generate_full_schedule(answers)
     for day_title, day_body in _split_days(schedule):
         line_bot_api.push_message(uid, TextSendMessage(text=f"{day_title} の予定を表示します"))
@@ -486,10 +507,11 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # 食事
     food_idx = next((i for i, s in enumerate(sections) if "食事おすすめ" in s), None)
     if food_idx is not None:
-        food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:6]  # 昼3・夜3まで想定
+        food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:6]
         msgs = []
         for b in food_blocks_all:
             _, name, subtitle = _info_from_block(b)
+            name = _clean_spot_name(name)
             off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
             if not (off or mp):
                 continue
@@ -509,6 +531,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         msgs = []
         for b in exp_blocks_all:
             _, name, subtitle = _info_from_block(b)
+            name = _clean_spot_name(name)
             off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
             if not (off or mp):
                 continue
@@ -610,4 +633,3 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
