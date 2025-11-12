@@ -3,6 +3,7 @@ import os, re, sys, json, logging
 from collections import defaultdict, deque
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+from urllib.parse import quote, urlsplit, urlunsplit  # ★ 追加
 
 from flask import Flask, request, abort
 
@@ -56,11 +57,48 @@ def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
         line_bot_api.push_message(uid, chunk if len(chunk) > 1 else chunk[0])
 
 def _clean_url(u: str) -> str:
-    if not u: return ""
-    u = u.replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\ufeff", "")
-    u = u.strip().strip("。．、 ，)）]］>＞")
-    if u.startswith("http://"): u = "https://" + u[len("http://"):]
+    """https化・不可視/全角句読点除去・エンコード整形"""
+    if not u:
+        return ""
+    u = (u.replace("\u200b","").replace("\u200c","").replace("\u200d","")
+           .replace("\ufeff","").strip().strip("。．、 ，)）]］>＞」』"))
+    if u.startswith("http://"):
+        u = "https://" + u[len("http://"):]
+    try:
+        scheme, netloc, path, query, frag = urlsplit(u)
+        path = quote(path, safe="/:-_.~")
+        if query:
+            parts = []
+            for p in query.split("&"):
+                if "=" in p:
+                    k, v = p.split("=", 1)
+                    parts.append(f"{quote(k, safe='')}={quote(v, safe='')}")
+                else:
+                    parts.append(quote(p, safe=""))
+            query = "&".join(parts)
+        u = urlunsplit((scheme or "https", netloc, path, query, ""))
+    except Exception:
+        u = u.replace(" ", "%20")
     return u
+
+def _normalize_map_url(u: str, fallback_query: str = "") -> str:
+    """GoogleマップURLを端末互換の高い形式へ正規化"""
+    u = _clean_url(u)
+    if not u:
+        return ""
+    if ("maps.app.goo.gl" in u) or ("google." in u and "/maps" in u):
+        return u
+    # (lat,lng) 形式なら検索APIへ
+    if re.fullmatch(r"\(?-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\)?", u):
+        coords = u.strip("()").replace(" ", "")
+        return f"https://www.google.com/maps/search/?api=1&query={quote(coords)}"
+    q = fallback_query or u
+    return f"https://www.google.com/maps/search/?api=1&query={quote(q)}"
+
+def _uri_action(label: str, url: str) -> dict:
+    """Flexのuriアクション（desktop用altUri付き）"""
+    url = _clean_url(url)
+    return {"type": "uri", "label": label, "uri": url, "altUri": {"desktop": url}}
 
 def _parse_numbers(s: str) -> Optional[List[int]]:
     if not s: return None
@@ -74,6 +112,10 @@ def _parse_numbers(s: str) -> Optional[List[int]]:
         return nums if nums else None
     except Exception:
         return None
+
+def _chunk(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i+n]
 
 # 共通抽出用
 OFFICIAL_URL_RE = re.compile(r"^(?:🔗\s*)?(?:公式|Official)\s*[:：]\s*(https?://[^\s)]+)", re.M)
@@ -293,7 +335,7 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         except Exception:
             return False
 
-    # 数字列（例: 1,3,5 一括指定 → 自動確定で次へ）
+    # 数字列（例: 1,3,5 一括指定 → 自動確定して次へ）
     nums = _parse_numbers(text)
     if nums and q.get("choices"):
         bad = [n for n in nums if n not in q["choices"]]
@@ -326,6 +368,77 @@ def _call_openai_text(user_prompt: str) -> str:
         messages=[{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":user_prompt}],
     )
     return (res.choices[0].message.content or "").strip()
+
+# ====================== Flexリストカード（1通に3件） ======================
+def _flex_list_bubble(header_title: str, items: List[Dict[str, str]]) -> FlexSendMessage:
+    def _one_card(it):
+        title_text = {
+            "type": "text",
+            "text": it.get("title",""),
+            "weight": "bold",
+            "size": "md",
+            "wrap": True
+        }
+        # タイトル全体を公式へリンク可
+        if it.get("official"):
+            title_text["action"] = _uri_action("open", it["official"])
+
+        subtitle_text = {
+            "type": "text",
+            "text": it.get("subtitle"," "),
+            "size": "sm",
+            "color": "#6B7280",
+            "wrap": True
+        }
+
+        buttons = []
+        if it.get("official"):
+            buttons.append({
+                "type":"button","style":"secondary","height":"sm","margin":"sm",
+                "action": _uri_action("公式サイト", it["official"])
+            })
+        if it.get("map"):
+            map_url = _normalize_map_url(it["map"], fallback_query=it.get("title",""))
+            buttons.append({
+                "type":"button","style":"secondary","height":"sm","margin":"sm",
+                "action": _uri_action("Googleマップ", map_url)
+            })
+        if not buttons:
+            buttons = [{
+                "type":"button","style":"secondary","height":"sm","margin":"sm",
+                "action": _uri_action("検索", f"https://www.google.com/search?q={quote(it.get('title',''))}")
+            }]
+
+        return {
+            "type": "box",
+            "layout": "horizontal",
+            "cornerRadius": "16px",
+            "backgroundColor": "#FFFFFF",
+            "paddingAll": "14px",
+            "spacing": "10px",
+            "contents": [
+                {"type": "box","layout":"vertical","flex":7,"spacing":"6px","contents":[title_text, subtitle_text]},
+                {"type": "box","layout":"vertical","flex":5,"spacing":"6px","contents": buttons}
+            ]
+        }
+
+    rows = [_one_card(it) for it in items[:3]]
+    bubble = {
+        "type": "bubble",
+        "size": "mega",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "14px",
+            "paddingAll": "16px",
+            "contents": [
+                {"type":"text","text":header_title,"weight":"bold","size":"lg"},
+                {"type":"separator"},
+                *rows
+            ]
+        }
+    }
+    return FlexSendMessage(alt_text=header_title, contents=bubble)
 
 # ====================== ホテル：3件提案 ======================
 def build_hotel3_prompt(answers: Dict[str, Any]) -> str:
@@ -361,6 +474,30 @@ def _parse_hotel_block(block: str):
     if moff:   off   = _clean_url(moff.group(1))
     if mmap:   mp    = _clean_url(mmap.group(1))
     return {"name": name or "ホテル", "desc": desc, "price": price, "official": off, "map": mp}
+
+def _send_hotels_three(uid: str, reply_token: str, hotels_text: str):
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", hotels_text.strip()) if b.strip()][:3]
+    if not blocks:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text="ホテル候補が見つかりませんでした。"))
+        return
+    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 条件に合うホテル候補を3件ご提案します👇"))
+    items = []
+    for block in blocks:
+        info = _parse_hotel_block(block)
+        # 1件ずつのシンプル説明（従来）
+        lines = [f"🏨 {info['name']}"]
+        if info["desc"]:  lines.append(info["desc"])
+        if info["price"]: lines.append(f"💰 価格目安：{info['price']}")
+        line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
+        # Flexリスト用
+        items.append({
+            "title": info["name"],
+            "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or ""
+        })
+    if items:
+        line_bot_api.push_message(uid, _flex_list_bubble("🏨 ホテル候補（3件）", items))
 
 # ====================== 飲食店：3件提案 ======================
 def build_food3_prompt(answers: Dict[str, Any]) -> str:
@@ -400,6 +537,31 @@ def _parse_food_block(block: str) -> Dict[str, Optional[str]]:
     if moff:   off   = _clean_url(moff.group(1))
     if mmap:   mp    = _clean_url(mmap.group(1))
     return {"name": name or "飲食店", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
+
+def _send_food_three(uid: str, reply_token: str, text: str):
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
+    if not blocks:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う飲食店が見つかりませんでした。"))
+        return
+    line_bot_api.reply_message(reply_token, TextSendMessage(text="🍽 条件に合うお店を3件ご提案します👇"))
+    items = []
+    for block in blocks:
+        info = _parse_food_block(block)
+        # テキスト（従来）
+        lines = [f"🍽 {info['name']}"]
+        if info["short"]: lines.append(info["short"])
+        if info["price"]: lines.append(f"💰 価格帯：{info['price']}")
+        if info["hours"]: lines.append(f"🕰 営業：{info['hours']}")
+        line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
+        # Flexリスト用
+        items.append({
+            "title": info["name"],
+            "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or ""
+        })
+    if items:
+        line_bot_api.push_message(uid, _flex_list_bubble("🍽 お店候補（3件）", items))
 
 # ====================== 体験スポット：3件提案 ======================
 def build_experience3_prompt(answers: Dict[str, Any]) -> str:
@@ -441,6 +603,33 @@ def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
     if mmap:   mp    = _clean_url(mmap.group(1))
     return {"name": name or "体験スポット", "short": short, "price": price, "hours": hours, "dura": dura, "official": off, "map": mp}
 
+def _send_experiences_three(uid: str, reply_token: str, text: str):
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
+    if not blocks:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う体験スポットが見つかりませんでした。"))
+        return
+    line_bot_api.reply_message(reply_token, TextSendMessage(text="🎯 条件に合う体験スポットを3件ご提案します👇"))
+    items = []
+    for block in blocks:
+        info = _parse_experience_block(block)
+        # テキスト（従来）
+        lines = [f"🎯 {info['name']}"]
+        if info["short"]: lines.append(info["short"])
+        if info["price"]: lines.append(f"💰 料金：{info['price']}")
+        if info["dura"]:  lines.append(f"⌛ 所要：{info['dura']}")
+        if info["hours"]: lines.append(f"🕰 営業：{info['hours']}")
+        line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
+        # Flexリスト用
+        sub = info.get("short") or (f"所要:{info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
+        items.append({
+            "title": info["name"],
+            "subtitle": sub[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or ""
+        })
+    if items:
+        line_bot_api.push_message(uid, _flex_list_bubble("🎯 体験スポット（3件）", items))
+
 # ====================== 観光地：3件提案 ======================
 def build_sightseeing3_prompt(answers: Dict[str, Any]) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
@@ -478,6 +667,32 @@ def _parse_sightseeing_block(block: str) -> Dict[str, Optional[str]]:
     if moff:   off   = _clean_url(moff.group(1))
     if mmap:   mp    = _clean_url(mmap.group(1))
     return {"name": name or "観光地", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
+
+def _send_sightseeing_three(uid: str, reply_token: str, text: str):
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
+    if not blocks:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う観光地が見つかりませんでした。"))
+        return
+    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏯 条件に合う観光地を3件ご提案します👇"))
+    items = []
+    for block in blocks:
+        info = _parse_sightseeing_block(block)
+        # テキスト（従来）
+        lines = [f"🏯 {info['name']}"]
+        if info["short"]: lines.append(info["short"])
+        if info["price"]: lines.append(f"💰 料金目安：{info['price']}")
+        if info["hours"]: lines.append(f"🕰 営業：{info['hours']}")
+        line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
+        # Flexリスト用
+        sub = info.get("short") or (f"営業時間:{info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
+        items.append({
+            "title": info["name"],
+            "subtitle": sub[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or ""
+        })
+    if items:
+        line_bot_api.push_message(uid, _flex_list_bubble("🏯 観光地（3件）", items))
 
 # ====================== 日程表 生成＆送信 ======================
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
@@ -535,67 +750,35 @@ def _info_from_block(block: str):
     short = mshort.group(1).strip() if mshort else ""
     return time_range, name, short
 
-# ====================== Flexリストカード（1通に最大3件） ======================
-def _chunk3(seq):
-    buf = []
-    for x in seq:
-        buf.append(x)
-        if len(buf) == 3:
-            yield buf
-            buf = []
-    if buf:
-        yield buf
+def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
+    # Dayごとに切り出し
+    parts = []
+    positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
+    for i, (title, start) in enumerate(positions):
+        end = positions[i+1][1] if i+1 < len(positions) else len(schedule_text)
+        parts.append((title, schedule_text[start:end]))
 
-def _flex_list_bubble(header_title: str, items: List[Dict[str, str]]) -> FlexSendMessage:
-    """
-    items: [{title, subtitle, official, map}]
-      title    : 例) "09:00–10:30 清水寺" / "ホテル名" / "🍽 店名"
-      subtitle : 例) 短評1行 or 価格・営業時間など
-      official : 公式URL（あれば）
-      map      : GoogleマップURL（あれば）
-    """
-    def _one_card(it):
-        # タイトル＋サブテキスト（左）と 2ボタン（右）を横並び
-        text_col = {
-            "type": "box", "layout": "vertical", "flex": 7, "spacing": "6px",
-            "contents": [
-                {"type": "text", "text": it.get("title",""), "weight": "bold", "size": "16px", "wrap": True},
-                {"type": "text", "text": it.get("subtitle"," "), "size": "14px", "color": "#6B7280", "wrap": True}
-            ]
-        }
-        buttons = []
-        if it.get("official"):
-            buttons.append({"type":"button","style":"secondary","height":"sm",
-                            "action":{"type":"uri","label":"公式サイト","uri":it["official"]}})
-        if it.get("map"):
-            buttons.append({"type":"button","style":"secondary","height":"sm",
-                            "action":{"type":"uri","label":"Googleマップ","uri":it["map"]}})
-        btn_col = {
-            "type": "box", "layout": "vertical", "flex": 5, "spacing": "8px",
-            "contents": buttons or [
-                {"type":"button","style":"secondary","height":"sm",
-                 "action":{"type":"uri","label":"検索","uri":"https://www.google.com/"}}
-            ]
-        }
-        return {
-            "type": "box", "layout": "horizontal", "cornerRadius": "16px",
-            "backgroundColor": "#FFFFFF", "paddingAll": "14px",
-            "contents": [text_col, btn_col]
-        }
+    if not parts:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text="日程表の生成に失敗しました。条件を変えて再試行してください。"))
+        return
 
-    rows = [_one_card(it) for it in items]
-
-    bubble = {
-        "type": "bubble", "size": "mega",
-        "body": {
-            "type": "box", "layout": "vertical", "spacing": "14px", "paddingAll": "16px",
-            "contents": [
-                {"type":"text","text":header_title,"weight":"bold","size":"20px"},
-                {"type":"separator"}
-            ] + rows
-        }
-    }
-    return FlexSendMessage(alt_text=header_title, contents=bubble)
+    for day_title, day_body in parts:
+        line_bot_api.push_message(uid, TextSendMessage(text=f"📅 {day_title}"))
+        items: List[Dict[str,str]] = []
+        for block in _blocks_in_day(day_body):
+            off = OFFICIAL_URL_RE.search(block)
+            mp  = MAP_URL_RE.search(block)
+            time_range, name, short = _info_from_block(block)
+            title = (f"{time_range} {name}".strip() or "スポット")[:60]
+            items.append({
+                "title": title,
+                "subtitle": (short or " ")[:60],
+                "official": _clean_url(off.group(1)) if off else "",
+                "map": _clean_url(mp.group(1)) if mp else ""
+            })
+        # 3件ずつのFlexで送信（ボタン密度UP & altUri付き）
+        for trio in _chunk(items, 3):
+            line_bot_api.push_message(uid, _flex_list_bubble(f"{day_title} の予定", trio))
 
 # ====================== “他のプランを提案” メニュー ======================
 def _send_finish_menu(uid: str):
@@ -624,157 +807,6 @@ def _send_finish_menu(uid: str):
             ]}
     }
     line_bot_api.push_message(uid, FlexSendMessage(alt_text="他のプランを提案", contents=bubble))
-
-# ====================== 送信フロー（Flex化バージョン） ======================
-def _send_hotels_three(uid: str, reply_token: str, hotels_text: str):
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", hotels_text.strip()) if b.strip()][:6]  # 念のため最大6まで
-    if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="ホテル候補が見つかりませんでした。"))
-        return
-
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 条件に合うホテル候補を3件ご提案します👇"))
-
-    items = []
-    for block in blocks:
-        info = _parse_hotel_block(block)
-        subtitle = " ".join([x for x in [
-            info.get("desc") or "",
-            (f"💰 {info['price']}" if info.get("price") else "")
-        ] if x])[:120]
-        items.append({
-            "title": f"{info.get('name','ホテル')}",
-            "subtitle": subtitle or " ",
-            "official": info.get("official"),
-            "map": info.get("map")
-        })
-
-    for group in _chunk3(items):
-        msg = _flex_list_bubble("ホテル候補", group)
-        line_bot_api.push_message(uid, msg)
-
-def _send_food_three(uid: str, reply_token: str, text: str):
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:6]
-    if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う飲食店が見つかりませんでした。"))
-        return
-
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🍽 条件に合うお店を3件ご提案します👇"))
-
-    items = []
-    for block in blocks:
-        info = _parse_food_block(block)
-        subtitle = " ".join([x for x in [
-            (info.get("short") or ""),
-            (f"💰 {info['price']}" if info.get("price") else ""),
-            (f"🕰 {info['hours']}" if info.get("hours") else "")
-        ] if x])[:120]
-        items.append({
-            "title": f"{info.get('name','飲食店')}",
-            "subtitle": subtitle or " ",
-            "official": info.get("official"),
-            "map": info.get("map")
-        })
-
-    for group in _chunk3(items):
-        msg = _flex_list_bubble("おすすめ飲食店", group)
-        line_bot_api.push_message(uid, msg)
-
-def _send_experiences_three(uid: str, reply_token: str, text: str):
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:6]
-    if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う体験スポットが見つかりませんでした。"))
-        return
-
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🎯 条件に合う体験スポットを3件ご提案します👇"))
-
-    items = []
-    for block in blocks:
-        info = _parse_experience_block(block)
-        subtitle = " ".join([x for x in [
-            (info.get("short") or ""),
-            (f"💰 {info['price']}" if info.get("price") else ""),
-            (f"⌛ {info['dura']}" if info.get("dura") else ""),
-            (f"🕰 {info['hours']}" if info.get("hours") else "")
-        ] if x])[:120]
-        items.append({
-            "title": f"{info.get('name','体験スポット')}",
-            "subtitle": subtitle or " ",
-            "official": info.get("official"),
-            "map": info.get("map")
-        })
-
-    for group in _chunk3(items):
-        msg = _flex_list_bubble("体験スポット", group)
-        line_bot_api.push_message(uid, msg)
-
-def _send_sightseeing_three(uid: str, reply_token: str, text: str):
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:6]
-    if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う観光地が見つかりませんでした。"))
-        return
-
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏯 条件に合う観光地を3件ご提案します👇"))
-
-    items = []
-    for block in blocks:
-        info = _parse_sightseeing_block(block)
-        subtitle = " ".join([x for x in [
-            (info.get("short") or ""),
-            (f"💰 {info['price']}" if info.get("price") else ""),
-            (f"🕰 {info['hours']}" if info.get("hours") else "")
-        ] if x])[:120]
-        items.append({
-            "title": f"{info.get('name','観光地')}",
-            "subtitle": subtitle or " ",
-            "official": info.get("official"),
-            "map": info.get("map")
-        })
-
-    for group in _chunk3(items):
-        msg = _flex_list_bubble("観光地", group)
-        line_bot_api.push_message(uid, msg)
-
-def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
-    # Day分割
-    positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
-    parts = []
-    for i, (title, start) in enumerate(positions):
-        end = positions[i+1][1] if i+1 < len(positions) else len(schedule_text)
-        parts.append((title, schedule_text[start:end]))
-
-    if not parts:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="日程表の生成に失敗しました。条件を変えて再試行してください。"))
-        return
-
-    for day_title, day_body in parts:
-        blocks = _blocks_in_day(day_body)
-        items = []
-        for block in blocks:
-            off = OFFICIAL_URL_RE.search(block)
-            mp  = MAP_URL_RE.search(block)
-            # タイトル：時間＋名称、 サブ：短評
-            mtime = TIME_RANGE_RE.search(block)
-            if mtime:
-                t1 = mtime.group(1).replace("：", ":"); t2 = mtime.group(2).replace("：", ":")
-                time_range = f"{t1}–{t2}"
-            else:
-                time_range = ""
-            mtitle = ACT_TITLE_RE.search(block)
-            name = (mtitle.group("title").strip() if mtitle else "スポット")
-            mshort = re.search(r"^(?:短評|特徴)[:：]\s*(.+)$", block, re.M)
-            short = mshort.group(1).strip() if mshort else ""
-            items.append({
-                "title": (f"{time_range} {name}".strip())[:40],
-                "subtitle": (short or " ")[:120],
-                "official": _clean_url(off.group(1)) if off else None,
-                "map": _clean_url(mp.group(1)) if mp else None
-            })
-
-        # 1日分を複数通（3件ずつ）で送信
-        for i, group in enumerate(_chunk3(items), start=1):
-            head = f"{day_title}（{i}）" if len(items) > 3 else day_title
-            msg = _flex_list_bubble(head, group)
-            line_bot_api.push_message(uid, msg)
 
 # ====================== メイン送信フロー ======================
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
@@ -947,4 +979,3 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
