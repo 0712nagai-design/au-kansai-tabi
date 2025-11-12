@@ -13,7 +13,7 @@ from linebot.models import (
     MessageEvent, TextMessage, LocationMessage,
     TextSendMessage,
     TemplateSendMessage, ButtonsTemplate, URITemplateAction,
-    QuickReply, QuickReplyButton, MessageAction, LocationAction, FlexSendMessage
+    QuickReply, QuickReplyButton, LocationAction, FlexSendMessage
 )
 
 # OpenAI v1
@@ -41,6 +41,9 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 MAX_TURNS = 30
 State = Dict[str, Any]
 users: Dict[str, State] = defaultdict(dict)
+
+# 直近言語の保持（他プランメニュー→再分岐で再利用）
+LAST_LANG: Dict[str, str] = {}
 
 RESTART = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
 
@@ -116,7 +119,7 @@ THEMES_MULTI = {1:"グルメ",2:"歴史文化",3:"自然癒し",4:"夜景",5:"�
 COMPANION_ITI= {1:"ひとり",2:"カップル",3:"友人",4:"家族",5:"外国人友人",6:"その他"}
 DEPT_CHOICES = {1:"6–8時",2:"9–11時",3:"12–14時",4:"15–17時",5:"18時以降"}
 ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"未定"}
-TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}  # ★追加
+TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}  # 追加済み
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     seq: List[Dict[str, Any]] = [
@@ -160,11 +163,11 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     if req == "日程表":
         seq += [
-            {"key": "prefs",   "title": "訪問する都道府県を選んでください（複数選択可）※終わったら『完了』", "choices": PREFS_MULTI, "multi": True},
+            {"key": "prefs",   "title": "訪問する都道府県を選んでください（複数選択可：例 1,3,6 で同時選択。タップの場合は『完了』）", "choices": PREFS_MULTI, "multi": True},
             {"key": "date",    "title": "出発日を入力してください（例: 2025-03-20）", "choices": {}, "multi": False},
             {"key": "stay",    "title": "何泊何日ですか？", "choices": STAY_PLAN_ITI, "multi": False},
-            {"key": "themes",  "title": "旅行のテーマを選んでください（複数選択可）※終わったら『完了』", "choices": THEMES_MULTI, "multi": True},
-            {"key": "transport","title":"主な交通手段を選んでください。", "choices": TRANSPORT_ITI, "multi": False},  # ★追加
+            {"key": "themes",  "title": "旅行のテーマを選んでください（複数選択可：例 1,4,5。タップの場合は『完了』）", "choices": THEMES_MULTI, "multi": True},
+            {"key": "transport","title":"主な交通手段を選んでください。", "choices": TRANSPORT_ITI, "multi": False},
             {"key": "companion","title":"同行者を選んでください。", "choices": COMPANION_ITI, "multi": False},
             {"key": "dept",    "title": "出発時間帯を選んでください。", "choices": DEPT_CHOICES, "multi": False},
             {"key": "arrv",    "title": "帰着時間帯を選んでください。", "choices": ARRV_CHOICES, "multi": False},
@@ -180,7 +183,7 @@ def _flex_choice_button(label: str, out_text: str) -> dict:
         "layout": "vertical",
         "cornerRadius": "16px",
         "backgroundColor": "#EEF2F7",
-        "height": "92px",              # ★見切れ対策
+        "height": "92px",
         "paddingAll": "0px",
         "justifyContent": "center",
         "action": {"type": "message", "label": label, "text": out_text},
@@ -188,10 +191,10 @@ def _flex_choice_button(label: str, out_text: str) -> dict:
             "type": "text",
             "text": label,
             "weight": "bold",
-            "size": "18px",            # ★やや小さめ
+            "size": "18px",
             "align": "center",
             "color": "#111111",
-            "wrap": True,              # ★2行まで許可
+            "wrap": True,
             "maxLines": 2
         }]
     }
@@ -269,7 +272,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
                 return True
             else:
                 state["answers"][key] = val
-                # 飲食店：エリア=現在地 → 位置情報フラグ
                 if state["answers"].get("request") == "飲食店" and key == "area":
                     if val == "現在地から近く" and not state.get("geo"):
                         state["need_location"] = True
@@ -291,25 +293,22 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         except Exception:
             return False
 
-    # 数字列（例: 1,3）
+    # 数字列（例: 1,3,5 一括指定 → 自動確定して次へ）
     nums = _parse_numbers(text)
     if nums and q.get("choices"):
+        bad = [n for n in nums if n not in q["choices"]]
+        if bad: return False
+        labels = [q["choices"][n] for n in nums]
         if q.get("multi"):
-            bad = [n for n in nums if n not in q["choices"]]
-            if bad: return False
-            labels = [q["choices"][n] for n in nums]
-            cur = state["multi_temp"].get(key, [])
-            for lb in labels:
-                if lb not in cur: cur.append(lb)
-            state["multi_temp"][key] = cur
+            state["answers"][key] = labels
+            state["_autodone"] = True      # ← このターンは完了扱い
             return True
         else:
-            if len(nums) != 1 or nums[0] not in q["choices"]: return False
-            val = q["choices"][nums[0]]
+            if len(nums) != 1: return False
             if key == "lang":
                 state["answers"][key] = "ja" if nums[0] == 1 else "en"
             else:
-                state["answers"][key] = val
+                state["answers"][key] = q["choices"][nums[0]]
             return True
 
     return False
@@ -343,7 +342,7 @@ def build_hotel3_prompt(answers: Dict[str, Any]) -> str:
 【出力フォーマット（3件ぶん）】
 🏨 ホテル正式名称（最寄エリア）
 特徴：立地/客室/温浴/朝食/子連れなど1行要約
-💰 価格目安：{answers.get('people','2')}名・{answers.get('stay_plan','1泊2日')}の概算 or 1名/泊目安
+💰 価格目安：{answers.get('people','2人')}・{answers.get('stay_plan','1泊2日')}の概算 or 1名/泊目安
 🔗 公式：https://...
 📍 Googleマップ：https://...
 """.strip()
@@ -705,6 +704,9 @@ def _send_finish_menu(uid: str):
 
 # ====================== メイン送信フロー ======================
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
+    # 直近言語を保存（他のプラン分岐で使う）
+    LAST_LANG[uid] = answers.get("lang", LAST_LANG.get(uid, "ja"))
+
     req = answers.get("request")
 
     if req == "ホテル":
@@ -773,6 +775,12 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
+    # --- 他のプランメニューからのダイレクト分岐 ---
+    if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
+        users[uid] = {"step": 2, "answers": {"lang": LAST_LANG.get(uid, "ja"), "request": text}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
+        line_bot_api.reply_message(event.reply_token, _render_question(2, users[uid]))  # requestの次の質問から
+        return
+
     # 初期化
     if text in RESTART or text.lower() in RESTART:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
@@ -794,10 +802,10 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # ★複数選択：完了するまでは同じ質問を再表示
+    # 複数選択：『完了』を待つ。ただし「1,3,5」の一括指定は自動確定で次へ
     seq_now = _get_question_sequence(state.get("answers", {}))
     q_now = seq_now[step]
-    if q_now.get("multi") and text != "完了":
+    if q_now.get("multi") and text != "完了" and not state.pop("_autodone", False):
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
