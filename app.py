@@ -270,9 +270,9 @@ MAP_URL_RE = re.compile(r"^(?:📍\s*)?(?:Google ?マップ|Google ?Maps)\s*[:�
 SECTION_SPLIT_RE = re.compile(r"\n[-─]{6,}\n")
 FOOD_HEAD_RE  = re.compile(r"^\s*🍽\s*(?P<title>[^（\(\n]+)", re.M)
 EXPER_HEAD_RE = re.compile(r"^\s*🎯\s*(?P<title>[^（\(\n]+)", re.M)
-DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
-BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
-ACT_TITLE_RE  = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
+
+# ★ 施設名は「行の最後のコロンの後」を取る（時間の 9:00 のコロンに反応しない）
+ACT_TITLE_RE  = re.compile(r"^.*[：:]\s*(?P<title>[^\n（(]+)$", re.M)
 
 TIME_RANGE_RE = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:：]\d{2})\b")
 PRICE_RE      = re.compile(r"(?:💰|料金|料金目安|価格帯|価格目安)\s*[:：]\s*([^\n／]+)")
@@ -439,6 +439,10 @@ def _send_hotel_single(uid: str, hotels_text: str, reply_token: str):
 
 # ====================== 日程表ユーティリティ ======================
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
+BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
+
+def _blocks_in_day(day_text: str):
+    return [b.strip() for b in BLOCK_SPLIT_RE.split(day_text.strip()) if b.strip()]
 
 def _split_days(schedule_text: str):
     parts = []
@@ -448,22 +452,20 @@ def _split_days(schedule_text: str):
         parts.append((title, schedule_text[start:end]))
     return parts
 
-def _blocks_in_day(day_text: str):
-    return [b.strip() for b in BLOCK_SPLIT_RE.split(day_text.strip()) if b.strip()]
+def _first_time_range(txt: str) -> str:
+    # 重なりマッチの可能性があるため、最も早く現れる1件のみ採用
+    mlist = list(TIME_RANGE_RE.finditer(txt))
+    if not mlist:
+        return ""
+    m = min(mlist, key=lambda x: x.start())
+    t1 = m.group(1).replace("：", ":")
+    t2 = m.group(2).replace("：", ":")
+    return f"{t1}–{t2}"
 
 def _info_from_block(block: str):
-    # 時間帯
-    mtime = TIME_RANGE_RE.search(block)
-    if mtime:
-        t1 = mtime.group(1).replace("：", ":")
-        t2 = mtime.group(2).replace("：", ":")
-        time_range = f"{t1}–{t2}"
-    else:
-        time_range = ""
-    # 名称（カテゴリは落として施設名のみ）
+    time_range = _first_time_range(block)
     mtitle = ACT_TITLE_RE.search(block)
     name = (mtitle.group("title").strip() if mtitle else "スポット")
-    # 料金・営業時間
     mprice = PRICE_RE.search(block)
     price = mprice.group(1).strip() if mprice else ""
     mhours = HOURS_RE.search(block)
@@ -479,11 +481,12 @@ def _summary_text_from_block(block: str) -> str:
 
 # ===== Day内の並び最適化＆まとめ→ボタン一括送信 =====
 def _parse_start_minutes(block: str) -> int:
-    m = TIME_RANGE_RE.search(block)
-    if not m:
+    tr = _first_time_range(block)
+    if not tr or "–" not in tr:
         return 24 * 60 + 1
     try:
-        hh, mm = m.group(1).replace("：", ":").split(":")
+        hhmm = tr.split("–")[0]
+        hh, mm = hhmm.split(":")
         return int(hh) * 60 + int(mm)
     except Exception:
         return 24 * 60 + 1
@@ -515,11 +518,6 @@ def _compose_day_text(day_title: str, blocks: List[str]) -> str:
     return "\n".join(lines)[:4000]
 
 def _send_schedule_day_grouped(uid: str, day_title: str, day_body: str):
-    """
-    1日分を『まとめて』送る：
-      ① Dayの要約テキスト（全ブロックのサマリを1通に集約）
-      ② その後にボタン群（タイトル＝場所、サブタイトル＝時間）
-    """
     blocks = _normalize_day_blocks(day_body)
 
     # ① まとめテキスト
@@ -596,7 +594,6 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
     return schedule
 
 def _ensure_day_density(schedule: str, answers: Dict[str, Any]) -> str:
-    """各日が6ブロック以上になるよう不足分を追記する。最大2パス。"""
     for _ in range(2):
         updated = False
         parts = _split_days(schedule)
@@ -628,7 +625,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     for day_title, day_body in _split_days(schedule):
         _send_schedule_day_grouped(uid, day_title, day_body)
 
-    # ③ 実用ガイド：食事/体験はボタンのみ（短評なし）
+    # ③ 実用ガイド：食事/体験はボタンのみ
     guide = _call_openai_text(build_guide_prompt(answers))
     sections = SECTION_SPLIT_RE.split(guide)
 
