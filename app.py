@@ -96,7 +96,7 @@ def callback():
         abort(400)
     return "OK", 200
 
-# ====================== 質問レンダリング（Flex：スクショの見た目） ======================
+# ====================== 質問レンダリング（Flex） ======================
 def _flex_choice_button(label: str, out_text: str) -> dict:
     return {
         "type": "box",
@@ -262,7 +262,7 @@ def _required_days(answers: dict) -> int:
     d = table.get(stay, 2)
     return max(d, 2)
 
-# ====================== 正規表現・共通抽出 ======================
+# ====================== 正規表現・抽出 ======================
 URL_RE = re.compile(r"https?://[^\s)]+", re.I)
 OFFICIAL_URL_RE = re.compile(r"^(?:🔗\s*)?(?:公式|Official)\s*[:：]\s*(https?://[^\s)]+)", re.M)
 MAP_URL_RE = re.compile(r"^(?:📍\s*)?(?:Google ?マップ|Google ?Maps)\s*[:：]\s*(https?://[^\s)]+)", re.M | re.I)
@@ -271,12 +271,13 @@ SECTION_SPLIT_RE = re.compile(r"\n[-─]{6,}\n")
 FOOD_HEAD_RE  = re.compile(r"^\s*🍽\s*(?P<title>[^（\(\n]+)", re.M)
 EXPER_HEAD_RE = re.compile(r"^\s*🎯\s*(?P<title>[^（\(\n]+)", re.M)
 
-# ★ 施設名は「行の最後のコロンの後」を取る（時間の 9:00 のコロンに反応しない）
+# 施設名は「行の最後のコロンの後」を取る
 ACT_TITLE_RE  = re.compile(r"^.*[：:]\s*(?P<title>[^\n（(]+)$", re.M)
 
 TIME_RANGE_RE = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:：]\d{2})\b")
 PRICE_RE      = re.compile(r"(?:💰|料金|料金目安|価格帯|価格目安)\s*[:：]\s*([^\n／]+)")
 HOURS_RE      = re.compile(r"(?:🕰|営業時間|営業)\s*[:：]\s*([^\n]+)")
+SHORT_RE      = re.compile(r"(?:短評|ポイント|見どころ)\s*[:：]\s*(.+)")
 
 def _clean_url(u: str) -> str:
     if not u: return ""
@@ -313,21 +314,21 @@ def build_schedule_prompt(answers: Dict[str, Any]) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
     return f"""
 以下は「日程表」セクションの出力指示です。
-他の項目は出さず、旅程のみを生成してください。
+**各日5件以上**、具体的な固有名詞の施設を入れ、各ブロックに「短評：」の1行説明を必ず含めてください。
 極めて重要：「公式：URL」および「Googleマップ：URL」の行に、実際のURLを出力してください。
 【ユーザー回答(JSON参照用)】
 {answers_json}
 
 厳守事項：
 - 最終日には宿泊ブロックを入れない
-- 各日6ブロック以上
-- 各ブロックは「時間帯」「カテゴリ」「名称」「URL/営業時間」を含める
+- 各ブロックは「時間帯」「カテゴリ」「名称」「短評」「URL/営業時間」を含める
 - タイトル抽出可能な形式（例：🕘 9:00–10:30　🏯 観光：名称）
-- カテゴリ語は付けてよいが、**名称は必ず『観光：◯◯』のようにコロンの後ろに置く**
+- 名称は『観光：◯◯』のようにコロンの後ろに置く
 
 出力例：
 Day1
 🕘 9:00–10:30　🏯 観光：施設名（エリア）
+短評：写真スポット多数。朝は空いていて快適。
 💰 料金目安：〜円
 🔗 公式：URL
 📍 Googleマップ：URL
@@ -405,24 +406,20 @@ def _parse_hotel_block(block: str):
     return {"name": name or "ホテル", "desc": desc, "price": price, "official": off, "map": mp}
 
 def _send_hotel_single(uid: str, hotels_text: str, reply_token: str):
-    blocks = re.split(r"\n[- ─]{6,}\n|\n{2,}", hotels_text.strip())
+    blocks = re.split(r"\n[-  ─]{6,}\n|\n{2,}", hotels_text.strip())
     block = next((b for b in blocks if b.strip()), "")
     if not block:
         line_bot_api.reply_message(reply_token, TextSendMessage(text="ホテル候補が見つかりませんでした。"))
         return
 
     info = _parse_hotel_block(block)
-
-    # ① 導入メッセージ
     line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 あなたにおすすめのホテルはこちらです👇"))
 
-    # ② 説明（URLは書かない）
     text_lines = [f"🏨 {info['name']}"]
     if info["desc"]:  text_lines.append(info["desc"])
     if info["price"]: text_lines.append(f"💰 価格目安：{info['price']}")
     line_bot_api.push_message(uid, TextSendMessage(text="\n".join(text_lines)))
 
-    # ③ ボタン（タイトル=ホテル名 / サブタイトル=価格目安）
     actions = []
     if info["official"]: actions.append(URITemplateAction(label="公式サイト", uri=info["official"]))
     if info["map"]:      actions.append(URITemplateAction(label="Googleマップ", uri=info["map"]))
@@ -453,7 +450,6 @@ def _split_days(schedule_text: str):
     return parts
 
 def _first_time_range(txt: str) -> str:
-    # 重なりマッチの可能性があるため、最も早く現れる1件のみ採用
     mlist = list(TIME_RANGE_RE.finditer(txt))
     if not mlist:
         return ""
@@ -470,16 +466,11 @@ def _info_from_block(block: str):
     price = mprice.group(1).strip() if mprice else ""
     mhours = HOURS_RE.search(block)
     hours = mhours.group(1).strip() if mhours else ""
-    return time_range, name, price, hours
+    mshort = SHORT_RE.search(block)
+    short = mshort.group(1).strip() if mshort else ""
+    return time_range, name, price, hours, short
 
-def _summary_text_from_block(block: str) -> str:
-    time_range, name, price, hours = _info_from_block(block)
-    lines = [f"{time_range} {name}".strip()]
-    if price: lines.append(f"💰 料金目安：{price}")
-    if hours: lines.append(f"🕰 営業：{hours}")
-    return "\n".join(lines)
-
-# ===== Day内の並び最適化＆まとめ→ボタン一括送信 =====
+# ===== Day内の重複排除 & 並び順 =====
 def _parse_start_minutes(block: str) -> int:
     tr = _first_time_range(block)
     if not tr or "–" not in tr:
@@ -504,46 +495,34 @@ def _normalize_day_blocks(day_body: str) -> List[str]:
     out.sort(key=_parse_start_minutes)
     return out
 
-def _compose_day_text(day_title: str, blocks: List[str]) -> str:
-    lines = [f"📅 {day_title} の予定（まとめ）"]
-    for i, b in enumerate(blocks, 1):
-        tr, name, price, hours = _info_from_block(b)
-        head = f"{i:02d}) {(tr or '時間未定')}　{name}"
-        tail = []
-        if price: tail.append(f"💰{price}")
-        if hours: tail.append(f"🕰{hours}")
-        if tail:
-            head += " ｜ " + " / ".join(tail)
-        lines.append(head)
-    return "\n".join(lines)[:4000]
-
-def _send_schedule_day_grouped(uid: str, day_title: str, day_body: str):
+# ===== 送信（各日：見出し→ボタン群のみ） =====
+def _send_schedule_day_buttons(uid: str, day_title: str, day_body: str):
     blocks = _normalize_day_blocks(day_body)
 
-    # ① まとめテキスト
-    text = _compose_day_text(day_title, blocks)
-    if text:
-        line_bot_api.push_message(uid, TextSendMessage(text=text))
+    # 見出しだけ（まとめ本文は送らない）
+    line_bot_api.push_message(uid, TextSendMessage(text=f"{day_title} の日程表"))
 
-    # ② ボタン群（URLがあるものだけ）
     btns = []
     for b in blocks:
         off = OFFICIAL_URL_RE.search(b)
         mp  = MAP_URL_RE.search(b)
-        tr, name, *_ = _info_from_block(b)
+        tr, name, _, _, short = _info_from_block(b)
         if not (off or mp):
             continue
+        title = ((tr + "｜") if tr else "") + (name or "スポット")
+        subtitle = short or " "
         actions = []
         if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
         if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
         btns.append(TemplateSendMessage(
-            alt_text=name[:240] if name else "日程",
+            alt_text=title[:240],
             template=ButtonsTemplate(
-                title=(name or "スポット")[:40],
-                text=(tr or " ")[:60],
+                title=title[:40],
+                text=subtitle[:60],
                 actions=actions[:4]
             )
         ))
+
     if btns:
         _push_messages_in_chunks(uid, btns, size=5)
 
@@ -589,19 +568,19 @@ def _generate_full_schedule(answers: Dict[str, Any]) -> str:
         got = _count_days_in_text(schedule)
         guard += 1
 
-    # 各日のブロック密度（6件以上）を保証
-    schedule = _ensure_day_density(schedule, answers)
+    # 各日のブロック密度（5件以上）を保証
+    schedule = _ensure_day_density(schedule, answers, min_blocks=5)
     return schedule
 
-def _ensure_day_density(schedule: str, answers: Dict[str, Any]) -> str:
+def _ensure_day_density(schedule: str, answers: Dict[str, Any], min_blocks: int = 5) -> str:
     for _ in range(2):
         updated = False
         parts = _split_days(schedule)
         for day_title, day_body in parts:
             blocks = _blocks_in_day(day_body)
-            if len(blocks) >= 6:
+            if len(blocks) >= min_blocks:
                 continue
-            need_more = 6 - len(blocks)
+            need_more = min_blocks - len(blocks)
             prompt = (
                 build_schedule_prompt(answers) +
                 f"\n補足：{day_title} の続きとして、同じフォーマットで{need_more}ブロック以上を追加してください。"
@@ -620,16 +599,16 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     hotels = _call_openai_text(build_hotel_prompt(answers))
     _send_hotel_single(uid, hotels, reply_token)
 
-    # ② 日程表（Dayごと：テキスト→ボタンの順で一括送信）
+    # ② 日程表（各日：見出し→ボタン）
     schedule = _generate_full_schedule(answers)
     for day_title, day_body in _split_days(schedule):
-        _send_schedule_day_grouped(uid, day_title, day_body)
+        _send_schedule_day_buttons(uid, day_title, day_body)
 
-    # ③ 実用ガイド：食事/体験はボタンのみ
+    # ③ 実用ガイド（食事・体験のみボタン）
     guide = _call_openai_text(build_guide_prompt(answers))
     sections = SECTION_SPLIT_RE.split(guide)
 
-    # 食事（昼3・夜3まで）
+    # 食事
     food_idx = next((i for i, s in enumerate(sections) if "食事おすすめ" in s), None)
     if food_idx is not None:
         food_blocks_all = _extract_blocks_by_head(sections[food_idx], FOOD_HEAD_RE)[:6]
@@ -638,7 +617,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             mtitle = FOOD_HEAD_RE.search(b)
             name = (mtitle.group("title").strip() if mtitle else "飲食店")
             mhours = HOURS_RE.search(b)
-            hours = mhours.group(1).strip() if mhours else " "
+            short = (SHORT_RE.search(b).group(1).strip() if SHORT_RE.search(b) else (mhours.group(1).strip() if mhours else " "))
             off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
             if not (off or mp): continue
             actions = []
@@ -646,11 +625,11 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
             msgs.append(TemplateSendMessage(
                 alt_text=name,
-                template=ButtonsTemplate(title=name[:40], text=hours[:60], actions=actions[:4])
+                template=ButtonsTemplate(title=name[:40], text=short[:60], actions=actions[:4])
             ))
         if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
-    # 体験（3）
+    # 体験
     exp_idx = next((i for i, s in enumerate(sections) if "体験予約" in s), None)
     if exp_idx is not None:
         exp_blocks_all = _extract_blocks_by_head(sections[exp_idx], EXPER_HEAD_RE)[:3]
@@ -659,7 +638,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             mtitle = EXPER_HEAD_RE.search(b)
             name = (mtitle.group("title").strip() if mtitle else "体験")
             mhours = HOURS_RE.search(b)
-            hours = mhours.group(1).strip() if mhours else " "
+            short = (SHORT_RE.search(b).group(1).strip() if SHORT_RE.search(b) else (mhours.group(1).strip() if mhours else " "))
             off = OFFICIAL_URL_RE.search(b); mp = MAP_URL_RE.search(b)
             if not (off or mp): continue
             actions = []
@@ -667,7 +646,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
             msgs.append(TemplateSendMessage(
                 alt_text=name,
-                template=ButtonsTemplate(title=name[:40], text=hours[:60], actions=actions[:4])
+                template=ButtonsTemplate(title=name[:40], text=short[:60], actions=actions[:4])
             ))
         if msgs: _push_messages_in_chunks(uid, msgs, size=5)
 
