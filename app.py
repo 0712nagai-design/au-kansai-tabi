@@ -89,20 +89,20 @@ PREFS_KANSAI = {1: "京都", 2: "大阪", 3: "奈良", 4: "兵庫", 5: "滋賀",
 
 # --- ホテル ---
 STAY_PLAN_HOTEL = {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊4日", 5: "4泊5日", 6: "5泊6日"}
-PEOPLE_HOTEL = {1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6以上"}
+PEOPLE_HOTEL = {1: "1人", 2: "2人", 3: "3人", 4: "4人", 5: "5人", 6: "6人以上"}
 HOTELS  = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館", 5: "こだわらない"}
 
 # --- 飲食店 ---
 MEAL_TIMES   = {1: "朝", 2: "昼", 3: "夜"}
 AREAS_FOOD   = {1: "現在地から近く", 2: "京都", 3: "大阪", 4: "奈良", 5: "兵庫", 6: "滋賀", 7: "和歌山"}
-PEOPLE_FOOD  = {1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6人以上"}
+PEOPLE_FOOD  = {1: "1人", 2: "2人", 3: "3人", 4: "4人", 5: "5人", 6: "6人以上"}
 COMPANION_FOOD = {1: "一人", 2: "カップル", 3: "友達", 4: "家族"}
 CUISINES     = {1: "和食", 2: "洋食", 3: "中華", 4: "ラーメン", 5: "カフェ・スイーツ", 6: "こだわらない"}
 BUDGET_FOOD  = {1: "～1000円", 2: "1000～2000円", 3: "2000～5000円", 4: "5000円以上"}
 
 # --- 体験スポット ---
 AREAS_EXP    = PREFS_KANSAI.copy()
-PEOPLE_EXP   = {1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6人以上"}
+PEOPLE_EXP   = {1: "1人", 2: "2人", 3: "3人", 4: "4人", 5: "5人", 6: "6人以上"}
 COMPANION_EXP= COMPANION_FOOD.copy()
 EXP_GENRES   = {1: "温泉", 2: "自然体験", 3: "文化体験", 4: "モノづくり体験", 5: "グルメ・食体験"}
 
@@ -116,6 +116,7 @@ THEMES_MULTI = {1:"グルメ",2:"歴史文化",3:"自然癒し",4:"夜景",5:"�
 COMPANION_ITI= {1:"ひとり",2:"カップル",3:"友人",4:"家族",5:"外国人友人",6:"その他"}
 DEPT_CHOICES = {1:"6–8時",2:"9–11時",3:"12–14時",4:"15–17時",5:"18時以降"}
 ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"未定"}
+TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}  # ★追加
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     seq: List[Dict[str, Any]] = [
@@ -163,6 +164,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
             {"key": "date",    "title": "出発日を入力してください（例: 2025-03-20）", "choices": {}, "multi": False},
             {"key": "stay",    "title": "何泊何日ですか？", "choices": STAY_PLAN_ITI, "multi": False},
             {"key": "themes",  "title": "旅行のテーマを選んでください（複数選択可）※終わったら『完了』", "choices": THEMES_MULTI, "multi": True},
+            {"key": "transport","title":"主な交通手段を選んでください。", "choices": TRANSPORT_ITI, "multi": False},  # ★追加
             {"key": "companion","title":"同行者を選んでください。", "choices": COMPANION_ITI, "multi": False},
             {"key": "dept",    "title": "出発時間帯を選んでください。", "choices": DEPT_CHOICES, "multi": False},
             {"key": "arrv",    "title": "帰着時間帯を選んでください。", "choices": ARRV_CHOICES, "multi": False},
@@ -171,14 +173,27 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     return seq
 
-# ========= Flex Question (マルチ選択対応・✅完了ボタン付き) =========
+# ========= Flex Question（見切れ対策・✅完了対応） =========
 def _flex_choice_button(label: str, out_text: str) -> dict:
     return {
-        "type": "box","layout": "vertical","cornerRadius": "16px",
-        "backgroundColor": "#EEF2F7","height": "76px","paddingAll": "0px",
+        "type": "box",
+        "layout": "vertical",
+        "cornerRadius": "16px",
+        "backgroundColor": "#EEF2F7",
+        "height": "92px",              # ★見切れ対策
+        "paddingAll": "0px",
         "justifyContent": "center",
         "action": {"type": "message", "label": label, "text": out_text},
-        "contents": [{"type":"text","text":label,"weight":"bold","size":"20px","align":"center","color":"#111111","wrap":False}]
+        "contents": [{
+            "type": "text",
+            "text": label,
+            "weight": "bold",
+            "size": "18px",            # ★やや小さめ
+            "align": "center",
+            "color": "#111111",
+            "wrap": True,              # ★2行まで許可
+            "maxLines": 2
+        }]
     }
 
 def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]], show_done: bool) -> dict:
@@ -594,6 +609,7 @@ def build_itinerary_prompt(answers: Dict[str, Any]) -> str:
 - 出発日: {answers.get('date','-')}
 - 旅程: {answers.get('stay','-')}
 - テーマ: {themes}
+- 主な交通手段: {answers.get('transport','-')}
 - 同行者: {answers.get('companion','-')}
 - 出発時間帯: {answers.get('dept','-')} / 帰着時間帯: {answers.get('arrv','-')}
 
@@ -629,7 +645,6 @@ def _info_from_block(block: str):
     return time_range, name, short
 
 def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
-    # Dayごとに：テキストまとめは出さず、各スポットをすぐボタン化（ユーザー要望）
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
     for i, (title, start) in enumerate(positions):
@@ -647,20 +662,46 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
             off = OFFICIAL_URL_RE.search(block)
             mp  = MAP_URL_RE.search(block)
             time_range, name, short = _info_from_block(block)
-            # サブタイトル短評
             subtitle = (short or " ")[:60]
-            # ボタン優先（URLが1つでもあるとき）
             actions = []
             if off: actions.append(URITemplateAction(label="公式サイト", uri=_clean_url(off.group(1))))
             if mp:  actions.append(URITemplateAction(label="Googleマップ", uri=_clean_url(mp.group(1))))
             title = (f"{time_range} {name}".strip() or "スポット")[:40]
             btn = TemplateSendMessage(
                 alt_text=name[:240] if name else "日程",
-                template=ButtonsTemplate(title=title, text=subtitle, actions=actions[:4] or [URITemplateAction(label="情報なし", uri="https://www.google.com/")])
+                template=ButtonsTemplate(title=title, text=subtitle, actions=actions[:4] or [URITemplateAction(label="情報検索", uri="https://www.google.com/")])
             )
             buttons.append(btn)
         if buttons:
             _push_messages_in_chunks(uid, buttons, size=5)
+
+# ====================== “他のプランを提案” メニュー ======================
+def _send_finish_menu(uid: str):
+    def _menu_button(label: str, text: str) -> dict:
+        return {
+            "type": "box", "layout": "vertical", "cornerRadius": "16px",
+            "backgroundColor": "#EEF2F7", "height": "72px", "justifyContent": "center",
+            "action": {"type": "message", "label": label, "text": text},
+            "contents": [{"type":"text","text":label,"weight":"bold","size":"18px","align":"center","color":"#111111"}]
+        }
+    rows = [
+        [_menu_button("ホテル", "ホテル"), _menu_button("日程表", "日程表")],
+        [_menu_button("飲食店", "飲食店"), _menu_button("体験スポット", "体験スポット")],
+        [_menu_button("観光地", "観光地"), _menu_button("最初から", "最初から")],
+    ]
+    contents = []
+    for r in rows:
+        contents.append({"type":"box","layout":"horizontal","spacing":"14px","contents":r})
+    bubble = {
+        "type":"bubble","size":"mega",
+        "body":{"type":"box","layout":"vertical","spacing":"12px","paddingAll":"16px",
+            "contents":[
+                {"type":"text","text":"他のプランを提案","size":"22px","weight":"bold"},
+                {"type":"separator"},
+                *contents
+            ]}
+    }
+    line_bot_api.push_message(uid, FlexSendMessage(alt_text="他のプランを提案", contents=bubble))
 
 # ====================== メイン送信フロー ======================
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
@@ -669,26 +710,31 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     if req == "ホテル":
         hotels_text = _call_openai_text(build_hotel3_prompt(answers))
         _send_hotels_three(uid, reply_token, hotels_text)
+        _send_finish_menu(uid)
         return
 
     if req == "飲食店":
         foods_text = _call_openai_text(build_food3_prompt(answers))
         _send_food_three(uid, reply_token, foods_text)
+        _send_finish_menu(uid)
         return
 
     if req == "体験スポット":
         exp_text = _call_openai_text(build_experience3_prompt(answers))
         _send_experiences_three(uid, reply_token, exp_text)
+        _send_finish_menu(uid)
         return
 
     if req == "観光地":
         sight_text = _call_openai_text(build_sightseeing3_prompt(answers))
         _send_sightseeing_three(uid, reply_token, sight_text)
+        _send_finish_menu(uid)
         return
 
     if req == "日程表":
         schedule = _call_openai_text(build_itinerary_prompt(answers))
         _send_itinerary(uid, reply_token, schedule)
+        _send_finish_menu(uid)
         return
 
     line_bot_api.reply_message(reply_token, TextSendMessage(text="未対応のリクエストです。"))
@@ -733,6 +779,7 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
+    # セッション未作成 → 作成
     if uid not in users or not users[uid]:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
@@ -742,14 +789,20 @@ def on_message(event: MessageEvent):
     step = state.get("step", 0)
 
     # 入力の検証＆保存
-    if not _validate_and_store(uid, step, text):
+    ok = _validate_and_store(uid, step, text)
+    if not ok:
+        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
+        return
+
+    # ★複数選択：完了するまでは同じ質問を再表示
+    seq_now = _get_question_sequence(state.get("answers", {}))
+    q_now = seq_now[step]
+    if q_now.get("multi") and text != "完了":
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
     # 飲食店：エリア=現在地 → 位置情報が未取得なら要求
-    seq = _get_question_sequence(state.get("answers", {}))
-    q = seq[step]
-    if state["answers"].get("request") == "飲食店" and q["key"] == "area":
+    if state["answers"].get("request") == "飲食店" and q_now["key"] == "area":
         if state.get("need_location") and not state.get("geo"):
             _ask_location(event.reply_token)
             return
