@@ -131,7 +131,6 @@ TIME_RANGE_RE   = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:
 ACT_TITLE_RE    = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
 # ====================== 分岐質問 定義 ======================
-LANG = {1: "日本語", 2: "English"}
 REQUESTS = {1: "ホテル", 2: "日程表", 3: "飲食店", 4: "体験スポット", 5: "観光地"}
 
 PREFS_KANSAI = {1: "京都", 2: "大阪", 3: "奈良", 4: "兵庫", 5: "滋賀", 6: "和歌山"}
@@ -168,9 +167,9 @@ ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"
 TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}  # 追加済み
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
+    # 最初の質問は「何を提案しますか？」のみ（言語選択は削除）
     seq: List[Dict[str, Any]] = [
-        {"key": "lang",    "title": "どちらの言語でご案内しますか？", "choices": LANG, "multi": False},
-        {"key": "request", "title": "何を提案しますか？",           "choices": REQUESTS, "multi": False},
+        {"key": "request", "title": "何を提案しますか？", "choices": REQUESTS, "multi": False},
     ]
     req = answers.get("request")
 
@@ -204,7 +203,9 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     if req == "観光地":
-        seq += [{"key": "pref", "title": "関西の都道府県を1つ選んでください。", "choices": AREAS_SIGHT, "multi": False}]
+        seq += [
+            {"key": "pref", "title": "関西の都道府県を1つ選んでください。", "choices": AREAS_SIGHT, "multi": False}
+        ]
         return seq
 
     if req == "日程表":
@@ -221,7 +222,6 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     return seq
-
 # ========= Flex Question（見切れ対策・✅完了対応） =========
 def _flex_choice_button(label: str, out_text: str) -> dict:
     return {
@@ -309,9 +309,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         n = _label_to_num(q["choices"], text)
         if n is not None:
             val = q["choices"][n]
-            if key == "lang":
-                state["answers"][key] = "ja" if n == 1 else "en"
-                return True
             if q.get("multi"):
                 sel = state["multi_temp"].setdefault(key, [])
                 if val not in sel: sel.append(val)
@@ -351,10 +348,7 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
             return True
         else:
             if len(nums) != 1: return False
-            if key == "lang":
-                state["answers"][key] = "ja" if nums[0] == 1 else "en"
-            else:
-                state["answers"][key] = q["choices"][nums[0]]
+            state["answers"][key] = q["choices"][nums[0]]
             return True
 
     return False
@@ -697,7 +691,6 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str):
         })
     if items:
         line_bot_api.push_message(uid, _flex_list_bubble("🏯 観光地（3件）", items))
-
 # ====================== 日程表 生成＆送信 ======================
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
@@ -888,12 +881,13 @@ def on_message(event: MessageEvent):
     # --- 他のプランメニューからのダイレクト分岐 ---
     if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
         users[uid] = {
-            "step": 2,
+            # 言語質問を削除したので、request の次の質問はインデックス 1
+            "step": 1,
             "answers": {"lang": LAST_LANG.get(uid, "ja"), "request": text},
             "hist": deque(maxlen=MAX_TURNS),
             "multi_temp": {}
         }
-        line_bot_api.reply_message(event.reply_token, _render_question(2, users[uid]))  # requestの次の質問から
+        line_bot_api.reply_message(event.reply_token, _render_question(1, users[uid]))
         return
 
     # 初期化
@@ -988,9 +982,3 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
-
-
-
-
-
