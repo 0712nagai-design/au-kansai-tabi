@@ -337,7 +337,9 @@ def _render_question(idx: int, state: State):
     seq = _get_question_sequence(state.get("answers", {}))
     q = seq[idx]
 
-    # ✅ Q1（最初の質問）だけ特別デザイン（画像ボタン）
+    # =========================
+    # Q1だけ「画像メニュー」専用デザイン
+    # =========================
     if idx == 0:
         bubble = {
             "type": "bubble",
@@ -348,65 +350,139 @@ def _render_question(idx: int, state: State):
                 "spacing": "14px",
                 "paddingAll": "16px",
                 "contents": [
-                    {"type": "text", "text": "何を提案しますか？", "size": "24px", "weight": "bold"},
+                    {
+                        "type": "text",
+                        "text": "何を提案しますか？",
+                        "size": "24px",
+                        "weight": "bold"
+                    },
                     {"type": "separator"},
-                    # --- ホテル ---
+
+                    # --- ホテル（画像＋ラベル） ---
                     {
                         "type": "box",
                         "layout": "vertical",
                         "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "ホテル", "text": "1"},
-                        "contents": [{
-                            "type": "image",
-                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000757071faa8e3af6b9483df34&ts=489745&p=fs&cid=1&sig=a304932dd611a8db27b2798bcb522bd0a4b0b11e7ddcaccc5b5c48fd1f455372&v=0",
-                            "size": "full",
-                            "aspectRatio": "3:1",
-                            "aspectMode": "cover"
-                        }]
+                        "action": {"type": "message", "label": "ホテル", "text": "ホテル"},
+                        "contents": [
+                            {
+                                "type": "image",
+                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000757071faa8e3af6b9483df34&ts=489745&p=fs&cid=1&sig=a304932dd611a8db27b2798bcb522bd0a4b0b11e7ddcaccc5b5c48fd1f455372&v=0",
+                                "size": "full",
+                                "aspectRatio": "3:1",
+                                "aspectMode": "cover"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "paddingAll": "6px",
+                                "backgroundColor": "#FFFFFFCC",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "ホテル",
+                                        "weight": "bold",
+                                        "align": "center"
+                                    }
+                                ]
+                            }
+                        ]
                     },
+
                     # --- 飲食店 ---
                     {
                         "type": "box",
                         "layout": "vertical",
                         "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "飲食店", "text": "3"},
-                        "contents": [{
-                            "type": "image",
-                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000806872079901498c978a67fd&ts=489745&p=fs&cid=1&sig=e515e49f1b2939acbb05866e4e93b2b4a3882f4afef7410ba30b5f03d9fb211a&v=0",
-                            "size": "full",
-                            "aspectRatio": "3:1",
-                            "aspectMode": "cover"
-                        }]
+                        "action": {"type": "message", "label": "飲食店", "text": "飲食店"},
+                        "contents": [
+                            {
+                                "type": "image",
+                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000806872079901498c978a67fd&ts=489745&p=fs&cid=1&sig=e515e49f1b2939acbb05866e4e93b2b4a3882f4afef7410ba30b5f03d9fb211a&v=0",
+                                "size": "full",
+                                "aspectRatio": "3:1",
+                                "aspectMode": "cover"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "paddingAll": "6px",
+                                "backgroundColor": "#FFFFFFCC",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "飲食店",
+                                        "weight": "bold",
+                                        "align": "center"
+                                    }
+                                ]
+                            }
+                        ]
                     },
+
                     # --- 体験スポット ---
                     {
                         "type": "box",
                         "layout": "vertical",
                         "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "体験スポット", "text": "4"},
-                        "contents": [{
-                            "type": "image",
-                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000030687207a40f66a58e8395ba&ts=489745&p=fs&cid=1&sig=33966094d1a21074cd9ada0a7d330d399553125ce1dfdbc12b5f1107092faa17&v=0",
-                            "size": "full",
-                            "aspectRatio": "3:1",
-                            "aspectMode": "cover"
-                        }]
+                        "action": {"type": "message", "label": "体験スポット", "text": "体験スポット"},
+                        "contents": [
+                            {
+                                "type": "image",
+                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000030687207a40f66a58e8395ba&ts=489745&p=fs&cid=1&sig=33966094d1a21074cd9ada0a7d330d399553125ce1dfdbc12b5f1107092faa17&v=0",
+                                "size": "full",
+                                "aspectRatio": "3:1",
+                                "aspectMode": "cover"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "paddingAll": "6px",
+                                "backgroundColor": "#FFFFFFCC",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "体験スポット",
+                                        "weight": "bold",
+                                        "align": "center"
+                                    }
+                                ]
+                            }
+                        ]
                     },
+
                     # --- 観光地 ---
                     {
                         "type": "box",
                         "layout": "vertical",
                         "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "観光地", "text": "5"},
-                        "contents": [{
-                            "type": "image",
-                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000067f071fabb39b5d172f0412e&ts=489745&p=fs&cid=1&sig=169256d3a8655fea5342c3dcce80acdfbd6ee9a8daba441648e26990af63d7cb&v=0",
-                            "size": "full",
-                            "aspectRatio": "3:1",
-                            "aspectMode": "cover"
-                        }]
+                        "action": {"type": "message", "label": "観光地", "text": "観光地"},
+                        "contents": [
+                            {
+                                "type": "image",
+                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000067f071fabb39b5d172f0412e&ts=489745&p=fs&cid=1&sig=169256d3a8655fea5342c3dcce80acdfbd6ee9a8daba441648e26990af63d7cb&v=0",
+                                "size": "full",
+                                "aspectRatio": "3:1",
+                                "aspectMode": "cover"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "paddingAll": "6px",
+                                "backgroundColor": "#FFFFFFCC",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "観光地",
+                                        "weight": "bold",
+                                        "align": "center"
+                                    }
+                                ]
+                            }
+                        ]
                     },
-                    # --- 日程表（文字ボタンのみ） ---
+
+                    # --- 日程表（文字ボタン） ---
                     {
                         "type": "box",
                         "layout": "vertical",
@@ -414,7 +490,7 @@ def _render_question(idx: int, state: State):
                         "backgroundColor": "#EEF2F7",
                         "height": "72px",
                         "justifyContent": "center",
-                        "action": {"type": "message", "label": "日程表", "text": "2"},
+                        "action": {"type": "message", "label": "日程表", "text": "日程表"},
                         "contents": [
                             {
                                 "type": "text",
@@ -430,6 +506,27 @@ def _render_question(idx: int, state: State):
             }
         }
         return FlexSendMessage(alt_text="何を提案しますか？", contents=bubble)
+
+    # =========================
+    # 2問目以降は今までどおりのボタンUI
+    # =========================
+    title = q["title"]
+    selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
+    selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
+
+    pairs, row = [], []
+    for n, label in q.get("choices", {}).items():
+        btn = _flex_choice_button(label, str(n))  # ← ここは今までの関数をそのまま利用
+        row.append(btn)
+        if len(row) == 2:
+            pairs.append(row)
+            row = []
+    if row:
+        pairs.append(row)
+
+    bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
+    return FlexSendMessage(alt_text=title, contents=bubble)
+
 
     # 通常の質問UI（既存処理）
     return FlexSendMessage(alt_text=q["title"], contents=_flex_question_bubble(
@@ -1245,4 +1342,5 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
