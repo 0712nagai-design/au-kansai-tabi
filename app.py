@@ -336,20 +336,106 @@ def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]
 def _render_question(idx: int, state: State):
     seq = _get_question_sequence(state.get("answers", {}))
     q = seq[idx]
-    title = q["title"]
-    selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
-    selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
-    pairs, row = [], []
-    for n, label in q.get("choices", {}).items():
-        # 表示はラベルのみ、送信テキストは番号
-        btn = _flex_choice_button(label, str(n))
-        row.append(btn)
-        if len(row) == 2:
-            pairs.append(row); row = []
-    if row:
-        pairs.append(row)
-    bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
-    return FlexSendMessage(alt_text=title, contents=bubble)
+
+    # ✅ Q1（最初の質問）だけ特別デザイン（画像ボタン）
+    if idx == 0:
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "14px",
+                "paddingAll": "16px",
+                "contents": [
+                    {"type": "text", "text": "何を提案しますか？", "size": "24px", "weight": "bold"},
+                    {"type": "separator"},
+                    # --- ホテル ---
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "cornerRadius": "16px",
+                        "action": {"type": "message", "label": "ホテル", "text": "1"},
+                        "contents": [{
+                            "type": "image",
+                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000757071faa8e3af6b9483df34&ts=489745&p=fs&cid=1&sig=a304932dd611a8db27b2798bcb522bd0a4b0b11e7ddcaccc5b5c48fd1f455372&v=0",
+                            "size": "full",
+                            "aspectRatio": "3:1",
+                            "aspectMode": "cover"
+                        }]
+                    },
+                    # --- 飲食店 ---
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "cornerRadius": "16px",
+                        "action": {"type": "message", "label": "飲食店", "text": "3"},
+                        "contents": [{
+                            "type": "image",
+                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000806872079901498c978a67fd&ts=489745&p=fs&cid=1&sig=e515e49f1b2939acbb05866e4e93b2b4a3882f4afef7410ba30b5f03d9fb211a&v=0",
+                            "size": "full",
+                            "aspectRatio": "3:1",
+                            "aspectMode": "cover"
+                        }]
+                    },
+                    # --- 体験スポット ---
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "cornerRadius": "16px",
+                        "action": {"type": "message", "label": "体験スポット", "text": "4"},
+                        "contents": [{
+                            "type": "image",
+                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000030687207a40f66a58e8395ba&ts=489745&p=fs&cid=1&sig=33966094d1a21074cd9ada0a7d330d399553125ce1dfdbc12b5f1107092faa17&v=0",
+                            "size": "full",
+                            "aspectRatio": "3:1",
+                            "aspectMode": "cover"
+                        }]
+                    },
+                    # --- 観光地 ---
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "cornerRadius": "16px",
+                        "action": {"type": "message", "label": "観光地", "text": "5"},
+                        "contents": [{
+                            "type": "image",
+                            "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000067f071fabb39b5d172f0412e&ts=489745&p=fs&cid=1&sig=169256d3a8655fea5342c3dcce80acdfbd6ee9a8daba441648e26990af63d7cb&v=0",
+                            "size": "full",
+                            "aspectRatio": "3:1",
+                            "aspectMode": "cover"
+                        }]
+                    },
+                    # --- 日程表（文字ボタンのみ） ---
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "cornerRadius": "16px",
+                        "backgroundColor": "#EEF2F7",
+                        "height": "72px",
+                        "justifyContent": "center",
+                        "action": {"type": "message", "label": "日程表", "text": "2"},
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "日程表",
+                                "weight": "bold",
+                                "size": "20px",
+                                "align": "center",
+                                "color": "#111111"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        return FlexSendMessage(alt_text="何を提案しますか？", contents=bubble)
+
+    # 通常の質問UI（既存処理）
+    return FlexSendMessage(alt_text=q["title"], contents=_flex_question_bubble(
+        q["title"], "", [], False
+    ))
+
 
 def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
     t = text.strip().translate(FW_TO_HW)
@@ -911,33 +997,75 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
 
 # ====================== “他のプランを提案” メニュー ======================
 def _send_finish_menu(uid: str):
-    def _menu_button(label: str, text: str) -> dict:
+    def _img_btn(label: str, text: str, url: str) -> dict:
         return {
-            "type": "box", "layout": "vertical", "cornerRadius": "16px",
-            "backgroundColor": "#EEF2F7", "height": "72px", "justifyContent": "center",
+            "type": "box",
+            "layout": "vertical",
+            "cornerRadius": "16px",
             "action": {"type": "message", "label": label, "text": text},
-            "contents": [{"type":"text","text":label,"weight":"bold","size":"18px","align":"center","color":"111111"}]
+            "contents": [{
+                "type": "image",
+                "url": url,
+                "size": "full",
+                "aspectRatio": "3:1",
+                "aspectMode": "cover"
+            }]
         }
-    rows = [
-        [_menu_button("ホテル", "ホテル"), _menu_button("日程表", "日程表")],
-        [_menu_button("飲食店", "飲食店"), _menu_button("体験スポット", "体験スポット")],
-        [_menu_button("観光地", "観光地"), _menu_button("最初から", "最初から")],
-    ]
-    contents = []
-    for r in rows:
-        contents.append({"type":"box","layout":"horizontal","spacing":"14px","contents":r})
+
+    def _txt_btn(label: str, text: str) -> dict:
+        return {
+            "type": "box",
+            "layout": "vertical",
+            "cornerRadius": "16px",
+            "backgroundColor": "#EEF2F7",
+            "height": "72px",
+            "justifyContent": "center",
+            "action": {"type": "message", "label": label, "text": text},
+            "contents": [{
+                "type": "text",
+                "text": label,
+                "weight": "bold",
+                "size": "20px",
+                "align": "center",
+                "color": "#111111"
+            }]
+        }
+
     bubble = {
-        "type":"bubble","size":"mega",
-        "body":{"type":"box","layout":"vertical","spacing":"12px","paddingAll":"16px",
-            "contents":[
-                {"type":"text","text":"他のプランを提案","size":"22px","weight":"bold"},
-                {"type":"separator"},
-                *contents
-            ]}
+        "type": "bubble",
+        "size": "mega",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "16px",
+            "paddingAll": "16px",
+            "contents": [
+                {"type": "text", "text": "他のプランを提案", "size": "24px", "weight": "bold"},
+                {"type": "separator"},
+
+                # --- ホテル（画像） ---
+                _img_btn("ホテル", "ホテル", "https://chatgpt.com/backend-api/estuary/content?id=file_00000000757071faa8e3af6b9483df34&ts=489745&p=fs&cid=1&sig=a304932dd611a8db27b2798bcb522bd0a4b0b11e7ddcaccc5b5c48fd1f455372&v=0"),
+
+                # --- 日程表（文字） ---
+                _txt_btn("日程表", "日程表"),
+
+                # --- 飲食店（画像） ---
+                _img_btn("飲食店", "飲食店", "https://chatgpt.com/backend-api/estuary/content?id=file_00000000806872079901498c978a67fd&ts=489745&p=fs&cid=1&sig=e515e49f1b2939acbb05866e4e93b2b4a3882f4afef7410ba30b5f03d9fb211a&v=0"),
+
+                # --- 体験スポット（画像） ---
+                _img_btn("体験スポット", "体験スポット", "https://chatgpt.com/backend-api/estuary/content?id=file_0000000030687207a40f66a58e8395ba&ts=489745&p=fs&cid=1&sig=33966094d1a21074cd9ada0a7d330d399553125ce1dfdbc12b5f1107092faa17&v=0"),
+
+                # --- 観光地（画像） ---
+                _img_btn("観光地", "観光地", "https://chatgpt.com/backend-api/estuary/content?id=file_0000000067f071fabb39b5d172f0412e&ts=489745&p=fs&cid=1&sig=169256d3a8655fea5342c3dcce80acdfbd6ee9a8daba441648e26990af63d7cb&v=0"),
+
+                # --- 最初から（文字） ---
+                _txt_btn("最初から", "最初から")
+            ]
+        }
     }
+
     line_bot_api.push_message(uid, FlexSendMessage(alt_text="他のプランを提案", contents=bubble))
 
-# ====================== メイン送信フロー ======================
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # 直近言語を保存（他のプラン分岐で使う）※今は常にja運用だが形だけ保持
     LAST_LANG[uid] = answers.get("lang", LAST_LANG.get(uid, "ja"))
@@ -1117,3 +1245,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
