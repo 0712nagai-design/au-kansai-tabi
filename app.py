@@ -3,7 +3,7 @@ import os, re, sys, json, logging
 from collections import defaultdict, deque
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from urllib.parse import quote, urlsplit, urlunsplit  # ★ 追加
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from flask import Flask, request, abort
 
@@ -49,7 +49,11 @@ LAST_LANG: Dict[str, str] = {}
 RESTART = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
 
 # ====================== 共通ユーティリティ ======================
-FW_TO_HW = str.maketrans({"０":"0","１":"1","２":"2","３":"3","４":"4","５":"5","６":"6","７":"7","８":"8","９":"9","．":".","　":" "})
+FW_TO_HW = str.maketrans({
+    "０":"0","１":"1","２":"2","３":"3","４":"4",
+    "５":"5","６":"6","７":"7","８":"8","９":"9",
+    "．":".","　":" "
+})
 
 def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
     for i in range(0, len(msgs), size):
@@ -57,13 +61,32 @@ def _push_messages_in_chunks(uid: str, msgs, size: int = 5):
         line_bot_api.push_message(uid, chunk if len(chunk) > 1 else chunk[0])
 
 def _clean_url(u: str) -> str:
-    """https化・不可視/全角句読点除去・エンコード整形"""
+    """
+    https化・不可視/全角句読点除去・エンコード整形。
+    明らかにURLでない文字列（-, なし 等）の場合は空文字を返す。
+    """
     if not u:
         return ""
+
     u = (u.replace("\u200b","").replace("\u200c","").replace("\u200d","")
            .replace("\ufeff","").strip().strip("。．、 ，)）]］>＞」』"))
+
+    # URLではない典型パターンを除外
+    if u in {"-", "ー", "なし", "無し", "不明", "公式サイトなし", "公式サイト無し"}:
+        return ""
+
+    # scheme が付いてない www.xxx.com などを https 付きに
+    if not u.startswith(("http://", "https://")):
+        # 単純なドメイン or www から始まるものっぽければ https を付与
+        if u.startswith("www.") or ("." in u and " " not in u):
+            u = "https://" + u
+        else:
+            # URLというより検索キーワードの可能性が高いので、そのまま返す（後段で検索URLに使う）
+            return u
+
     if u.startswith("http://"):
         u = "https://" + u[len("http://"):]
+
     try:
         scheme, netloc, path, query, frag = urlsplit(u)
         path = quote(path, safe="/:-_.~")
@@ -82,35 +105,63 @@ def _clean_url(u: str) -> str:
     return u
 
 def _normalize_map_url(u: str, fallback_query: str = "") -> str:
-    """GoogleマップURLを端末互換の高い形式へ正規化"""
+    """
+    GoogleマップURLを端末互換の高い形式へ正規化。
+    ・すでにGoogleマップURLならそのまま
+    ・(lat,lng) なら検索API形式に
+    ・それ以外は検索キーワードとして扱う
+    """
+    if not u:
+        # fallback_query から検索URLを作る
+        q = fallback_query.strip()
+        if not q:
+            return ""
+        return f"https://www.google.com/maps/search/?api=1&query={quote(q)}"
+
     u = _clean_url(u)
     if not u:
-        return ""
+        q = fallback_query.strip()
+        if not q:
+            return ""
+        return f"https://www.google.com/maps/search/?api=1&query={quote(q)}"
+
+    # すでにGoogleマップURLっぽい
     if ("maps.app.goo.gl" in u) or ("google." in u and "/maps" in u):
         return u
+
     # (lat,lng) 形式なら検索APIへ
     if re.fullmatch(r"\(?-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\)?", u):
         coords = u.strip("()").replace(" ", "")
         return f"https://www.google.com/maps/search/?api=1&query={quote(coords)}"
+
+    # それ以外はキーワード検索
     q = fallback_query or u
     return f"https://www.google.com/maps/search/?api=1&query={quote(q)}"
 
 def _uri_action(label: str, url: str) -> dict:
-    """Flexのuriアクション（スマホでも確実に開けるシンプル形式）"""
-    url = _clean_url(url)
+    """
+    Flexのuriアクション（スマホでも確実に開けるシンプル形式）
+    url が非URLの場合は Google検索にフォールバック
+    """
+    clean = _clean_url(url)
+    if not clean or clean.startswith("http") is False:
+        # タイトルで検索にフォールバック
+        clean = f"https://www.google.com/search?q={quote(url or label)}"
     return {
         "type": "uri",
         "label": label,
-        "uri": url
+        "uri": clean
     }
 
 def _parse_numbers(s: str) -> Optional[List[int]]:
-    if not s: return None
+    if not s:
+        return None
     s = s.translate(FW_TO_HW)
     for sep in [".", "･", "・", "、", "，", " ", "/", "／"]:
         s = s.replace(sep, ",")
     s = re.sub(r",+", ",", s).strip(",")
-    if not re.fullmatch(r"[0-9,]+", s): return None
+    if not re.fullmatch(r"[0-9,]+", s):
+        return None
     try:
         nums = [int(x) for x in s.split(",") if x != ""]
         return nums if nums else None
@@ -164,7 +215,7 @@ THEMES_MULTI = {1:"グルメ",2:"歴史文化",3:"自然癒し",4:"夜景",5:"�
 COMPANION_ITI= {1:"ひとり",2:"カップル",3:"友人",4:"家族",5:"外国人友人",6:"その他"}
 DEPT_CHOICES = {1:"6–8時",2:"9–11時",3:"12–14時",4:"15–17時",5:"18時以降"}
 ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"未定"}
-TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}  # 追加済み
+TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     # 最初の質問は「何を提案しますか？」のみ（言語選択は削除）
@@ -222,8 +273,14 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     return seq
+
 # ========= Flex Question（見切れ対策・✅完了対応） =========
 def _flex_choice_button(label: str, out_text: str) -> dict:
+    """
+    ボタンに表示するのは label（例: ラーメン）だけ。
+    押したときに送るテキストは out_text（例: "4"）。
+    → 表示上の「4 ラーメン」をなくす。
+    """
     return {
         "type": "box",
         "layout": "vertical",
@@ -248,7 +305,8 @@ def _flex_choice_button(label: str, out_text: str) -> dict:
 def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]], show_done: bool) -> dict:
     rows = []
     for row in pairs:
-        if len(row) == 1: row.append({"type":"filler"})
+        if len(row) == 1:
+            row.append({"type":"filler"})
         rows.append({"type":"box","layout":"horizontal","spacing":"14px","contents":row})
 
     footer_contents = []
@@ -283,11 +341,13 @@ def _render_question(idx: int, state: State):
     selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
     pairs, row = [], []
     for n, label in q.get("choices", {}).items():
-        btn = _flex_choice_button(f"{n} {label}", str(n))
+        # 表示はラベルのみ、送信テキストは番号
+        btn = _flex_choice_button(label, str(n))
         row.append(btn)
         if len(row) == 2:
             pairs.append(row); row = []
-    if row: pairs.append(row)
+    if row:
+        pairs.append(row)
     bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
     return FlexSendMessage(alt_text=title, contents=bubble)
 
@@ -311,7 +371,8 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
             val = q["choices"][n]
             if q.get("multi"):
                 sel = state["multi_temp"].setdefault(key, [])
-                if val not in sel: sel.append(val)
+                if val not in sel:
+                    sel.append(val)
                 return True
             else:
                 state["answers"][key] = val
@@ -323,7 +384,8 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
     # マルチ選択の確定
     if q.get("multi") and text.strip() == "完了":
         picked = state["multi_temp"].get(key, [])
-        if not picked: return False
+        if not picked:
+            return False
         state["answers"][key] = picked
         return True
 
@@ -340,14 +402,16 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
     nums = _parse_numbers(text)
     if nums and q.get("choices"):
         bad = [n for n in nums if n not in q["choices"]]
-        if bad: return False
+        if bad:
+            return False
         labels = [q["choices"][n] for n in nums]
         if q.get("multi"):
             state["answers"][key] = labels
-            state["_autodone"] = True      # ← このターンは完了扱い
+            state["_autodone"] = True
             return True
         else:
-            if len(nums) != 1: return False
+            if len(nums) != 1:
+                return False
             state["answers"][key] = q["choices"][nums[0]]
             return True
 
@@ -357,6 +421,9 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
 SYSTEM_PROMPT = (
     "You are AI Travel Navi Kansai.\n"
     "URLは生URL（Markdownリンク禁止）。画像URLは出さない。\n"
+    "架空の施設名・店舗名・ホテル名などを新たに作らないこと。\n"
+    "必ず実在し、Googleマップ等で検索できる施設のみを提案してください。\n"
+    "条件に合う実在の候補が3件見つからない場合は、無理に埋めず、見つからない旨をはっきり書いてください。\n"
 )
 
 def _call_openai_text(user_prompt: str) -> str:
@@ -444,6 +511,13 @@ def build_hotel3_prompt(answers: Dict[str, Any]) -> str:
     return f"""
 あなたは関西旅行のホテルコンシェルジュです。
 以下のユーザー条件に合うホテル候補を**ちょうど3件**、同一フォーマットで出力してください。
+
+重要:
+- 架空のホテル名を作らないこと。
+- 必ず実在し、Googleマップで検索できるホテルのみを提案すること。
+- 公式サイトURLまたは予約サイトURLが分からない場合は、その候補は出さず、別の候補を選ぶこと。
+- 3件そろわない場合は、足りない件数分について「条件に合う実在のホテルが見つかりませんでした」とだけ書いてください。
+
 各候補は必ず「公式：URL」「Googleマップ：URL」を含め、画像URLは出力しないこと。
 各候補の間は空行で区切る（罫線禁止）。
 
@@ -460,18 +534,33 @@ def build_hotel3_prompt(answers: Dict[str, Any]) -> str:
 
 def _parse_hotel_block(block: str):
     name = desc = price = ""
+    area = ""
     off = mp = None
     lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
-    if lines: name = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", lines[0])
+    if lines:
+        raw = re.sub(r"^\s*[①-⑳]?\s*[🏨\d\.\)\）\s]*", "", lines[0])
+        m_area = re.match(r"(.+?)（(.+?)）", raw)
+        if m_area:
+            name = m_area.group(1).strip()
+            area = m_area.group(2).strip()
+        else:
+            name = raw
     mdesc  = re.search(r"^特徴[:：]\s*(.+)$", block, re.M)
     mprice = PRICE_RE.search(block)
     moff   = OFFICIAL_URL_RE.search(block)
     mmap   = MAP_URL_RE.search(block)
     if mdesc:  desc = mdesc.group(1).strip()
     if mprice: price = mprice.group(1).strip()
-    if moff:   off   = _clean_url(moff.group(1))
-    if mmap:   mp    = _clean_url(mmap.group(1))
-    return {"name": name or "ホテル", "desc": desc, "price": price, "official": off, "map": mp}
+    if moff:   off   = moff.group(1)
+    if mmap:   mp    = mmap.group(1)
+    return {
+        "name": name or "ホテル",
+        "area": area,
+        "desc": desc,
+        "price": price,
+        "official": off,
+        "map": mp
+    }
 
 def _send_hotels_three(uid: str, reply_token: str, hotels_text: str):
     blocks = [b.strip() for b in re.split(r"\n\s*\n", hotels_text.strip()) if b.strip()][:3]
@@ -482,10 +571,12 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str):
     items = []
     for block in blocks:
         info = _parse_hotel_block(block)
-        # 1件ずつのシンプル説明（従来）
+        # 1件ずつのシンプル説明
         lines = [f"🏨 {info['name']}"]
-        if info["desc"]:  lines.append(info["desc"])
-        if info["price"]: lines.append(f"💰 価格目安：{info['price']}")
+        if info["desc"]:
+            lines.append(info["desc"])
+        if info["price"]:
+            lines.append(f"💰 価格目安：{info['price']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
         # Flexリスト用
         items.append({
@@ -500,17 +591,27 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str):
 # ====================== 飲食店：3件提案 ======================
 def build_food3_prompt(answers: Dict[str, Any]) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
-    near_hint = f"現在地の緯度経度: {answers.get('geo')} から半径1km以内を優先して選んでください。" if answers.get("geo") else ""
+    near_hint = ""
+    if answers.get("geo"):
+        near_hint = (
+            f"現在地の緯度経度: {answers.get('geo')} から**半径1km以内**にある飲食店のみを候補にしてください。\n"
+            "- 1kmを超える店舗は候補に含めないでください。\n"
+            "- 距離が近い順に3件までを提案してください。\n"
+            "- 1km以内に条件に合う店が3件見つからない場合、無理に店名を作らず、「条件に合う実在の飲食店が見つかりませんでした」と書いてください。\n"
+        )
     return f"""
 あなたは関西のグルメコンシェルジュです。
 以下の条件に合う飲食店を**ちょうど3件**、同一フォーマットで出力してください。
-必ず「公式：URL」「Googleマップ：URL」を含め、画像URLは出力しないこと。
-各候補は空行で区切る（罫線禁止）。誇張なしの短評を1行入れること。
+
+重要:
+- 架空の店名を作らないこと。
+- 必ず実在し、Googleマップで検索できる飲食店のみを提案してください。
+- 公式サイトまたは食べログ等のページURL、GoogleマップのURLが分からない店は候補から外してください。
+- 3件そろわない場合は、足りない件数分について「条件に合う実在の飲食店が見つかりませんでした」とだけ書いてください。
+{near_hint}
 
 【条件(JSON)】
 {answers_json}
-
-{near_hint}
 
 【出力フォーマット（3件ぶん）】
 🍽 店名（最寄駅/エリア）
@@ -525,15 +626,16 @@ def _parse_food_block(block: str) -> Dict[str, Optional[str]]:
     lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
     name = short = price = hours = ""
     off = mp = None
-    if lines: name = re.sub(r"^\s*[🍽\d\.\)\）\s]*", "", lines[0])
+    if lines:
+        name = re.sub(r"^\s*[🍽\d\.\)\）\s]*", "", lines[0])
     mshort = re.search(r"^(?:短評|特徴)[:：]\s*(.+)$", block, re.M)
     mprice = PRICE_RE.search(block); mhours = HOURS_RE.search(block)
     moff   = OFFICIAL_URL_RE.search(block); mmap = MAP_URL_RE.search(block)
     if mshort: short = mshort.group(1).strip()
     if mprice: price = mprice.group(1).strip()
     if mhours: hours = mhours.group(1).strip()
-    if moff:   off   = _clean_url(moff.group(1))
-    if mmap:   mp    = _clean_url(mmap.group(1))
+    if moff:   off   = moff.group(1)
+    if mmap:   mp    = mmap.group(1)
     return {"name": name or "飲食店", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
 
 def _send_food_three(uid: str, reply_token: str, text: str):
@@ -547,9 +649,12 @@ def _send_food_three(uid: str, reply_token: str, text: str):
         info = _parse_food_block(block)
         # テキスト（従来）
         lines = [f"🍽 {info['name']}"]
-        if info["short"]: lines.append(info["short"])
-        if info["price"]: lines.append(f"💰 価格帯：{info['price']}")
-        if info["hours"]: lines.append(f"🕰 営業：{info['hours']}")
+        if info["short"]:
+            lines.append(info["short"])
+        if info["price"]:
+            lines.append(f"💰 価格帯：{info['price']}")
+        if info["hours"]:
+            lines.append(f"🕰 営業：{info['hours']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
         # Flexリスト用
         items.append({
@@ -567,9 +672,15 @@ def build_experience3_prompt(answers: Dict[str, Any]) -> str:
     return f"""
 あなたは関西観光の体験コンシェルジュです。
 以下の条件に合う**体験スポット/アクティビティ（陶芸体験、着物体験、和菓子作り、ラフティング、温泉入浴など）をちょうど3件**、同一フォーマットで出力してください。
-※寺社・城・展望台・名所などの「観光地（ランドマーク）」は含めないでください（別カテゴリ）。
 
-必ず「公式：URL」「Googleマップ：URL」を含め、画像URLは出力しないこと。
+重要:
+- 寺社・城・展望台・名所などの「観光地（ランドマーク）」は含めないでください（別カテゴリ）。
+- 架空の施設名を作らないこと。
+- 必ず実在し、Googleマップで検索できる体験施設のみを提案してください。
+- 公式サイトURLや予約ページURL、GoogleマップURLがない施設は候補から外してください。
+- 3件そろわない場合は、足りない分について「条件に合う実在の体験スポットが見つかりませんでした」とだけ書いてください。
+
+各候補は必ず「公式：URL」「Googleマップ：URL」を含め、画像URLは出力しないこと。
 各候補は空行で区切る（罫線禁止）。誇張なしの短評を1行入れること。
 
 【条件(JSON)】
@@ -589,7 +700,8 @@ def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
     lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
     name = short = price = hours = dura = ""
     off = mp = None
-    if lines: name = re.sub(r"^\s*[🎯\d\.\)\）\s]*", "", lines[0])
+    if lines:
+        name = re.sub(r"^\s*[🎯\d\.\)\）\s]*", "", lines[0])
     mshort = re.search(r"^(?:短評|特徴)[:：]\s*(.+)$", block, re.M)
     mprice = PRICE_RE.search(block); mhours = HOURS_RE.search(block); mdura = DURA_RE.search(block)
     moff   = OFFICIAL_URL_RE.search(block); mmap = MAP_URL_RE.search(block)
@@ -597,8 +709,8 @@ def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
     if mprice: price = mprice.group(1).strip()
     if mhours: hours = mhours.group(1).strip()
     if mdura:  dura  = mdura.group(1).strip()
-    if moff:   off   = _clean_url(moff.group(1))
-    if mmap:   mp    = _clean_url(mmap.group(1))
+    if moff:   off   = moff.group(1)
+    if mmap:   mp    = mmap.group(1)
     return {"name": name or "体験スポット", "short": short, "price": price, "hours": hours, "dura": dura, "official": off, "map": mp}
 
 def _send_experiences_three(uid: str, reply_token: str, text: str):
@@ -610,12 +722,16 @@ def _send_experiences_three(uid: str, reply_token: str, text: str):
     items = []
     for block in blocks:
         info = _parse_experience_block(block)
-        # テキスト（従来）
+        # テキスト
         lines = [f"🎯 {info['name']}"]
-        if info["short"]: lines.append(info["short"])
-        if info["price"]: lines.append(f"💰 料金：{info['price']}")
-        if info["dura"]:  lines.append(f"⌛ 所要：{info['dura']}")
-        if info["hours"]: lines.append(f"🕰 営業：{info['hours']}")
+        if info["short"]:
+            lines.append(info["short"])
+        if info["price"]:
+            lines.append(f"💰 料金：{info['price']}")
+        if info["dura"]:
+            lines.append(f"⌛ 所要：{info['dura']}")
+        if info["hours"]:
+            lines.append(f"🕰 営業：{info['hours']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
         # Flexリスト用
         sub = info.get("short") or (f"所要:{info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
@@ -634,7 +750,13 @@ def build_sightseeing3_prompt(answers: Dict[str, Any]) -> str:
     return f"""
 あなたは関西旅行の観光案内コンシェルジュです。
 以下の条件に合う**観光地（寺社仏閣・城・庭園・名所・景勝地・ミュージアム・展望台など）をちょうど3件**、同一フォーマットで出力してください。
-※体験型アクティビティは含めないでください（それらは体験スポット）。
+
+重要:
+- 体験型アクティビティ（陶芸体験など）は含めないでください（それらは体験スポット）。
+- 架空の施設名を作らないこと。
+- 必ず実在し、Googleマップで検索できる観光地のみを提案してください。
+- 公式サイトURLまたは紹介ページURL、GoogleマップURLが不明な観光地は候補として出さないでください。
+- 3件そろわない場合は、足りない分について「条件に合う実在の観光地が見つかりませんでした」とだけ書いてください。
 
 必ず「公式：URL」「Googleマップ：URL」を含め、画像URLは出力しないこと。
 各候補は空行で区切る（罫線禁止）。短評を1行入れること。
@@ -655,15 +777,16 @@ def _parse_sightseeing_block(block: str) -> Dict[str, Optional[str]]:
     lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
     name = short = price = hours = ""
     off = mp = None
-    if lines: name = re.sub(r"^\s*[🏯\d\.\)\）\s]*", "", lines[0])
+    if lines:
+        name = re.sub(r"^\s*[🏯\d\.\)\）\s]*", "", lines[0])
     mshort = re.search(r"^(?:短評|特徴)[:：]\s*(.+)$", block, re.M)
     mprice = PRICE_RE.search(block); mhours = HOURS_RE.search(block)
     moff   = OFFICIAL_URL_RE.search(block); mmap = MAP_URL_RE.search(block)
     if mshort: short = mshort.group(1).strip()
     if mprice: price = mprice.group(1).strip()
     if mhours: hours = mhours.group(1).strip()
-    if moff:   off   = _clean_url(moff.group(1))
-    if mmap:   mp    = _clean_url(mmap.group(1))
+    if moff:   off   = moff.group(1)
+    if mmap:   mp    = mmap.group(1)
     return {"name": name or "観光地", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
 
 def _send_sightseeing_three(uid: str, reply_token: str, text: str):
@@ -675,11 +798,14 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str):
     items = []
     for block in blocks:
         info = _parse_sightseeing_block(block)
-        # テキスト（従来）
+        # テキスト
         lines = [f"🏯 {info['name']}"]
-        if info["short"]: lines.append(info["short"])
-        if info["price"]: lines.append(f"💰 料金目安：{info['price']}")
-        if info["hours"]: lines.append(f"🕰 営業：{info['hours']}")
+        if info["short"]:
+            lines.append(info["short"])
+        if info["price"]:
+            lines.append(f"💰 料金目安：{info['price']}")
+        if info["hours"]:
+            lines.append(f"🕰 営業：{info['hours']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
         # Flexリスト用
         sub = info.get("short") or (f"営業時間:{info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
@@ -691,6 +817,7 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str):
         })
     if items:
         line_bot_api.push_message(uid, _flex_list_bubble("🏯 観光地（3件）", items))
+
 # ====================== 日程表 生成＆送信 ======================
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
@@ -703,6 +830,11 @@ def build_itinerary_prompt(answers: Dict[str, Any]) -> str:
 あなたは関西旅行の旅行プランナーです。以下の条件に沿って**濃い日程表**を作ってください。
 各日**3〜5スポット以上**、移動を考慮した流れ。各スポットは**短評1行**を含め、必ず「公式：URL」「Googleマップ：URL」を出力。
 最終日は宿泊ブロックを入れない。画像URLは禁止。出力は**旅程のみ**。
+
+重要:
+- 各スポットは実在の施設・エリアのみを使用してください。
+- 架空の名称は作らないでください。
+- 公式サイトURLまたは紹介ページURL、GoogleマップURLがないスポットは極力避けてください（見つからない場合はそのスポットを省いても構いません）。
 
 【条件(JSON)】
 {answers_json}
@@ -770,10 +902,10 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
             items.append({
                 "title": title,
                 "subtitle": (short or " ")[:60],
-                "official": _clean_url(off.group(1)) if off else "",
-                "map": _clean_url(mp.group(1)) if mp else ""
+                "official": off.group(1) if off else "",
+                "map": mp.group(1) if mp else ""
             })
-        # 3件ずつのFlexで送信（ボタン密度UP）
+        # 3件ずつのFlexで送信
         for trio in _chunk(items, 3):
             line_bot_api.push_message(uid, _flex_list_bubble(f"{day_title} の予定", trio))
 
@@ -784,7 +916,7 @@ def _send_finish_menu(uid: str):
             "type": "box", "layout": "vertical", "cornerRadius": "16px",
             "backgroundColor": "#EEF2F7", "height": "72px", "justifyContent": "center",
             "action": {"type": "message", "label": label, "text": text},
-            "contents": [{"type":"text","text":label,"weight":"bold","size":"18px","align":"center","color":"#111111"}]
+            "contents": [{"type":"text","text":label,"weight":"bold","size":"18px","align":"center","color":"111111"}]
         }
     rows = [
         [_menu_button("ホテル", "ホテル"), _menu_button("日程表", "日程表")],
@@ -807,7 +939,7 @@ def _send_finish_menu(uid: str):
 
 # ====================== メイン送信フロー ======================
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # 直近言語を保存（他のプラン分岐で使う）
+    # 直近言語を保存（他のプラン分岐で使う）※今は常にja運用だが形だけ保持
     LAST_LANG[uid] = answers.get("lang", LAST_LANG.get(uid, "ja"))
 
     req = answers.get("request")
@@ -854,13 +986,16 @@ def _ask_location(reply_token: str):
 
 # ====================== ルーティング ======================
 @app.get("/")
-def root_ok(): return "ok", 200
+def root_ok():
+    return "ok", 200
 
 @app.get("/healthz")
-def healthz(): return "ok", 200
+def healthz():
+    return "ok", 200
 
 @app.get("/py")
-def py(): return sys.version, 200
+def py():
+    return sys.version, 200
 
 @app.post("/callback")
 def callback():
@@ -982,3 +1117,5 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
+
