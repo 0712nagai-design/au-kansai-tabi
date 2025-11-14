@@ -337,6 +337,12 @@ def _render_question(idx: int, state: State):
     seq = _get_question_sequence(state.get("answers", {}))
     q = seq[idx]
     title = q["title"]
+REQUEST_IMAGE_URLS = {
+    "ホテル":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
+    "飲食店":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png",
+    "体験スポット": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E4%BD%93%E9%A8%93.png",
+    "観光地":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png",
+}
 
     # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
     if q["key"] == "request":
@@ -433,20 +439,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- それ以外の質問は、これまで通りのグリッドボタン ---
-    selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
-    selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
-    pairs, row = [], []
-    for n, label in q.get("choices", {}).items():
-        btn = _flex_choice_button(label, str(n))  # 表示はラベルのみ・送信テキストは番号
-        row.append(btn)
-        if len(row) == 2:
-            pairs.append(row)
-            row = []
-    if row:
-        pairs.append(row)
-    bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
-    return FlexSendMessage(alt_text=title, contents=bubble)
+  
 
                     # --- ホテル（画像＋ラベル） ---
                     {
@@ -1432,6 +1425,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
