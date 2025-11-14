@@ -48,7 +48,6 @@ LAST_LANG: Dict[str, str] = {}
 
 RESTART = {"start", "restart", "reset", "スタート", "最初から", "やり直す"}
 
-# ====================== 共通ユーティリティ ======================
 FW_TO_HW = str.maketrans({
     "０":"0","１":"1","２":"2","３":"3","４":"4",
     "５":"5","６":"6","７":"7","８":"8","９":"9",
@@ -77,11 +76,10 @@ def _clean_url(u: str) -> str:
 
     # scheme が付いてない www.xxx.com などを https 付きに
     if not u.startswith(("http://", "https://")):
-        # 単純なドメイン or www から始まるものっぽければ https を付与
         if u.startswith("www.") or ("." in u and " " not in u):
             u = "https://" + u
         else:
-            # URLというより検索キーワードの可能性が高いので、そのまま返す（後段で検索URLに使う）
+            # URLというより検索キーワードの可能性が高いので、そのまま返す
             return u
 
     if u.startswith("http://"):
@@ -112,7 +110,6 @@ def _normalize_map_url(u: str, fallback_query: str = "") -> str:
     ・それ以外は検索キーワードとして扱う
     """
     if not u:
-        # fallback_query から検索URLを作る
         q = fallback_query.strip()
         if not q:
             return ""
@@ -125,16 +122,13 @@ def _normalize_map_url(u: str, fallback_query: str = "") -> str:
             return ""
         return f"https://www.google.com/maps/search/?api=1&query={quote(q)}"
 
-    # すでにGoogleマップURLっぽい
     if ("maps.app.goo.gl" in u) or ("google." in u and "/maps" in u):
         return u
 
-    # (lat,lng) 形式なら検索APIへ
     if re.fullmatch(r"\(?-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\)?", u):
         coords = u.strip("()").replace(" ", "")
         return f"https://www.google.com/maps/search/?api=1&query={quote(coords)}"
 
-    # それ以外はキーワード検索
     q = fallback_query or u
     return f"https://www.google.com/maps/search/?api=1&query={quote(q)}"
 
@@ -144,8 +138,7 @@ def _uri_action(label: str, url: str) -> dict:
     url が非URLの場合は Google検索にフォールバック
     """
     clean = _clean_url(url)
-    if not clean or clean.startswith("http") is False:
-        # タイトルで検索にフォールバック
+    if not clean or not clean.startswith("http"):
         clean = f"https://www.google.com/search?q={quote(url or label)}"
     return {
         "type": "uri",
@@ -181,6 +174,25 @@ DURA_RE         = re.compile(r"(?:⌛|所要|体験時間)[:：]\s*([^\n／]+)")
 TIME_RANGE_RE   = re.compile(r"\b(\d{1,2}[:：]\d{2})\s*[–\-~〜]\s*(\d{1,2}[:：]\d{2})\b")
 ACT_TITLE_RE    = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
+# ====================== ボタン用 画像URL & アイコン ======================
+# 実際にホストした画像URLに差し替えて使う
+BUTTON_IMAGE_URLS = {
+    ("request", "ホテル"):      "https://example.com/btn_hotel.jpg",
+    ("request", "飲食店"):      "https://example.com/btn_food.jpg",
+    ("request", "体験スポット"): "https://example.com/btn_experience.jpg",
+    ("request", "観光地"):      "https://example.com/btn_sight.jpg",
+    ("request", "日程表"):      "https://example.com/btn_itinerary.jpg",
+}
+
+BUTTON_ICON_TEXT = {
+    "ホテル":      "🏨",
+    "飲食店":      "🍽",
+    "体験スポット": "🎯",
+    "観光地":      "🏯",
+    "日程表":      "📅",
+    "最初から":    "🔁",
+}
+
 # ====================== 分岐質問 定義 ======================
 REQUESTS = {1: "ホテル", 2: "日程表", 3: "飲食店", 4: "体験スポット", 5: "観光地"}
 
@@ -211,14 +223,14 @@ AREAS_SIGHT  = PREFS_KANSAI.copy()
 # --- 日程表 ---
 PREFS_MULTI  = PREFS_KANSAI.copy()   # 複数選択
 STAY_PLAN_ITI= {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊4日", 5: "4泊5日", 6: "5泊6日"}
-THEMES_MULTI = {1:"グルメ",2:"歴史文化",3:"自然癒し",4:"夜景",5:"温泉",6:"家族",7:"ショッピング",8:"体験メイン",9:"その他"}  # 複数選択
+THEMES_MULTI = {1:"グルメ",2:"歴史文化",3:"自然癒し",4:"夜景",5:"温泉",6:"家族",7:"ショッピング",8:"体験メイン",9:"その他"}
 COMPANION_ITI= {1:"ひとり",2:"カップル",3:"友人",4:"家族",5:"外国人友人",6:"その他"}
 DEPT_CHOICES = {1:"6–8時",2:"9–11時",3:"12–14時",4:"15–17時",5:"18時以降"}
 ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"未定"}
 TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
-    # 最初の質問は「何を提案しますか？」のみ（言語選択は削除）
+    # 最初の質問は「何を提案しますか？」のみ
     seq: List[Dict[str, Any]] = [
         {"key": "request", "title": "何を提案しますか？", "choices": REQUESTS, "multi": False},
     ]
@@ -275,31 +287,71 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     return seq
 
 # ========= Flex Question（見切れ対策・✅完了対応） =========
-def _flex_choice_button(label: str, out_text: str) -> dict:
+def _flex_choice_button(label: str, out_text: str, qkey: str) -> dict:
     """
-    ボタンに表示するのは label（例: ラーメン）だけ。
-    押したときに送るテキストは out_text（例: "4"）。
-    → 表示上の「4 ラーメン」をなくす。
+    和風カード型のボタン（上に写真 / 下にアイコン＋テキスト）
+    label: ボタンに表示するテキスト（例: ホテル）
+    out_text: 押したときに送るテキスト（例: "1"）
+    qkey: 質問のキー（例: "request", "cuisine"...）
     """
+    img_url = BUTTON_IMAGE_URLS.get((qkey, label), "")
+    icon = BUTTON_ICON_TEXT.get(label, "・")
+
+    if img_url:
+        image_block = {
+            "type": "image",
+            "url": img_url,
+            "size": "full",
+            "aspectMode": "cover",
+            "aspectRatio": "1.7:1",
+            "cornerRadius": "16px",
+            "gravity": "top"
+        }
+    else:
+        image_block = {
+            "type": "box",
+            "layout": "vertical",
+            "height": "100px",
+            "cornerRadius": "16px",
+            "backgroundColor": "#E8DFC8",
+            "contents": [{"type": "filler"}]
+        }
+
     return {
         "type": "box",
         "layout": "vertical",
-        "cornerRadius": "16px",
-        "backgroundColor": "#EEF2F7",
-        "height": "92px",
+        "cornerRadius": "20px",
+        "backgroundColor": "#F5EBDD",
         "paddingAll": "0px",
-        "justifyContent": "center",
         "action": {"type": "message", "label": label, "text": out_text},
-        "contents": [{
-            "type": "text",
-            "text": label,
-            "weight": "bold",
-            "size": "18px",
-            "align": "center",
-            "color": "#111111",
-            "wrap": True,
-            "maxLines": 2
-        }]
+        "contents": [
+            image_block,
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "paddingAll": "16px",
+                "spacing": "10px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": icon,
+                        "size": "xl",
+                        "weight": "bold",
+                        "color": "#4A3628",
+                        "flex": 0
+                    },
+                    {
+                        "type": "text",
+                        "text": label,
+                        "size": "lg",
+                        "weight": "bold",
+                        "color": "#4A3628",
+                        "wrap": True,
+                        "flex": 1
+                    }
+                ]
+            }
+        ]
     }
 
 def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]], show_done: bool) -> dict:
@@ -341,8 +393,7 @@ def _render_question(idx: int, state: State):
     selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
     pairs, row = [], []
     for n, label in q.get("choices", {}).items():
-        # 表示はラベルのみ、送信テキストは番号
-        btn = _flex_choice_button(label, str(n))
+        btn = _flex_choice_button(label, str(n), q["key"])
         row.append(btn)
         if len(row) == 2:
             pairs.append(row); row = []
@@ -364,7 +415,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
     q = seq[step]; key = q["key"]
     state.setdefault("answers", {}); state.setdefault("multi_temp", {})
 
-    # choicesあり
     if q.get("choices"):
         n = _label_to_num(q["choices"], text)
         if n is not None:
@@ -381,7 +431,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
                         state["need_location"] = True
                 return True
 
-    # マルチ選択の確定
     if q.get("multi") and text.strip() == "完了":
         picked = state["multi_temp"].get(key, [])
         if not picked:
@@ -389,7 +438,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         state["answers"][key] = picked
         return True
 
-    # 日付
     if key == "date":
         try:
             datetime.strptime(text.strip(), "%Y-%m-%d")
@@ -398,7 +446,6 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
         except Exception:
             return False
 
-    # 数字列（例: 1,3,5 一括指定 → 自動確定で次へ）
     nums = _parse_numbers(text)
     if nums and q.get("choices"):
         bad = [n for n in nums if n not in q["choices"]]
@@ -444,7 +491,6 @@ def _flex_list_bubble(header_title: str, items: List[Dict[str, str]]) -> FlexSen
             "size": "md",
             "wrap": True
         }
-        # タイトル全体を公式へリンク可
         if it.get("official"):
             title_text["action"] = _uri_action("open", it["official"])
 
@@ -571,14 +617,12 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str):
     items = []
     for block in blocks:
         info = _parse_hotel_block(block)
-        # 1件ずつのシンプル説明
         lines = [f"🏨 {info['name']}"]
         if info["desc"]:
             lines.append(info["desc"])
         if info["price"]:
             lines.append(f"💰 価格目安：{info['price']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
         items.append({
             "title": info["name"],
             "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
@@ -647,7 +691,6 @@ def _send_food_three(uid: str, reply_token: str, text: str):
     items = []
     for block in blocks:
         info = _parse_food_block(block)
-        # テキスト（従来）
         lines = [f"🍽 {info['name']}"]
         if info["short"]:
             lines.append(info["short"])
@@ -656,7 +699,6 @@ def _send_food_three(uid: str, reply_token: str, text: str):
         if info["hours"]:
             lines.append(f"🕰 営業：{info['hours']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
         items.append({
             "title": info["name"],
             "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
@@ -722,7 +764,6 @@ def _send_experiences_three(uid: str, reply_token: str, text: str):
     items = []
     for block in blocks:
         info = _parse_experience_block(block)
-        # テキスト
         lines = [f"🎯 {info['name']}"]
         if info["short"]:
             lines.append(info["short"])
@@ -733,7 +774,6 @@ def _send_experiences_three(uid: str, reply_token: str, text: str):
         if info["hours"]:
             lines.append(f"🕰 営業：{info['hours']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
         sub = info.get("short") or (f"所要:{info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
         items.append({
             "title": info["name"],
@@ -798,7 +838,6 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str):
     items = []
     for block in blocks:
         info = _parse_sightseeing_block(block)
-        # テキスト
         lines = [f"🏯 {info['name']}"]
         if info["short"]:
             lines.append(info["short"])
@@ -807,7 +846,6 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str):
         if info["hours"]:
             lines.append(f"🕰 営業：{info['hours']}")
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
         sub = info.get("short") or (f"営業時間:{info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
         items.append({
             "title": info["name"],
@@ -880,7 +918,6 @@ def _info_from_block(block: str):
     return time_range, name, short
 
 def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
-    # Dayごとに切り出し
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
     for i, (title, start) in enumerate(positions):
@@ -905,7 +942,6 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
                 "official": off.group(1) if off else "",
                 "map": mp.group(1) if mp else ""
             })
-        # 3件ずつのFlexで送信
         for trio in _chunk(items, 3):
             line_bot_api.push_message(uid, _flex_list_bubble(f"{day_title} の予定", trio))
 
@@ -916,7 +952,7 @@ def _send_finish_menu(uid: str):
             "type": "box", "layout": "vertical", "cornerRadius": "16px",
             "backgroundColor": "#EEF2F7", "height": "72px", "justifyContent": "center",
             "action": {"type": "message", "label": label, "text": text},
-            "contents": [{"type":"text","text":label,"weight":"bold","size":"18px","align":"center","color":"111111"}]
+            "contents": [{"type":"text","text":label,"weight":"bold","size":"18px","align":"center","color":"#111111"}]
         }
     rows = [
         [_menu_button("ホテル", "ホテル"), _menu_button("日程表", "日程表")],
@@ -939,7 +975,6 @@ def _send_finish_menu(uid: str):
 
 # ====================== メイン送信フロー ======================
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # 直近言語を保存（他のプラン分岐で使う）※今は常にja運用だが形だけ保持
     LAST_LANG[uid] = answers.get("lang", LAST_LANG.get(uid, "ja"))
 
     req = answers.get("request")
@@ -1013,10 +1048,8 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-    # --- 他のプランメニューからのダイレクト分岐 ---
     if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
         users[uid] = {
-            # 言語質問を削除したので、request の次の質問はインデックス 1
             "step": 1,
             "answers": {"lang": LAST_LANG.get(uid, "ja"), "request": text},
             "hist": deque(maxlen=MAX_TURNS),
@@ -1025,13 +1058,11 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(1, users[uid]))
         return
 
-    # 初期化
     if text in RESTART or text.lower() in RESTART:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
-    # セッション未作成 → 作成
     if uid not in users or not users[uid]:
         users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
@@ -1040,33 +1071,28 @@ def on_message(event: MessageEvent):
     state = users[uid]
     step = state.get("step", 0)
 
-    # 入力の検証＆保存
     ok = _validate_and_store(uid, step, text)
     if not ok:
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # 複数選択：『完了』を待つ。ただし「1,3,5」の一括指定は自動確定で次へ
     seq_now = _get_question_sequence(state.get("answers", {}))
     q_now = seq_now[step]
     if q_now.get("multi") and text != "完了" and not state.pop("_autodone", False):
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # 飲食店：エリア=現在地 → 位置情報が未取得なら要求
     if state["answers"].get("request") == "飲食店" and q_now["key"] == "area":
         if state.get("need_location") and not state.get("geo"):
             _ask_location(event.reply_token)
             return
 
-    # 次の質問へ
     state["step"] = step + 1
     seq = _get_question_sequence(state.get("answers", {}))
     if state["step"] < len(seq):
         line_bot_api.reply_message(event.reply_token, _render_question(state["step"], state))
         return
 
-    # すべて回答済み → 提案
     answers = state["answers"].copy()
     try:
         send_plan_parts(event.reply_token, uid, answers)
@@ -1094,14 +1120,12 @@ def on_location(event: MessageEvent):
     state["geo"] = (lat, lng)
     state["need_location"] = False
 
-    # 次の質問へ
     state["step"] = state.get("step", 0) + 1
     seq = _get_question_sequence(state.get("answers", {}))
     if state["step"] < len(seq):
         line_bot_api.reply_message(event.reply_token, _render_question(state["step"], state))
         return
 
-    # 全回答完了 → 提案
     try:
         send_plan_parts(event.reply_token, uid, state["answers"].copy())
     except Exception as e:
@@ -1117,5 +1141,3 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
-
