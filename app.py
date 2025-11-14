@@ -336,27 +336,117 @@ def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]
 def _render_question(idx: int, state: State):
     seq = _get_question_sequence(state.get("answers", {}))
     q = seq[idx]
+    title = q["title"]
 
-    # =========================
-    # Q1だけ「画像メニュー」専用デザイン
-    # =========================
-    if idx == 0:
+    # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
+    if q["key"] == "request":
+        # 並び順を REQUESTS に揃える
+        cards = []
+        for n in sorted(REQUESTS.keys()):
+            label = REQUESTS[n]
+            img_url = REQUEST_IMAGE_URLS.get(label, "")
+
+            # 画像＋ラベルのカード
+            card = {
+                "type": "box",
+                "layout": "vertical",
+                "margin": "12px",
+                "cornerRadius": "24px",
+                "backgroundColor": "#FFFFFF",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    "text": label
+                },
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "1:1",   # ← 正方形
+                        "aspectMode": "fit"     # ← ここがポイント：トリミングせず全体表示
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "12px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,
+                                "weight": "bold",
+                                "size": "18px",
+                                "align": "center",
+                                "color": "#333333"
+                            }
+                        ]
+                    }
+                ]
+            }
+            cards.append(card)
+
+        # 一番下に「日程表」ボタン（画像なし）
+        cards.append({
+            "type": "box",
+            "layout": "vertical",
+            "margin": "16px",
+            "cornerRadius": "20px",
+            "backgroundColor": "#EEF2F7",
+            "height": "72px",
+            "justifyContent": "center",
+            "action": {
+                "type": "message",
+                "label": "日程表",
+                "text": "日程表"
+            },
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "日程表",
+                    "weight": "bold",
+                    "size": "18px",
+                    "align": "center",
+                    "color": "#111111"
+                }
+            ]
+        })
+
         bubble = {
             "type": "bubble",
-            "size": "mega",
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "spacing": "14px",
                 "paddingAll": "16px",
+                "spacing": "12px",
                 "contents": [
                     {
                         "type": "text",
-                        "text": "何を提案しますか？",
+                        "text": title,
+                        "wrap": True,
                         "size": "24px",
                         "weight": "bold"
                     },
-                    {"type": "separator"},
+                    {"type": "separator", "margin": "8px"},
+                    *cards
+                ]
+            }
+        }
+        return FlexSendMessage(alt_text=title, contents=bubble)
+
+    # --- それ以外の質問は、これまで通りのグリッドボタン ---
+    selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
+    selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
+    pairs, row = [], []
+    for n, label in q.get("choices", {}).items():
+        btn = _flex_choice_button(label, str(n))  # 表示はラベルのみ・送信テキストは番号
+        row.append(btn)
+        if len(row) == 2:
+            pairs.append(row)
+            row = []
+    if row:
+        pairs.append(row)
+    bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
+    return FlexSendMessage(alt_text=title, contents=bubble)
 
                     # --- ホテル（画像＋ラベル） ---
                     {
@@ -1342,6 +1432,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
