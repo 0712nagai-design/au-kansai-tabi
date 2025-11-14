@@ -332,11 +332,6 @@ def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]
             ]},
         "footer":{"type":"box","layout":"vertical","spacing":"6px","paddingAll":"12px","contents":footer_contents}
     }
-
-def _render_question(idx: int, state: State):
-    seq = _get_question_sequence(state.get("answers", {}))
-    q = seq[idx]
-    title = q["title"]
 REQUEST_IMAGE_URLS = {
     "ホテル":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
     "飲食店":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png",
@@ -344,15 +339,18 @@ REQUEST_IMAGE_URLS = {
     "観光地":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png",
 }
 
+def _render_question(idx: int, state: State):
+    seq = _get_question_sequence(state.get("answers", {}))
+    q = seq[idx]
+    title = q["title"]
+
     # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
     if q["key"] == "request":
-        # 並び順を REQUESTS に揃える
         cards = []
         for n in sorted(REQUESTS.keys()):
             label = REQUESTS[n]
             img_url = REQUEST_IMAGE_URLS.get(label, "")
 
-            # 画像＋ラベルのカード
             card = {
                 "type": "box",
                 "layout": "vertical",
@@ -369,8 +367,8 @@ REQUEST_IMAGE_URLS = {
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "aspectRatio": "1:1",   # ← 正方形
-                        "aspectMode": "fit"     # ← ここがポイント：トリミングせず全体表示
+                        "aspectRatio": "1:1",   # 正方形
+                        "aspectMode": "fit"     # 見切れ防止
                     },
                     {
                         "type": "box",
@@ -391,7 +389,7 @@ REQUEST_IMAGE_URLS = {
             }
             cards.append(card)
 
-        # 一番下に「日程表」ボタン（画像なし）
+        # 一番下に「日程表」ボタン
         cards.append({
             "type": "box",
             "layout": "vertical",
@@ -439,167 +437,18 @@ REQUEST_IMAGE_URLS = {
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-  
-
-                    # --- ホテル（画像＋ラベル） ---
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "ホテル", "text": "ホテル"},
-                        "contents": [
-                            {
-                                "type": "image",
-                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
-                                "size": "full",
-                                "aspectRatio": "3:1",
-                                "aspectMode": "cover"
-                            },
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "paddingAll": "6px",
-                                "backgroundColor": "#FFFFFFCC",
-                                "contents": [
-                                    {
-                                        "type": "text",
-                                        "text": "ホテル",
-                                        "weight": "bold",
-                                        "align": "center"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-
-                    # --- 飲食店 ---
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "飲食店", "text": "飲食店"},
-                        "contents": [
-                            {
-                                "type": "image",
-                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png",
-                                "size": "full",
-                                "aspectRatio": "3:1",
-                                "aspectMode": "cover"
-                            },
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "paddingAll": "6px",
-                                "backgroundColor": "#FFFFFFCC",
-                                "contents": [
-                                    {
-                                        "type": "text",
-                                        "text": "飲食店",
-                                        "weight": "bold",
-                                        "align": "center"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-
-                    # --- 体験スポット ---
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "体験スポット", "text": "体験スポット"},
-                        "contents": [
-                            {
-                                "type": "image",
-                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E4%BD%93%E9%A8%93.png",
-                                "size": "full",
-                                "aspectRatio": "3:1",
-                                "aspectMode": "cover"
-                            },
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "paddingAll": "6px",
-                                "backgroundColor": "#FFFFFFCC",
-                                "contents": [
-                                    {
-                                        "type": "text",
-                                        "text": "体験スポット",
-                                        "weight": "bold",
-                                        "align": "center"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-
-                    # --- 観光地 ---
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "cornerRadius": "16px",
-                        "action": {"type": "message", "label": "観光地", "text": "観光地"},
-                        "contents": [
-                            {
-                                "type": "image",
-                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png",
-                                "size": "full",
-                                "aspectRatio": "3:1",
-                                "aspectMode": "cover"
-                            },
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "paddingAll": "6px",
-                                "backgroundColor": "#FFFFFFCC",
-                                "contents": [
-                                    {
-                                        "type": "text",
-                                        "text": "観光地",
-                                        "weight": "bold",
-                                        "align": "center"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-
-                    # --- 日程表（文字ボタン） ---
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "cornerRadius": "16px",
-                        "backgroundColor": "#EEF2F7",
-                        "height": "72px",
-                        "justifyContent": "center",
-                        "action": {"type": "message", "label": "日程表", "text": "日程表"},
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": "日程表",
-                                "weight": "bold",
-                                "size": "20px",
-                                "align": "center",
-                                "color": "#111111"
-                            }
-                        ]
-                    }
-                ]
-            }
-        }
-        return FlexSendMessage(alt_text="何を提案しますか？", contents=bubble)
-
     # =========================
-    # 2問目以降は今までどおりのボタンUI
+    # 2問目以降：通常の質問UI
     # =========================
-    title = q["title"]
     selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
-    selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
+    selected_line = (
+        f"(選択中：{'、'.join(selected) if selected else 'なし'})"
+        if q.get("multi") else ""
+    )
 
     pairs, row = [], []
     for n, label in q.get("choices", {}).items():
-        btn = _flex_choice_button(label, str(n))  # ← ここは今までの関数をそのまま利用
+        btn = _flex_choice_button(label, str(n))
         row.append(btn)
         if len(row) == 2:
             pairs.append(row)
@@ -611,10 +460,9 @@ REQUEST_IMAGE_URLS = {
     return FlexSendMessage(alt_text=title, contents=bubble)
 
 
-    # 通常の質問UI（既存処理）
-    return FlexSendMessage(alt_text=q["title"], contents=_flex_question_bubble(
-        q["title"], "", [], False
-    ))
+  
+
+  
 
 
 def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
@@ -1224,19 +1072,19 @@ def _send_finish_menu(uid: str):
                 {"type": "separator"},
 
                 # --- ホテル（画像） ---
-                _img_btn("ホテル", "ホテル", "https://chatgpt.com/backend-api/estuary/content?id=file_00000000757071faa8e3af6b9483df34&ts=489745&p=fs&cid=1&sig=a304932dd611a8db27b2798bcb522bd0a4b0b11e7ddcaccc5b5c48fd1f455372&v=0"),
+                _img_btn("ホテル", "ホテル", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png"),
 
                 # --- 日程表（文字） ---
                 _txt_btn("日程表", "日程表"),
 
                 # --- 飲食店（画像） ---
-                _img_btn("飲食店", "飲食店", "https://chatgpt.com/backend-api/estuary/content?id=file_00000000806872079901498c978a67fd&ts=489745&p=fs&cid=1&sig=e515e49f1b2939acbb05866e4e93b2b4a3882f4afef7410ba30b5f03d9fb211a&v=0"),
+                _img_btn("飲食店", "飲食店", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png"),
 
                 # --- 体験スポット（画像） ---
-                _img_btn("体験スポット", "体験スポット", "https://chatgpt.com/backend-api/estuary/content?id=file_0000000030687207a40f66a58e8395ba&ts=489745&p=fs&cid=1&sig=33966094d1a21074cd9ada0a7d330d399553125ce1dfdbc12b5f1107092faa17&v=0"),
+                _img_btn("体験スポット", "体験スポット", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E4%BD%93%E9%A8%93.png"),
 
                 # --- 観光地（画像） ---
-                _img_btn("観光地", "観光地", "https://chatgpt.com/backend-api/estuary/content?id=file_0000000067f071fabb39b5d172f0412e&ts=489745&p=fs&cid=1&sig=169256d3a8655fea5342c3dcce80acdfbd6ee9a8daba441648e26990af63d7cb&v=0"),
+                _img_btn("観光地", "観光地", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png"),
 
                 # --- 最初から（文字） ---
                 _txt_btn("最初から", "最初から")
@@ -1425,6 +1273,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
