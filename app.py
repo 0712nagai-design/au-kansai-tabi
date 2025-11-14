@@ -347,33 +347,35 @@ def _render_question(idx: int, state: State):
     # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
     if q["key"] == "request":
         cards = []
+
+        # 1〜4: ホテル / 飲食店 / 体験スポット / 観光地
         for n in sorted(REQUESTS.keys()):
             label = REQUESTS[n]
+            if label == "日程表":
+                # 日程表はあとで個別に作るのでここではスキップ
+                continue
+
             img_url = REQUEST_IMAGE_URLS.get(label, "")
 
             card = {
                 "type": "box",
                 "layout": "vertical",
-                "margin": "12px",
-                "cornerRadius": "24px",
+                "cornerRadius": "16px",
+                "margin": "8px",
                 "backgroundColor": "#FFFFFF",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": label
-                },
+                "action": {"type": "message", "label": label, "text": label},
                 "contents": [
                     {
                         "type": "image",
                         "url": img_url,
                         "size": "full",
                         "aspectRatio": "1:1",   # 正方形
-                        "aspectMode": "fit"     # 見切れ防止
+                        "aspectMode": "fit"     # トリミングしない＝見切れ防止
                     },
                     {
                         "type": "box",
                         "layout": "vertical",
-                        "paddingAll": "12px",
+                        "paddingAll": "8px",
                         "contents": [
                             {
                                 "type": "text",
@@ -381,7 +383,7 @@ def _render_question(idx: int, state: State):
                                 "weight": "bold",
                                 "size": "18px",
                                 "align": "center",
-                                "color": "#333333"
+                                "color": "#111111"
                             }
                         ]
                     }
@@ -389,20 +391,16 @@ def _render_question(idx: int, state: State):
             }
             cards.append(card)
 
-        # 一番下に「日程表」ボタン
-        cards.append({
+        # 一番下に「日程表」ボタン（画像なし）
+        date_box = {
             "type": "box",
             "layout": "vertical",
-            "margin": "16px",
             "cornerRadius": "20px",
             "backgroundColor": "#EEF2F7",
             "height": "72px",
             "justifyContent": "center",
-            "action": {
-                "type": "message",
-                "label": "日程表",
-                "text": "日程表"
-            },
+            "margin": "12px",
+            "action": {"type": "message", "label": "日程表", "text": "日程表"},
             "contents": [
                 {
                     "type": "text",
@@ -413,32 +411,39 @@ def _render_question(idx: int, state: State):
                     "color": "#111111"
                 }
             ]
-        })
+        }
 
         bubble = {
             "type": "bubble",
+            "size": "mega",
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "paddingAll": "16px",
                 "spacing": "12px",
+                "paddingAll": "16px",
                 "contents": [
                     {
                         "type": "text",
-                        "text": title,
+                        "text": title,  # 「何を提案しますか？」
                         "wrap": True,
                         "size": "24px",
                         "weight": "bold"
                     },
                     {"type": "separator", "margin": "8px"},
-                    *cards
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "spacing": "8px",
+                        "contents": cards
+                    },
+                    date_box
                 ]
             }
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
     # =========================
-    # 2問目以降：通常の質問UI
+    # 2問目以降はボタンUI
     # =========================
     selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
     selected_line = (
@@ -458,6 +463,7 @@ def _render_question(idx: int, state: State):
 
     bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
     return FlexSendMessage(alt_text=title, contents=bubble)
+
 
 
   
@@ -1273,6 +1279,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
