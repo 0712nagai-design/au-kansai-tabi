@@ -367,7 +367,7 @@ def _render_question(idx: int, state: State):
                         "contents": [
                             {
                                 "type": "image",
-                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000757071faa8e3af6b9483df34&ts=489745&p=fs&cid=1&sig=a304932dd611a8db27b2798bcb522bd0a4b0b11e7ddcaccc5b5c48fd1f455372&v=0",
+                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
                                 "size": "full",
                                 "aspectRatio": "3:1",
                                 "aspectMode": "cover"
@@ -398,7 +398,7 @@ def _render_question(idx: int, state: State):
                         "contents": [
                             {
                                 "type": "image",
-                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000806872079901498c978a67fd&ts=489745&p=fs&cid=1&sig=e515e49f1b2939acbb05866e4e93b2b4a3882f4afef7410ba30b5f03d9fb211a&v=0",
+                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png",
                                 "size": "full",
                                 "aspectRatio": "3:1",
                                 "aspectMode": "cover"
@@ -429,7 +429,7 @@ def _render_question(idx: int, state: State):
                         "contents": [
                             {
                                 "type": "image",
-                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000030687207a40f66a58e8395ba&ts=489745&p=fs&cid=1&sig=33966094d1a21074cd9ada0a7d330d399553125ce1dfdbc12b5f1107092faa17&v=0",
+                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E4%BD%93%E9%A8%93.png",
                                 "size": "full",
                                 "aspectRatio": "3:1",
                                 "aspectMode": "cover"
@@ -460,7 +460,7 @@ def _render_question(idx: int, state: State):
                         "contents": [
                             {
                                 "type": "image",
-                                "url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000067f071fabb39b5d172f0412e&ts=489745&p=fs&cid=1&sig=169256d3a8655fea5342c3dcce80acdfbd6ee9a8daba441648e26990af63d7cb&v=0",
+                                "url": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png",
                                 "size": "full",
                                 "aspectRatio": "3:1",
                                 "aspectMode": "cover"
@@ -1342,5 +1342,6 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
