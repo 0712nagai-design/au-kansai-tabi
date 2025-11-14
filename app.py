@@ -345,125 +345,125 @@ def _render_question(idx: int, state: State):
     title = q["title"]
 
     # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
-    # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
-if q["key"] == "request":
+    if q["key"] == "request":
 
-    def img_btn(label: str, url: str) -> dict:
-        return {
+        def img_btn(label: str, url: str) -> dict:
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "120px",
+                "action": {"type": "message", "label": label, "text": label},
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": url,
+                        "size": "full",
+                        "aspectRatio": "16:9",   # 小さめ横長
+                        "aspectMode": "fit"      # 見切れ防止
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        def txt_btn(label: str) -> dict:
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#EEF2F7",
+                "height": "120px",
+                "justifyContent": "center",
+                "action": {"type": "message", "label": label, "text": label},
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": label,
+                        "weight": "bold",
+                        "size": "16px",
+                        "align": "center",
+                        "color": "#111111",
+                        "wrap": True
+                    }
+                ]
+            }
+
+        # 1行目: ホテル / 飲食店
+        row1 = {
             "type": "box",
-            "layout": "vertical",
-            "flex": 1,
-            "cornerRadius": "16px",
-            "backgroundColor": "#FFFFFF",
-            "height": "120px",
-            "action": {"type": "message", "label": label, "text": label},
+            "layout": "horizontal",
+            "spacing": "12px",
             "contents": [
-                {
-                    "type": "image",
-                    "url": url,
-                    "size": "full",
-                    "aspectRatio": "16:9",
-                    "aspectMode": "fit"     # ← 見切れない
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "paddingAll": "4px",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": label,
-                            "weight": "bold",
-                            "size": "14px",
-                            "align": "center",
-                            "color": "#111111",
-                            "wrap": True
-                        }
-                    ]
-                }
+                img_btn("ホテル", REQUEST_IMAGE_URLS["ホテル"]),
+                img_btn("飲食店", REQUEST_IMAGE_URLS["飲食店"])
             ]
         }
 
-    def txt_btn(label: str) -> dict:
-        return {
+        # 2行目: 体験スポット / 観光地
+        row2 = {
             "type": "box",
-            "layout": "vertical",
-            "flex": 1,
-            "cornerRadius": "16px",
-            "backgroundColor": "#EEF2F7",
-            "height": "120px",
-            "justifyContent": "center",
-            "action": {"type": "message", "label": label, "text": label},
+            "layout": "horizontal",
+            "spacing": "12px",
             "contents": [
-                {
-                    "type": "text",
-                    "text": label,
-                    "weight": "bold",
-                    "size": "16px",
-                    "align": "center",
-                    "color": "#111111"
-                }
+                img_btn("体験スポット", REQUEST_IMAGE_URLS["体験スポット"]),
+                img_btn("観光地", REQUEST_IMAGE_URLS["観光地"])
             ]
         }
 
-    # 画像ボタン（ホテル・飲食店・体験スポット・観光地）
-    row1 = {
-        "type": "box",
-        "layout": "horizontal",
-        "spacing": "12px",
-        "contents": [
-            img_btn("ホテル", REQUEST_IMAGE_URLS["ホテル"]),
-            img_btn("飲食店", REQUEST_IMAGE_URLS["飲食店"])
-        ]
-    }
-
-    row2 = {
-        "type": "box",
-        "layout": "horizontal",
-        "spacing": "12px",
-        "contents": [
-            img_btn("体験スポット", REQUEST_IMAGE_URLS["体験スポット"]),
-            img_btn("観光地", REQUEST_IMAGE_URLS["観光地"])
-        ]
-    }
-
-    # 日程表ボタンのみテキスト
-    row3 = {
-        "type": "box",
-        "layout": "horizontal",
-        "spacing": "12px",
-        "contents": [
-            txt_btn("日程表"),
-            {"type": "filler"}   # 右の空白
-        ]
-    }
-
-    bubble = {
-        "type": "bubble",
-        "size": "mega",
-        "body": {
+        # 3行目: 日程表（テキスト）＋空白
+        row3 = {
             "type": "box",
-            "layout": "vertical",
-            "spacing": "16px",
-            "paddingAll": "16px",
+            "layout": "horizontal",
+            "spacing": "12px",
             "contents": [
-                {
-                    "type": "text",
-                    "text": title,
-                    "size": "24px",
-                    "weight": "bold",
-                    "wrap": True
-                },
-                {"type": "separator"},
-                row1,
-                row2,
-                row3
+                txt_btn("日程表"),
+                {"type": "filler"}
             ]
         }
-    }
 
-    return FlexSendMessage(alt_text=title, contents=bubble)
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "16px",
+                "paddingAll": "16px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,  # 「何を提案しますか？」
+                        "size": "24px",
+                        "weight": "bold",
+                        "wrap": True
+                    },
+                    {"type": "separator"},
+                    row1,
+                    row2,
+                    row3
+                ]
+            }
+        }
 
+        return FlexSendMessage(alt_text=title, contents=bubble)
 
     # =========================
     # 2問目以降はボタンUI
@@ -487,13 +487,7 @@ if q["key"] == "request":
     bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
     return FlexSendMessage(alt_text=title, contents=bubble)
 
-
-
-  
-
-  
-
-
+    
 def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
     t = text.strip().translate(FW_TO_HW)
     for n, label in choices.items():
@@ -1361,6 +1355,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
