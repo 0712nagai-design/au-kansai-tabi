@@ -345,102 +345,125 @@ def _render_question(idx: int, state: State):
     title = q["title"]
 
     # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
-    if q["key"] == "request":
-        cards = []
+    # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
+if q["key"] == "request":
 
-        # 1〜4: ホテル / 飲食店 / 体験スポット / 観光地
-        for n in sorted(REQUESTS.keys()):
-            label = REQUESTS[n]
-            if label == "日程表":
-                # 日程表はあとで個別に作るのでここではスキップ
-                continue
-
-            img_url = REQUEST_IMAGE_URLS.get(label, "")
-
-            card = {
-                "type": "box",
-                "layout": "vertical",
-                "cornerRadius": "16px",
-                "margin": "8px",
-                "backgroundColor": "#FFFFFF",
-                "action": {"type": "message", "label": label, "text": label},
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectRatio": "1:1",   # 正方形
-                        "aspectMode": "fit"     # トリミングしない＝見切れ防止
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "8px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "18px",
-                                "align": "center",
-                                "color": "#111111"
-                            }
-                        ]
-                    }
-                ]
-            }
-            cards.append(card)
-
-        # 一番下に「日程表」ボタン（画像なし）
-        date_box = {
+    def img_btn(label: str, url: str) -> dict:
+        return {
             "type": "box",
             "layout": "vertical",
-            "cornerRadius": "20px",
+            "flex": 1,
+            "cornerRadius": "16px",
+            "backgroundColor": "#FFFFFF",
+            "height": "120px",
+            "action": {"type": "message", "label": label, "text": label},
+            "contents": [
+                {
+                    "type": "image",
+                    "url": url,
+                    "size": "full",
+                    "aspectRatio": "16:9",
+                    "aspectMode": "fit"     # ← 見切れない
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "paddingAll": "4px",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": label,
+                            "weight": "bold",
+                            "size": "14px",
+                            "align": "center",
+                            "color": "#111111",
+                            "wrap": True
+                        }
+                    ]
+                }
+            ]
+        }
+
+    def txt_btn(label: str) -> dict:
+        return {
+            "type": "box",
+            "layout": "vertical",
+            "flex": 1,
+            "cornerRadius": "16px",
             "backgroundColor": "#EEF2F7",
-            "height": "72px",
+            "height": "120px",
             "justifyContent": "center",
-            "margin": "12px",
-            "action": {"type": "message", "label": "日程表", "text": "日程表"},
+            "action": {"type": "message", "label": label, "text": label},
             "contents": [
                 {
                     "type": "text",
-                    "text": "日程表",
+                    "text": label,
                     "weight": "bold",
-                    "size": "18px",
+                    "size": "16px",
                     "align": "center",
                     "color": "#111111"
                 }
             ]
         }
 
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "12px",
-                "paddingAll": "16px",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": title,  # 「何を提案しますか？」
-                        "wrap": True,
-                        "size": "24px",
-                        "weight": "bold"
-                    },
-                    {"type": "separator", "margin": "8px"},
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "spacing": "8px",
-                        "contents": cards
-                    },
-                    date_box
-                ]
-            }
+    # 画像ボタン（ホテル・飲食店・体験スポット・観光地）
+    row1 = {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "12px",
+        "contents": [
+            img_btn("ホテル", REQUEST_IMAGE_URLS["ホテル"]),
+            img_btn("飲食店", REQUEST_IMAGE_URLS["飲食店"])
+        ]
+    }
+
+    row2 = {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "12px",
+        "contents": [
+            img_btn("体験スポット", REQUEST_IMAGE_URLS["体験スポット"]),
+            img_btn("観光地", REQUEST_IMAGE_URLS["観光地"])
+        ]
+    }
+
+    # 日程表ボタンのみテキスト
+    row3 = {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "12px",
+        "contents": [
+            txt_btn("日程表"),
+            {"type": "filler"}   # 右の空白
+        ]
+    }
+
+    bubble = {
+        "type": "bubble",
+        "size": "mega",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "16px",
+            "paddingAll": "16px",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": title,
+                    "size": "24px",
+                    "weight": "bold",
+                    "wrap": True
+                },
+                {"type": "separator"},
+                row1,
+                row2,
+                row3
+            ]
         }
-        return FlexSendMessage(alt_text=title, contents=bubble)
+    }
+
+    return FlexSendMessage(alt_text=title, contents=bubble)
+
 
     # =========================
     # 2問目以降はボタンUI
@@ -1031,39 +1054,100 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
 
 # ====================== “他のプランを提案” メニュー ======================
 def _send_finish_menu(uid: str):
+    # 画像付きボタン（横2個並べる用。画像小さめ）
     def _img_btn(label: str, text: str, url: str) -> dict:
         return {
             "type": "box",
             "layout": "vertical",
+            "flex": 1,
             "cornerRadius": "16px",
+            "backgroundColor": "#FFFFFF",
+            "height": "120px",
             "action": {"type": "message", "label": label, "text": text},
-            "contents": [{
-                "type": "image",
-                "url": url,
-                "size": "full",
-                "aspectRatio": "3:1",
-                "aspectMode": "cover"
-            }]
+            "contents": [
+                {
+                    "type": "image",
+                    "url": url,
+                    "size": "full",
+                    "aspectRatio": "16:9",   # 横長＆小さめ
+                    "aspectMode": "fit"      # 見切れ防止
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "paddingAll": "4px",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": label,
+                            "weight": "bold",
+                            "size": "14px",
+                            "align": "center",
+                            "color": "#111111"
+                        }
+                    ]
+                }
+            ]
         }
 
+    # テキストだけのボタン（高さを画像ボタンに合わせる）
     def _txt_btn(label: str, text: str) -> dict:
         return {
             "type": "box",
             "layout": "vertical",
+            "flex": 1,
             "cornerRadius": "16px",
             "backgroundColor": "#EEF2F7",
-            "height": "72px",
+            "height": "120px",
             "justifyContent": "center",
             "action": {"type": "message", "label": label, "text": text},
-            "contents": [{
-                "type": "text",
-                "text": label,
-                "weight": "bold",
-                "size": "20px",
-                "align": "center",
-                "color": "#111111"
-            }]
+            "contents": [
+                {
+                    "type": "text",
+                    "text": label,
+                    "weight": "bold",
+                    "size": "16px",
+                    "align": "center",
+                    "color": "#111111",
+                    "wrap": True
+                }
+            ]
         }
+
+    # 2列レイアウト（横並び2個ずつ）
+    row1 = {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "12px",
+        "contents": [
+            _img_btn("ホテル", "ホテル",
+                     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png"),
+            _txt_btn("日程表", "日程表"),
+        ]
+    }
+
+    row2 = {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "12px",
+        "contents": [
+            _img_btn("飲食店", "飲食店",
+                     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png"),
+            _img_btn("体験スポット", "体験スポット",
+                     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E4%BD%93%E9%A8%93.png"),
+        ]
+    }
+
+    row3 = {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "12px",
+        "contents": [
+            _img_btn("観光地", "観光地",
+                     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png"),
+            _txt_btn("最初から", "最初から"),
+        ]
+    }
 
     bubble = {
         "type": "bubble",
@@ -1074,31 +1158,29 @@ def _send_finish_menu(uid: str):
             "spacing": "16px",
             "paddingAll": "16px",
             "contents": [
-                {"type": "text", "text": "他のプランを提案", "size": "24px", "weight": "bold"},
+                {
+                    "type": "text",
+                    "text": "他のプランを提案",
+                    "size": "24px",
+                    "weight": "bold"
+                },
                 {"type": "separator"},
-
-                # --- ホテル（画像） ---
-                _img_btn("ホテル", "ホテル", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png"),
-
-                # --- 日程表（文字） ---
-                _txt_btn("日程表", "日程表"),
-
-                # --- 飲食店（画像） ---
-                _img_btn("飲食店", "飲食店", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png"),
-
-                # --- 体験スポット（画像） ---
-                _img_btn("体験スポット", "体験スポット", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E4%BD%93%E9%A8%93.png"),
-
-                # --- 観光地（画像） ---
-                _img_btn("観光地", "観光地", "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png"),
-
-                # --- 最初から（文字） ---
-                _txt_btn("最初から", "最初から")
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "spacing": "12px",
+                    "contents": [row1, row2, row3]
+                }
             ]
         }
     }
 
-    line_bot_api.push_message(uid, FlexSendMessage(alt_text="他のプランを提案", contents=bubble))
+    line_bot_api.push_message(
+        uid,
+        FlexSendMessage(alt_text="他のプランを提案", contents=bubble)
+    )
+
+
 
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # 直近言語を保存（他のプラン分岐で使う）※今は常にja運用だが形だけ保持
@@ -1279,6 +1361,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
