@@ -421,7 +421,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     req = answers.get("request")
 
     # ===================== ホテル =====================
-    if req == "ホテル":
+    if req in {"ホテル", "Hotels"}:
         prefs_choices   = PREFS_KANSAI_EN      if lang == "en" else PREFS_KANSAI
         stay_choices    = STAY_PLAN_HOTEL_EN   if lang == "en" else STAY_PLAN_HOTEL
         people_choices  = PEOPLE_HOTEL_EN      if lang == "en" else PEOPLE_HOTEL
@@ -441,7 +441,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 飲食店 =====================
-    if req == "飲食店":
+    if req in {"飲食店", "Restaurants"}:
         meal_choices   = MEAL_TIMES_EN        if lang == "en" else MEAL_TIMES
         area_choices   = AREAS_FOOD_EN        if lang == "en" else AREAS_FOOD
         people_choices = PEOPLE_FOOD_EN       if lang == "en" else PEOPLE_FOOD
@@ -467,7 +467,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 体験スポット =====================
-    if req == "体験スポット":
+     if req in {"体験スポット", "Experiences"}:   
         pref_choices   = AREAS_EXP_EN        if lang == "en" else AREAS_EXP
         people_choices = PEOPLE_EXP_EN       if lang == "en" else PEOPLE_EXP
         comp_choices   = COMPANION_EXP_EN    if lang == "en" else COMPANION_EXP
@@ -487,7 +487,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 観光地 =====================
-    if req == "観光地":
+    if req in {"観光地", "Sightseeing"}:
         pref_choices = AREAS_SIGHT_EN if lang == "en" else AREAS_SIGHT
         title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
 
@@ -497,7 +497,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 日程表 =====================
-    if req == "日程表":
+    if req in {"日程表", "Itinerary"}:
         prefs_choices   = PREFS_KANSAI_EN     if lang == "en" else PREFS_MULTI
         stay_choices    = STAY_PLAN_ITI_EN    if lang == "en" else STAY_PLAN_ITI
         themes_choices  = THEMES_MULTI_EN     if lang == "en" else THEMES_MULTI
@@ -1788,31 +1788,31 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
 
     req = answers.get("request")
 
-    if req == "ホテル":
+    if req in {"ホテル", "Hotels"}:
         hotels_text = _call_openai_text(build_hotel3_prompt(answers, lang), lang)
         _send_hotels_three(uid, reply_token, hotels_text, lang)
         _send_finish_menu(uid, lang)
         return
 
-    if req == "飲食店":
+    if req in {"飲食店", "Restaurants"}:
         foods_text = _call_openai_text(build_food3_prompt(answers, lang), lang)
         _send_food_three(uid, reply_token, foods_text, lang)
         _send_finish_menu(uid, lang)
         return
 
-    if req == "体験スポット":
+    if req in {"体験スポット", "Experiences"}:
         exp_text = _call_openai_text(build_experience3_prompt(answers, lang), lang)
         _send_experiences_three(uid, reply_token, exp_text, lang)
         _send_finish_menu(uid, lang)
         return
 
-    if req == "観光地":
+    if req in {"観光地", "Sightseeing"}:
         sight_text = _call_openai_text(build_sightseeing3_prompt(answers, lang), lang)
         _send_sightseeing_three(uid, reply_token, sight_text, lang)
         _send_finish_menu(uid, lang)
         return
 
-    if req == "日程表":
+    if req in {"日程表", "Itinerary"}:
         schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
         _send_itinerary(uid, reply_token, schedule, lang)
         _send_finish_menu(uid, lang)
@@ -1977,6 +1977,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
