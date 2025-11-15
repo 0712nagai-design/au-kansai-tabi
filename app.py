@@ -817,22 +817,24 @@ def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
 def _validate_and_store(uid: str, step: int, text: str) -> bool:
     state = users[uid]
 
-    # --- 特別処理：言語選択を英語に強制認識 ---
-    if text in {"English", "english", "EN", "2"}:
-        state["answers"]["lang"] = "English"
-        return True
-
-    if text in {"日本語", "にほんご", "JP", "1"}:
-        state["answers"]["lang"] = "日本語"
-        return True
-
-    state = users[uid]
     seq = _get_question_sequence(state.get("answers", {}))
     q = seq[step]
     key = q["key"]
     state.setdefault("answers", {})
     state.setdefault("multi_temp", {})
 
+    # --- 特別処理：言語選択は「lang」質問のときだけ見る ---
+    if key == "lang":
+        t = text.strip()
+        if t in {"English", "english", "EN", "2"}:
+            state["answers"]["lang"] = "English"
+            return True
+        if t in {"日本語", "にほんご", "JP", "1"}:
+            state["answers"]["lang"] = "日本語"
+            return True
+        # ここで取れなかったら、いつもの choices 判定に流す
+
+    # ===== 通常処理 =====
     # choices あり（通常の選択肢）
     if q.get("choices"):
         n = _label_to_num(q["choices"], text)
@@ -1988,6 +1990,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
