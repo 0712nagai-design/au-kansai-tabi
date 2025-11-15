@@ -226,9 +226,166 @@ COMPANION_ITI= {1:"ひとり",2:"カップル",3:"友人",4:"家族",5:"外国�
 DEPT_CHOICES = {1:"6–8時",2:"9–11時",3:"12–14時",4:"15–17時",5:"18時以降"}
 ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"未定"}
 TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}
+# ====== English labels for choices ======
+PREFS_KANSAI_EN = {
+    1: "Kyoto",
+    2: "Osaka",
+    3: "Nara",
+    4: "Hyogo",
+    5: "Shiga",
+    6: "Wakayama",
+}
+
+STAY_PLAN_HOTEL_EN = {
+    1: "Day trip",
+    2: "1 night 2 days",
+    3: "2 nights 3 days",
+    4: "3 nights 4 days",
+    5: "4 nights 5 days",
+    6: "5 nights 6 days",
+}
+
+PEOPLE_HOTEL_EN = {
+    1: "1 guest",
+    2: "2 guests",
+    3: "3 guests",
+    4: "4 guests",
+    5: "5 guests",
+    6: "6+ guests",
+}
+
+MEAL_TIMES_EN = {
+    1: "Breakfast",
+    2: "Lunch",
+    3: "Dinner",
+}
+
+AREAS_FOOD_EN = {
+    1: "Near current location",
+    2: "Kyoto",
+    3: "Osaka",
+    4: "Nara",
+    5: "Hyogo",
+    6: "Shiga",
+    7: "Wakayama",
+}
+
+PEOPLE_FOOD_EN = {
+    1: "1 guest",
+    2: "2 guests",
+    3: "3 guests",
+    4: "4 guests",
+    5: "5 guests",
+    6: "6+ guests",
+}
+
+COMPANION_FOOD_EN = {
+    1: "Solo",
+    2: "Couple",
+    3: "Friends",
+    4: "Family",
+}
+
+CUISINES_EN = {
+    1: "Japanese",
+    2: "Western",
+    3: "Chinese",
+    4: "Ramen",
+    5: "Cafe / Sweets",
+    6: "No preference",
+}
+
+BUDGET_FOOD_EN = {
+    1: "Up to ¥1,000",
+    2: "¥1,000–2,000",
+    3: "¥2,000–5,000",
+    4: "¥5,000+",
+}
+
+AREAS_EXP_EN = PREFS_KANSAI_EN.copy()
+
+PEOPLE_EXP_EN = {
+    1: "1 guest",
+    2: "2 guests",
+    3: "3 guests",
+    4: "4 guests",
+    5: "5 guests",
+    6: "6+ guests",
+}
+
+COMPANION_EXP_EN = {
+    1: "Solo",
+    2: "Couple",
+    3: "Friends",
+    4: "Family",
+}
+
+EXP_GENRES_EN = {
+    1: "Onsen (hot springs)",
+    2: "Nature experiences",
+    3: "Cultural experiences",
+    4: "Craft workshops",
+    5: "Food experiences",
+}
+
+AREAS_SIGHT_EN = PREFS_KANSAI_EN.copy()
+
+PREFS_MULTI_EN = PREFS_KANSAI_EN.copy()
+
+STAY_PLAN_ITI_EN = {
+    1: "Day trip",
+    2: "1 night 2 days",
+    3: "2 nights 3 days",
+    4: "3 nights 4 days",
+    5: "4 nights 5 days",
+    6: "5 nights 6 days",
+}
+
+THEMES_MULTI_EN = {
+    1: "Gourmet",
+    2: "History & culture",
+    3: "Nature & relaxation",
+    4: "Night views",
+    5: "Onsen",
+    6: "Family",
+    7: "Shopping",
+    8: "Activities focused",
+    9: "Others",
+}
+
+COMPANION_ITI_EN = {
+    1: "Solo",
+    2: "Couple",
+    3: "Friends",
+    4: "Family",
+    5: "Foreign friends",
+    6: "Others",
+}
+
+DEPT_CHOICES_EN = {
+    1: "6–8 am",
+    2: "9–11 am",
+    3: "12–2 pm",
+    4: "3–5 pm",
+    5: "After 6 pm",
+}
+
+ARRV_CHOICES_EN = {
+    1: "2–5 pm",
+    2: "5–7 pm",
+    3: "7–9 pm",
+    4: "After 9 pm",
+    5: "Not decided",
+}
+
+TRANSPORT_ITI_EN = {
+    1: "Public transport",
+    2: "Car",
+    3: "Mostly on foot",
+}
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
-    lang = _get_lang_code(answers)
+    lang = _get_lang_code(answers)  # 'ja' or 'en'
 
     # 言語選択（0問目）
     seq: List[Dict[str, Any]] = [
@@ -249,94 +406,126 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     seq.append({
         "key": "request",
         "title": req_title,
-        "choices": REQUESTS,
+        "choices": REQUESTS,   # 中身は日本語、表示は別で英語にしている
         "multi": False,
     })
 
     req = answers.get("request")
 
+    # --- ホテル ---
     if req == "ホテル":
-        title_pref = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
-        title_stay = "How many days & nights?" if lang == "en" else "何泊何日ですか？"
-        title_people = "How many people?" if lang == "en" else "人数を選んでください。"
-        title_hotel = "What type of hotel?" if lang == "en" else "ホテルタイプを選んでください。"
+        prefs_choices   = PREFS_KANSAI_EN     if lang == "en" else PREFS_KANSAI
+        stay_choices    = STAY_PLAN_HOTEL_EN if lang == "en" else STAY_PLAN_HOTEL
+        people_choices  = PEOPLE_HOTEL_EN    if lang == "en" else PEOPLE_HOTEL
+        hotel_choices   = HOTELS            # ホテルタイプは中身日本語のままでもOK
+
+        title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
+        title_stay   = "How many days & nights?"     if lang == "en" else "何泊何日ですか？"
+        title_people = "How many people?"            if lang == "en" else "人数を選んでください。"
+        title_hotel  = "What type of hotel?"         if lang == "en" else "ホテルタイプを選んでください。"
 
         seq += [
-            {"key": "pref",      "title": title_pref,   "choices": PREFS_KANSAI,    "multi": False},
-            {"key": "stay_plan", "title": title_stay,   "choices": STAY_PLAN_HOTEL, "multi": False},
-            {"key": "people",    "title": title_people, "choices": PEOPLE_HOTEL,    "multi": False},
-            {"key": "hotel",     "title": title_hotel,  "choices": HOTELS,          "multi": False},
+            {"key": "pref",      "title": title_pref,   "choices": prefs_choices,   "multi": False},
+            {"key": "stay_plan", "title": title_stay,   "choices": stay_choices,    "multi": False},
+            {"key": "people",    "title": title_people, "choices": people_choices,  "multi": False},
+            {"key": "hotel",     "title": title_hotel,  "choices": hotel_choices,   "multi": False},
         ]
         return seq
 
+    # --- 飲食店 ---
     if req == "飲食店":
-        title_meal = "Which meal?" if lang == "en" else "食事のタイミングを選んでください。"
-        title_area = "Which area?" if lang == "en" else "エリアを選んでください。"
-        title_people = "How many people?" if lang == "en" else "人数を選んでください。"
-        title_comp = "Who are you with?" if lang == "en" else "同行者を選んでください。"
-        title_cui = "What kind of food?" if lang == "en" else "食べたいジャンルを選んでください。"
-        title_budget = "What is your budget?" if lang == "en" else "ご予算を選んでください。"
+        meal_choices   = MEAL_TIMES_EN   if lang == "en" else MEAL_TIMES
+        area_choices   = AREAS_FOOD_EN   if lang == "en" else AREAS_FOOD
+        people_choices = PEOPLE_FOOD_EN  if lang == "en" else PEOPLE_FOOD
+        comp_choices   = COMPANION_FOOD_EN if lang == "en" else COMPANION_FOOD
+        cui_choices    = CUISINES_EN     if lang == "en" else CUISINES
+        budget_choices = BUDGET_FOOD_EN  if lang == "en" else BUDGET_FOOD
+
+        title_meal   = "Which meal?"                if lang == "en" else "食事のタイミングを選んでください。"
+        title_area   = "Which area?"                if lang == "en" else "エリアを選んでください。"
+        title_people = "How many people?"           if lang == "en" else "人数を選んでください。"
+        title_comp   = "Who are you with?"          if lang == "en" else "同行者を選んでください。"
+        title_cui    = "What kind of food?"         if lang == "en" else "食べたいジャンルを選んでください。"
+        title_budget = "What is your budget?"       if lang == "en" else "ご予算を選んでください。"
 
         seq += [
-            {"key": "meal_time", "title": title_meal,   "choices": MEAL_TIMES,   "multi": False},
-            {"key": "area",      "title": title_area,   "choices": AREAS_FOOD,   "multi": False},
-            {"key": "people",    "title": title_people, "choices": PEOPLE_FOOD,  "multi": False},
-            {"key": "companion", "title": title_comp,   "choices": COMPANION_FOOD, "multi": False},
-            {"key": "cuisine",   "title": title_cui,    "choices": CUISINES,     "multi": False},
-            {"key": "budget",    "title": title_budget, "choices": BUDGET_FOOD,  "multi": False},
+            {"key": "meal_time", "title": title_meal,   "choices": meal_choices,   "multi": False},
+            {"key": "area",      "title": title_area,   "choices": area_choices,   "multi": False},
+            {"key": "people",    "title": title_people, "choices": people_choices, "multi": False},
+            {"key": "companion", "title": title_comp,   "choices": comp_choices,   "multi": False},
+            {"key": "cuisine",   "title": title_cui,    "choices": cui_choices,    "multi": False},
+            {"key": "budget",    "title": title_budget, "choices": budget_choices, "multi": False},
         ]
         return seq
 
+    # --- 体験スポット ---
     if req == "体験スポット":
-        title_pref = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
-        title_genre = "What type of experience?" if lang == "en" else "体験ジャンルを選んでください。"
-        title_people = "How many people?" if lang == "en" else "人数を選んでください。"
-        title_comp = "Who are you with?" if lang == "en" else "同行者を選んでください。"
+        pref_choices   = AREAS_EXP_EN     if lang == "en" else AREAS_EXP
+        people_choices = PEOPLE_EXP_EN    if lang == "en" else PEOPLE_EXP
+        comp_choices   = COMPANION_EXP_EN if lang == "en" else COMPANION_EXP
+        genre_choices  = EXP_GENRES_EN    if lang == "en" else EXP_GENRES
+
+        title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
+        title_genre  = "What type of experience?"    if lang == "en" else "体験ジャンルを選んでください。"
+        title_people = "How many people?"            if lang == "en" else "人数を選んでください。"
+        title_comp   = "Who are you with?"           if lang == "en" else "同行者を選んでください。"
 
         seq += [
-            {"key": "pref",      "title": title_pref,   "choices": AREAS_EXP,    "multi": False},
-            {"key": "exp_genre", "title": title_genre,  "choices": EXP_GENRES,   "multi": False},
-            {"key": "people",    "title": title_people, "choices": PEOPLE_EXP,   "multi": False},
-            {"key": "companion", "title": title_comp,   "choices": COMPANION_EXP,"multi": False},
+            {"key": "pref",      "title": title_pref,   "choices": pref_choices,   "multi": False},
+            {"key": "exp_genre", "title": title_genre,  "choices": genre_choices,  "multi": False},
+            {"key": "people",    "title": title_people, "choices": people_choices, "multi": False},
+            {"key": "companion", "title": title_comp,   "choices": comp_choices,   "multi": False},
         ]
         return seq
 
+    # --- 観光地 ---
     if req == "観光地":
-        title_pref = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
+        pref_choices = AREAS_SIGHT_EN if lang == "en" else AREAS_SIGHT
+        title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
+
         seq += [
-            {"key": "pref", "title": title_pref, "choices": AREAS_SIGHT, "multi": False}
+            {"key": "pref", "title": title_pref, "choices": pref_choices, "multi": False}
         ]
         return seq
 
+    # --- 日程表 ---
     if req == "日程表":
+        prefs_choices   = PREFS_MULTI_EN      if lang == "en" else PREFS_MULTI
+        stay_choices    = STAY_PLAN_ITI_EN    if lang == "en" else STAY_PLAN_ITI
+        themes_choices  = THEMES_MULTI_EN     if lang == "en" else THEMES_MULTI
+        trans_choices   = TRANSPORT_ITI_EN    if lang == "en" else TRANSPORT_ITI
+        comp_choices    = COMPANION_ITI_EN    if lang == "en" else COMPANION_ITI
+        dept_choices    = DEPT_CHOICES_EN     if lang == "en" else DEPT_CHOICES
+        arrv_choices    = ARRV_CHOICES_EN     if lang == "en" else ARRV_CHOICES
+
         if lang == "en":
-            t_prefs   = "Select prefectures to visit (you can choose multiple: e.g. 1,3,6)."
-            t_date    = "Enter the departure date (e.g. 2025-03-20)."
-            t_stay    = "How many days & nights?"
-            t_themes  = "Select travel themes (you can choose multiple)."
-            t_trans   = "Main transportation?"
-            t_comp    = "Who are you traveling with?"
-            t_dept    = "When do you plan to depart?"
-            t_arrv    = "When do you plan to return?"
+            t_prefs = "Select prefectures to visit (multiple OK, e.g. 1,3,6)."
+            t_date  = "Enter your departure date (e.g. 2025-03-20)."
+            t_stay  = "How many days & nights?"
+            t_themes= "Select travel themes (multiple OK)."
+            t_trans = "Main transportation?"
+            t_comp  = "Who are you traveling with?"
+            t_dept  = "When will you depart?"
+            t_arrv  = "When will you return?"
         else:
-            t_prefs   = "訪問する都道府県を選んでください（複数選択可：例 1,3,6 で同時選択。タップの場合は『完了』）"
-            t_date    = "出発日を入力してください（例: 2025-03-20）"
-            t_stay    = "何泊何日ですか？"
-            t_themes  = "旅行のテーマを選んでください（複数選択可：例 1,4,5。タップの場合は『完了』）"
-            t_trans   = "主な交通手段を選んでください。"
-            t_comp    = "同行者を選んでください。"
-            t_dept    = "出発時間帯を選んでください。"
-            t_arrv    = "帰着時間帯を選んでください。"
+            t_prefs = "訪問する都道府県を選んでください（複数選択可：例 1,3,6。タップの場合は『完了』）"
+            t_date  = "出発日を入力してください（例: 2025-03-20）"
+            t_stay  = "何泊何日ですか？"
+            t_themes= "旅行のテーマを選んでください（複数選択可：例 1,4,5。タップの場合は『完了』）"
+            t_trans = "主な交通手段を選んでください。"
+            t_comp  = "同行者を選んでください。"
+            t_dept  = "出発時間帯を選んでください。"
+            t_arrv  = "帰着時間帯を選んでください。"
 
         seq += [
-            {"key": "prefs",   "title": t_prefs,  "choices": PREFS_MULTI,   "multi": True},
-            {"key": "date",    "title": t_date,   "choices": {},            "multi": False},
-            {"key": "stay",    "title": t_stay,   "choices": STAY_PLAN_ITI, "multi": False},
-            {"key": "themes",  "title": t_themes, "choices": THEMES_MULTI,  "multi": True},
-            {"key": "transport","title":t_trans,  "choices": TRANSPORT_ITI, "multi": False},
-            {"key": "companion","title":t_comp,   "choices": COMPANION_ITI, "multi": False},
-            {"key": "dept",    "title": t_dept,   "choices": DEPT_CHOICES,  "multi": False},
-            {"key": "arrv",    "title": t_arrv,   "choices": ARRV_CHOICES,  "multi": False},
+            {"key": "prefs",    "title": t_prefs,  "choices": prefs_choices,  "multi": True},
+            {"key": "date",     "title": t_date,   "choices": {},             "multi": False},
+            {"key": "stay",     "title": t_stay,   "choices": stay_choices,   "multi": False},
+            {"key": "themes",   "title": t_themes, "choices": themes_choices, "multi": True},
+            {"key": "transport","title": t_trans,  "choices": trans_choices,  "multi": False},
+            {"key": "companion","title": t_comp,   "choices": comp_choices,   "multi": False},
+            {"key": "dept",     "title": t_dept,   "choices": dept_choices,   "multi": False},
+            {"key": "arrv",     "title": t_arrv,   "choices": arrv_choices,   "multi": False},
         ]
         return seq
 
@@ -635,9 +824,10 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
             else:
                 state["answers"][key] = val
                 if state["answers"].get("request") == "飲食店" and key == "area":
-                    if val == "現在地から近く" and not state.get("geo"):
-                        state["need_location"] = True
-                return True
+                 if state["answers"].get("request") == "飲食店" and key == "area":
+    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
+        state["need_location"] = True
+
 
     # マルチ選択の確定
     if q.get("multi") and text.strip() == "完了":
@@ -774,9 +964,38 @@ def _flex_list_bubble(header_title: str, items: List[Dict[str, str]]) -> FlexSen
     return FlexSendMessage(alt_text=header_title, contents=bubble)
 
 # ====================== ホテル：3件提案 ======================
-def build_hotel3_prompt(answers: Dict[str, Any]) -> str:
+def build_hotel3_prompt(answers: Dict[str, Any], lang: str) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
-    return f"""
+    is_en = str(lang).lower().startswith("e")
+
+    if is_en:
+        return f"""
+You are a Kansai travel hotel concierge.
+Based on the following user conditions, output **exactly 3 hotel options** in the same format.
+
+Important:
+- Do NOT invent hotel names.
+- Only suggest real hotels that actually exist and can be found on Google Maps.
+- If you cannot find the official site or a booking-site URL for a hotel, do not use that hotel.
+- If you cannot find 3 valid hotels, for the missing ones just write:
+  "No real hotel matching the conditions was found."
+
+Each option MUST contain: "Official: URL" and "Google Maps: URL".
+Do NOT output any image URLs.
+Separate each option with a blank line (no lines with separators/--- etc.).
+
+[User conditions (JSON)]
+{answers_json}
+
+[Output format (for 3 options)]
+🏨 Official hotel name (nearest area)
+Short description: 1-line summary (location / rooms / bath / breakfast / family-friendly etc.)
+💰 Price guide: rough total for {answers.get('people','2 people')} & {answers.get('stay_plan','1 night 2 days')} OR price per person per night
+🔗 Official: https://...
+📍 Google Maps: https://...
+""".strip()
+    else:
+        return f"""
 あなたは関西旅行のホテルコンシェルジュです。
 以下のユーザー条件に合うホテル候補を**ちょうど3件**、同一フォーマットで出力してください。
 
@@ -878,17 +1097,54 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
 
 
 # ====================== 飲食店：3件提案 ======================
-def build_food3_prompt(answers: Dict[str, Any]) -> str:
+def build_food3_prompt(answers: Dict[str, Any], lang: str) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
-    near_hint = ""
+    is_en = str(lang).lower().startswith("e")
+
+    near_hint_ja = ""
+    near_hint_en = ""
     if answers.get("geo"):
-        near_hint = (
-            f"現在地の緯度経度: {answers.get('geo')} から**半径1km以内**にある飲食店のみを候補にしてください。\n"
-            "- 1kmを超える店舗は候補に含めないでください。\n"
-            "- 距離が近い順に3件までを提案してください。\n"
-            "- 1km以内に条件に合う店が3件見つからない場合、無理に店名を作らず、「条件に合う実在の飲食店が見つかりませんでした」と書いてください。\n"
-        )
-    return f"""
+        near_hint_ja = """
+現在地の緯度経度から**半径1km以内**にある飲食店のみを候補にしてください。
+- 1kmを超える店舗は候補に含めないでください。
+- 距離が近い順に3件までを提案してください。
+- 1km以内に条件に合う店が3件見つからない場合、無理に店名を作らず、「条件に合う実在の飲食店が見つかりませんでした」と書いてください。
+""".strip()
+        near_hint_en = """
+Only suggest restaurants **within 1 km radius** of the current coordinates.
+- Do not include restaurants farther than 1 km.
+- Suggest up to 3 places ordered by distance.
+- If there are not 3 places within 1 km, do NOT invent names; simply say
+  "No real restaurant matching the conditions was found."
+""".strip()
+
+    if is_en:
+        return f"""
+You are a Kansai gourmet concierge.
+Based on the following conditions, output **exactly 3 restaurants** in the same format.
+
+Important:
+- Do NOT invent restaurant names.
+- Only suggest real restaurants that can be found on Google Maps.
+- If you cannot find the official site or a major listing (e.g. Tabelog) and Google Maps URL, do not use that restaurant.
+- If you cannot find 3 valid restaurants, for the missing ones just write:
+  "No real restaurant matching the conditions was found."
+
+{near_hint_en}
+
+[Conditions (JSON)]
+{answers_json}
+
+[Output format (3 restaurants)]
+🍽 Restaurant name (nearest station / area)
+Short comment: 1-line summary (signature dishes / atmosphere / seating / reservation, etc.)
+💰 Price range: approx. total amount
+🕰 Hours: e.g. 11:00–22:00 / Closed: Wed
+🔗 Official: https://...
+📍 Google Maps: https://...
+""".strip()
+    else:
+        return f"""
 あなたは関西のグルメコンシェルジュです。
 以下の条件に合う飲食店を**ちょうど3件**、同一フォーマットで出力してください。
 
@@ -897,7 +1153,7 @@ def build_food3_prompt(answers: Dict[str, Any]) -> str:
 - 必ず実在し、Googleマップで検索できる飲食店のみを提案してください。
 - 公式サイトまたは食べログ等のページURL、GoogleマップのURLが分からない店は候補から外してください。
 - 3件そろわない場合は、足りない件数分について「条件に合う実在の飲食店が見つかりませんでした」とだけ書いてください。
-{near_hint}
+{near_hint_ja}
 
 【条件(JSON)】
 {answers_json}
@@ -910,6 +1166,7 @@ def build_food3_prompt(answers: Dict[str, Any]) -> str:
 🔗 公式：https://...
 📍 Googleマップ：https://...
 """.strip()
+
 
 def _parse_food_block(block: str) -> Dict[str, Optional[str]]:
     lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
@@ -975,9 +1232,45 @@ def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
 
 
 # ====================== 体験スポット：3件提案 ======================
-def build_experience3_prompt(answers: Dict[str, Any]) -> str:
+def build_experience3_prompt(answers: Dict[str, Any], lang: str) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
-    return f"""
+    is_en = str(lang).lower().startswith("e")
+
+    if is_en:
+        return f"""
+You are a Kansai travel experience concierge.
+Based on the following conditions, suggest **exactly 3 experience spots / activities**
+(e.g. pottery class, kimono dressing, wagashi making, rafting, hot spring day-use)
+in the same format.
+
+Important:
+- Do NOT include sightseeing landmarks such as temples, castles, towers, or observatories
+  (those are handled in a separate category).
+- Do NOT invent facility names.
+- Only suggest real facilities that actually exist and can be found on Google Maps.
+- If you cannot find the official site / booking page URL and a Google Maps URL,
+  do not use that facility as a candidate.
+- If you cannot find 3 valid experience spots, for the missing ones just write:
+  "No real experience spot matching the conditions was found."
+
+Each option MUST contain: "Official: URL" and "Google Maps: URL".
+Do NOT output any image URLs.
+Separate each option with a blank line (no separator lines like ---).
+
+[Conditions (JSON)]
+{answers_json}
+
+[Output format (for 3 options)]
+🎯 Facility name (area / nearest station)
+Short comment: 1-line summary (contents / for whom / any cautions)
+💰 Price: 〜 JPY per person
+⌛ Duration: 〜 minutes / Reservation: required or not required
+🕰 Hours: e.g. 10:00–18:00 / Closed: Tue
+🔗 Official: https://...
+📍 Google Maps: https://...
+""".strip()
+    else:
+        return f"""
 あなたは関西観光の体験コンシェルジュです。
 以下の条件に合う**体験スポット/アクティビティ（陶芸体験、着物体験、和菓子作り、ラフティング、温泉入浴など）をちょうど3件**、同一フォーマットで出力してください。
 
@@ -1003,6 +1296,7 @@ def build_experience3_prompt(answers: Dict[str, Any]) -> str:
 🔗 公式：https://...
 📍 Googleマップ：https://...
 """.strip()
+
 
 def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
     lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
@@ -1073,9 +1367,44 @@ def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
         line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
 
 # ====================== 観光地：3件提案 ======================
-def build_sightseeing3_prompt(answers: Dict[str, Any]) -> str:
+def build_sightseeing3_prompt(answers: Dict[str, Any], lang: str) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
-    return f"""
+    is_en = str(lang).lower().startswith("e")
+
+    if is_en:
+        return f"""
+You are a Kansai sightseeing concierge.
+Based on the following conditions, suggest **exactly 3 sightseeing spots**
+(temples, shrines, castles, gardens, scenic spots, museums, observatories, etc.)
+in the same format.
+
+Important:
+- Do NOT include hands-on activity facilities (pottery class, workshops etc.).
+  Those are handled as experience spots.
+- Do NOT invent place names.
+- Only suggest real places that actually exist and can be found on Google Maps.
+- If you cannot find the official site or a reliable information page AND Google Maps URL,
+  do not use that place as a candidate.
+- If you cannot find 3 valid sightseeing spots, for the missing ones just write:
+  "No real sightseeing spot matching the conditions was found."
+
+Each option MUST contain: "Official: URL" and "Google Maps: URL".
+Do NOT output any image URLs.
+Separate each option with a blank line (no separator lines like ---).
+
+[Conditions (JSON)]
+{answers_json}
+
+[Output format (for 3 spots)]
+🏯 Spot name (area / nearest station)
+Short comment: 1-line summary (highlights / history / typical required time)
+💰 Admission: 〜 JPY (entrance fee etc.) *write "free" if it is free
+🕰 Hours: e.g. 9:00–17:00 / Closed: none
+🔗 Official: https://...
+📍 Google Maps: https://...
+""".strip()
+    else:
+        return f"""
 あなたは関西旅行の観光案内コンシェルジュです。
 以下の条件に合う**観光地（寺社仏閣・城・庭園・名所・景勝地・ミュージアム・展望台など）をちょうど3件**、同一フォーマットで出力してください。
 
@@ -1168,11 +1497,58 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
 BLOCK_SPLIT_RE= re.compile(r"\n\s*↓\s*\n", re.M)
 
-def build_itinerary_prompt(answers: Dict[str, Any]) -> str:
+def build_itinerary_prompt(answers: Dict[str, Any], lang: str) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
     prefs = "、".join(answers.get("prefs", [])) if isinstance(answers.get("prefs"), list) else answers.get("prefs","")
     themes = "、".join(answers.get("themes", [])) if isinstance(answers.get("themes"), list) else answers.get("themes","")
-    return f"""
+    is_en = str(lang).lower().startswith("e")
+
+    if is_en:
+        return f"""
+You are a Kansai travel planner. Create a **dense, detailed itinerary** based on
+the following conditions.
+
+Requirements:
+- Each day must include **3–5 or more spots**, in a realistic order considering travel time.
+- Each spot must have a **1-line short comment**.
+- For every spot, ALWAYS output both an "Official: URL" and "Google Maps: URL".
+- Do NOT output image URLs.
+- The last day must NOT include another overnight block.
+- Output only the itinerary (no extra explanation before or after).
+
+Important:
+- Every spot must be an actual, real facility or area.
+- Do not invent any names.
+- Avoid spots where you cannot find an official / reliable page AND a Google Maps URL
+  (you may omit such spots instead of forcing them).
+
+[Conditions (JSON)]
+{answers_json}
+
+[Summary]
+- Area(s): {prefs}
+- Departure date: {answers.get('date','-')}
+- Trip length: {answers.get('stay','-')}
+- Themes: {themes}
+- Main transportation: {answers.get('transport','-')}
+- Companion(s): {answers.get('companion','-')}
+- Departure time band: {answers.get('dept','-')} / Return time band: {answers.get('arrv','-')}
+
+[Output example format]
+Day1
+🕘 09:00–10:00  🏯 Sightseeing: Spot name (area)
+Short comment: 1-line highlight
+💰 Price: 〜 JPY
+🔗 Official: https://...
+📍 Google Maps: https://...
+🕰 Hours: open-close / Closed: days
+↓
+(3–5 or more spots in total for this day)
+Day2
+(continue in the same style)
+""".strip()
+    else:
+        return f"""
 あなたは関西旅行の旅行プランナーです。以下の条件に沿って**濃い日程表**を作ってください。
 各日**3〜5スポット以上**、移動を考慮した流れ。各スポットは**短評1行**を含め、必ず「公式：URL」「Googleマップ：URL」を出力。
 最終日は宿泊ブロックを入れない。画像URLは禁止。出力は**旅程のみ**。
@@ -1207,6 +1583,7 @@ Day1
 Day2
 （同様に続ける）
 """.strip()
+
 
 def _blocks_in_day(day_text: str):
     return [b.strip() for b in BLOCK_SPLIT_RE.split(day_text.strip()) if b.strip()]
@@ -1398,31 +1775,31 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     req = answers.get("request")
 
     if req == "ホテル":
-        hotels_text = _call_openai_text(build_hotel3_prompt(answers), lang)
+        hotels_text = _call_openai_text(build_hotel3_prompt(answers, lang), lang)
         _send_hotels_three(uid, reply_token, hotels_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "飲食店":
-        foods_text = _call_openai_text(build_food3_prompt(answers), lang)
+        foods_text = _call_openai_text(build_food3_prompt(answers, lang), lang)
         _send_food_three(uid, reply_token, foods_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "体験スポット":
-        exp_text = _call_openai_text(build_experience3_prompt(answers), lang)
+        exp_text = _call_openai_text(build_experience3_prompt(answers, lang), lang)
         _send_experiences_three(uid, reply_token, exp_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "観光地":
-        sight_text = _call_openai_text(build_sightseeing3_prompt(answers), lang)
+        sight_text = _call_openai_text(build_sightseeing3_prompt(answers, lang), lang)
         _send_sightseeing_three(uid, reply_token, sight_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "日程表":
-        schedule = _call_openai_text(build_itinerary_prompt(answers), lang)
+        schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
         _send_itinerary(uid, reply_token, schedule, lang)
         _send_finish_menu(uid, lang)
         return
@@ -1585,6 +1962,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
