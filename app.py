@@ -1563,8 +1563,9 @@ def on_message(event: MessageEvent):
         return
 
     # すべて回答済み → 提案
+       # すべて回答済み → 提案
     answers = state["answers"].copy()
-       try:
+    try:
         send_plan_parts(event.reply_token, uid, answers)
     except Exception as e:
         app.logger.exception("OpenAI API error")
@@ -1579,12 +1580,12 @@ def on_message(event: MessageEvent):
 
     users.pop(uid, None)
 
-
 # ====================== ローカル実行 ======================
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
