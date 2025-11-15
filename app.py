@@ -830,31 +830,52 @@ def _parse_hotel_block(block: str):
         "map": mp
     }
 
-def _send_hotels_three(uid: str, reply_token: str, hotels_text: str):
+def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
+    is_en = str(lang).lower().startswith("e")
+
+    header = (
+        "🏨 条件に合うホテル候補を3件ご提案します👇"
+        if not is_en
+        else "🏨 Here are 3 hotel options for you 👇"
+    )
+    line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
+
     blocks = [b.strip() for b in re.split(r"\n\s*\n", hotels_text.strip()) if b.strip()][:3]
     if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="ホテル候補が見つかりませんでした。"))
+        msg = "ホテル候補が見つかりませんでした。" if not is_en else "No matching hotels were found."
+        line_bot_api.push_message(uid, TextSendMessage(text=msg))
         return
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏨 条件に合うホテル候補を3件ご提案します👇"))
+
     items = []
     for block in blocks:
         info = _parse_hotel_block(block)
-        # 1件ずつのシンプル説明
-        lines = [f"🏨 {info['name']}"]
-        if info["desc"]:
-            lines.append(info["desc"])
-        if info["price"]:
-            lines.append(f"💰 価格目安：{info['price']}")
+
+        if not is_en:
+            lines = [f"🏨 {info['name']}"]
+            if info["desc"]:
+                lines.append(info["desc"])
+            if info["price"]:
+                lines.append(f"💰 価格目安：{info['price']}")
+        else:
+            lines = [f"🏨 {info['name']}"]
+            if info["desc"]:
+                lines.append(info["desc"])  # OpenAI側が英語で返してくれる想定
+            if info["price"]:
+                lines.append(f"💰 Price range: {info['price']}")
+
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
+
         items.append({
             "title": info["name"],
             "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
             "official": info.get("official") or "",
             "map": info.get("map") or ""
         })
+
+    list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble("🏨 ホテル候補（3件）", items))
+        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
+
 
 # ====================== 飲食店：3件提案 ======================
 def build_food3_prompt(answers: Dict[str, Any]) -> str:
@@ -906,33 +927,52 @@ def _parse_food_block(block: str) -> Dict[str, Optional[str]]:
     if mmap:   mp    = mmap.group(1)
     return {"name": name or "飲食店", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
 
-def _send_food_three(uid: str, reply_token: str, text: str):
+def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
+    is_en = str(lang).lower().startswith("e")
+
     blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
     if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う飲食店が見つかりませんでした。"))
+        msg = "条件に合う飲食店が見つかりませんでした。" if not is_en else "No matching restaurants were found."
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
         return
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🍽 条件に合うお店を3件ご提案します👇"))
+
+    header = "🍽 条件に合うお店を3件ご提案します👇" if not is_en else "🍽 Here are 3 restaurant suggestions 👇"
+    line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
+
     items = []
     for block in blocks:
         info = _parse_food_block(block)
-        # テキスト（従来）
-        lines = [f"🍽 {info['name']}"]
-        if info["short"]:
-            lines.append(info["short"])
-        if info["price"]:
-            lines.append(f"💰 価格帯：{info['price']}")
-        if info["hours"]:
-            lines.append(f"🕰 営業：{info['hours']}")
+
+        if not is_en:
+            lines = [f"🍽 {info['name']}"]
+            if info["short"]:
+                lines.append(info["short"])
+            if info["price"]:
+                lines.append(f"💰 価格帯：{info['price']}")
+            if info["hours"]:
+                lines.append(f"🕰 営業：{info['hours']}")
+        else:
+            lines = [f"🍽 {info['name']}"]
+            if info["short"]:
+                lines.append(info["short"])
+            if info["price"]:
+                lines.append(f"💰 Price range: {info['price']}")
+            if info["hours"]:
+                lines.append(f"🕰 Hours: {info['hours']}")
+
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
+
         items.append({
             "title": info["name"],
             "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
             "official": info.get("official") or "",
             "map": info.get("map") or ""
         })
+
+    list_title = "🍽 お店候補（3件）" if not is_en else "🍽 Restaurant options (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble("🍽 お店候補（3件）", items))
+        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
+
 
 # ====================== 体験スポット：3件提案 ======================
 def build_experience3_prompt(answers: Dict[str, Any]) -> str:
@@ -981,36 +1021,56 @@ def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
     if mmap:   mp    = mmap.group(1)
     return {"name": name or "体験スポット", "short": short, "price": price, "hours": hours, "dura": dura, "official": off, "map": mp}
 
-def _send_experiences_three(uid: str, reply_token: str, text: str):
+def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
+    is_en = str(lang).lower().startswith("e")
+
     blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
     if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う体験スポットが見つかりませんでした。"))
+        msg = "条件に合う体験スポットが見つかりませんでした。" if not is_en else "No matching experiences were found."
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
         return
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🎯 条件に合う体験スポットを3件ご提案します👇"))
+
+    header = "🎯 条件に合う体験スポットを3件ご提案します👇" if not is_en else "🎯 Here are 3 experience spots 👇"
+    line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
+
     items = []
     for block in blocks:
         info = _parse_experience_block(block)
-        # テキスト
-        lines = [f"🎯 {info['name']}"]
-        if info["short"]:
-            lines.append(info["short"])
-        if info["price"]:
-            lines.append(f"💰 料金：{info['price']}")
-        if info["dura"]:
-            lines.append(f"⌛ 所要：{info['dura']}")
-        if info["hours"]:
-            lines.append(f"🕰 営業：{info['hours']}")
+
+        if not is_en:
+            lines = [f"🎯 {info['name']}"]
+            if info["short"]:
+                lines.append(info["short"])
+            if info["price"]:
+                lines.append(f"💰 料金：{info['price']}")
+            if info["dura"]:
+                lines.append(f"⌛ 所要：{info['dura']}")
+            if info["hours"]:
+                lines.append(f"🕰 営業：{info['hours']}")
+        else:
+            lines = [f"🎯 {info['name']}"]
+            if info["short"]:
+                lines.append(info["short"])
+            if info["price"]:
+                lines.append(f"💰 Price: {info['price']}")
+            if info["dura"]:
+                lines.append(f"⌛ Duration: {info['dura']}")
+            if info["hours"]:
+                lines.append(f"🕰 Hours: {info['hours']}")
+
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
-        sub = info.get("short") or (f"所要:{info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
+
+        sub = info.get("short") or (f"Duration: {info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
         items.append({
             "title": info["name"],
             "subtitle": sub[:60],
             "official": info.get("official") or "",
             "map": info.get("map") or ""
         })
+
+    list_title = "🎯 体験スポット（3件）" if not is_en else "🎯 Experiences (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble("🎯 体験スポット（3件）", items))
+        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
 
 # ====================== 観光地：3件提案 ======================
 def build_sightseeing3_prompt(answers: Dict[str, Any]) -> str:
@@ -1057,34 +1117,52 @@ def _parse_sightseeing_block(block: str) -> Dict[str, Optional[str]]:
     if mmap:   mp    = mmap.group(1)
     return {"name": name or "観光地", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
 
-def _send_sightseeing_three(uid: str, reply_token: str, text: str):
+def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
+    is_en = str(lang).lower().startswith("e")
+
     blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
     if not blocks:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="条件に合う観光地が見つかりませんでした。"))
+        msg = "条件に合う観光地が見つかりませんでした。" if not is_en else "No matching sightseeing spots were found."
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
         return
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="🏯 条件に合う観光地を3件ご提案します👇"))
+
+    header = "🏯 条件に合う観光地を3件ご提案します👇" if not is_en else "🏯 Here are 3 sightseeing spots 👇"
+    line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
+
     items = []
     for block in blocks:
         info = _parse_sightseeing_block(block)
-        # テキスト
-        lines = [f"🏯 {info['name']}"]
-        if info["short"]:
-            lines.append(info["short"])
-        if info["price"]:
-            lines.append(f"💰 料金目安：{info['price']}")
-        if info["hours"]:
-            lines.append(f"🕰 営業：{info['hours']}")
+
+        if not is_en:
+            lines = [f"🏯 {info['name']}"]
+            if info["short"]:
+                lines.append(info["short"])
+            if info["price"]:
+                lines.append(f"💰 料金目安：{info['price']}")
+            if info["hours"]:
+                lines.append(f"🕰 営業：{info['hours']}")
+        else:
+            lines = [f"🏯 {info['name']}"]
+            if info["short"]:
+                lines.append(info["short"])
+            if info["price"]:
+                lines.append(f"💰 Admission: {info['price']}")
+            if info["hours"]:
+                lines.append(f"🕰 Hours: {info['hours']}")
+
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-        # Flexリスト用
-        sub = info.get("short") or (f"営業時間:{info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
+
+        sub = info.get("short") or (f"Hours: {info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
         items.append({
             "title": info["name"],
             "subtitle": sub[:60],
             "official": info.get("official") or "",
             "map": info.get("map") or ""
         })
+
+    list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble("🏯 観光地（3件）", items))
+        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
 
 # ====================== 日程表 生成＆送信 ======================
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
@@ -1147,8 +1225,9 @@ def _info_from_block(block: str):
     short = mshort.group(1).strip() if mshort else ""
     return time_range, name, short
 
-def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
-    # Dayごとに切り出し
+def _send_itinerary(uid: str, reply_token: str, schedule_text: str, lang: str):
+    is_en = str(lang).lower().startswith("e")
+
     parts = []
     positions = [(m.group(0).strip(), m.start()) for m in DAY_HEAD_RE.finditer(schedule_text)]
     for i, (title, start) in enumerate(positions):
@@ -1156,11 +1235,18 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
         parts.append((title, schedule_text[start:end]))
 
     if not parts:
-        line_bot_api.reply_message(reply_token, TextSendMessage(text="日程表の生成に失敗しました。条件を変えて再試行してください。"))
+        msg = (
+            "日程表の生成に失敗しました。条件を変えて再試行してください。"
+            if not is_en else
+            "Failed to generate the itinerary. Please change the conditions and try again."
+        )
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
         return
 
     for day_title, day_body in parts:
-        line_bot_api.push_message(uid, TextSendMessage(text=f"📅 {day_title}"))
+        head = f"📅 {day_title}" if not is_en else f"📅 {day_title}"
+        line_bot_api.push_message(uid, TextSendMessage(text=head))
+
         items: List[Dict[str,str]] = []
         for block in _blocks_in_day(day_body):
             off = OFFICIAL_URL_RE.search(block)
@@ -1173,9 +1259,11 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
                 "official": off.group(1) if off else "",
                 "map": mp.group(1) if mp else ""
             })
-        # 3件ずつのFlexで送信
+
+        list_title = f"{day_title} の予定" if not is_en else f"{day_title} schedule"
         for trio in _chunk(items, 3):
-            line_bot_api.push_message(uid, _flex_list_bubble(f"{day_title} の予定", trio))
+            line_bot_api.push_message(uid, _flex_list_bubble(list_title, trio))
+
 
 # ====================== “他のプランを提案” メニュー ======================
 def _send_finish_menu(uid: str, lang: str):
@@ -1311,41 +1399,54 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
 
     if req == "ホテル":
         hotels_text = _call_openai_text(build_hotel3_prompt(answers), lang)
-        _send_hotels_three(uid, reply_token, hotels_text)
+        _send_hotels_three(uid, reply_token, hotels_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "飲食店":
         foods_text = _call_openai_text(build_food3_prompt(answers), lang)
-        _send_food_three(uid, reply_token, foods_text)
+        _send_food_three(uid, reply_token, foods_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "体験スポット":
         exp_text = _call_openai_text(build_experience3_prompt(answers), lang)
-        _send_experiences_three(uid, reply_token, exp_text)
+        _send_experiences_three(uid, reply_token, exp_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "観光地":
         sight_text = _call_openai_text(build_sightseeing3_prompt(answers), lang)
-        _send_sightseeing_three(uid, reply_token, sight_text)
+        _send_sightseeing_three(uid, reply_token, sight_text, lang)
         _send_finish_menu(uid, lang)
         return
 
     if req == "日程表":
         schedule = _call_openai_text(build_itinerary_prompt(answers), lang)
-        _send_itinerary(uid, reply_token, schedule)
+        _send_itinerary(uid, reply_token, schedule, lang)
         _send_finish_menu(uid, lang)
         return
 
-    line_bot_api.reply_message(reply_token, TextSendMessage(text="未対応のリクエストです。"))
+    # 想定外
+    msg = "未対応のリクエストです。" if not str(lang).lower().startswith("e") else "This request is not supported yet."
+    line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+
 
 # ====================== 位置情報（飲食店の現在地用） ======================
-def _ask_location(reply_token: str):
+def _ask_location(reply_token: str, lang: str):
+    is_en = str(lang).lower().startswith("e")
+    if not is_en:
+        text = "📍 現在地の近くで探します。『位置情報を送信』を押して、現在地を共有してください。"
+        label = "位置情報を送る"
+    else:
+        text = "📍 I'll search near your current location. Tap 'Send location' to share it."
+        label = "Send location"
+
     msg = TextSendMessage(
-        text="📍 現在地の近くで探します。『位置情報を送信』を押して、現在地を共有してください。",
-        quick_reply=QuickReply(items=[QuickReplyButton(action=LocationAction(label="位置情報を送る"))])
+        text=text,
+        quick_reply=QuickReply(items=[
+            QuickReplyButton(action=LocationAction(label=label))
+        ])
     )
     line_bot_api.reply_message(reply_token, msg)
 
@@ -1443,12 +1544,13 @@ def on_message(event: MessageEvent):
             _render_question(step, state)
         )
         return
-
     # 飲食店：エリア=現在地 → 位置情報が未取得なら要求
     if state["answers"].get("request") == "飲食店" and q_now["key"] == "area":
         if state.get("need_location") and not state.get("geo"):
-            _ask_location(event.reply_token)
+            lang = state["answers"].get("lang", "日本語")
+            _ask_location(event.reply_token, lang)
             return
+
 
     # 次の質問へ
     state["step"] = step + 1
@@ -1462,14 +1564,16 @@ def on_message(event: MessageEvent):
 
     # すべて回答済み → 提案
     answers = state["answers"].copy()
-    try:
+       try:
         send_plan_parts(event.reply_token, uid, answers)
     except Exception as e:
         app.logger.exception("OpenAI API error")
-        chunks = (
-            "サーバ側で一時的なエラーが発生しました。\n"
-            f"(debug: {type(e).__name__})"
-        )
+        lang = answers.get("lang", "日本語")
+        is_en = str(lang).lower().startswith("e")
+        if not is_en:
+            chunks = "サーバ側で一時的なエラーが発生しました。\n(debug: {0})".format(type(e).__name__)
+        else:
+            chunks = "A temporary server error occurred.\n(debug: {0})".format(type(e).__name__)
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=chunks))
         return
 
@@ -1481,6 +1585,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
