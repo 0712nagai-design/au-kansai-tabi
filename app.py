@@ -385,19 +385,26 @@ TRANSPORT_ITI_EN = {
 }
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    ユーザーの回答(answers)から、今有効な質問シーケンスを返す。
+    - 最初は lang (日本語 / English)
+    - 次に request (ホテル / 飲食店 / 体験スポット / 観光地 / 日程表)
+    - request によって後続の質問が変わる
+    - lang は 'ja' / 'en' に正規化して使う
+    """
     lang = _get_lang_code(answers)  # 'ja' or 'en'
 
-    # 言語選択（0問目）
-    seq: List[Dict[str, Any]] = [
-        {
-            "key": "lang",
-            "title": "言語を選んでください / Choose your language",
-            "choices": LANG_CHOICES,
-            "multi": False,
-        },
-    ]
+    seq: List[Dict[str, Any]] = []
 
-    # 1問目: 何を提案しますか？
+    # 0問目：言語選択
+    seq.append({
+        "key": "lang",
+        "title": "言語を選んでください / Choose your language",
+        "choices": LANG_CHOICES,   # {1: "日本語", 2: "English"}
+        "multi": False,
+    })
+
+    # 1問目：何を提案しますか？
     if lang == "en":
         req_title = "What would you like me to suggest?"
     else:
@@ -406,18 +413,19 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     seq.append({
         "key": "request",
         "title": req_title,
-        "choices": REQUESTS,   # 中身は日本語、表示は別で英語にしている
+        "choices": REQUESTS,   # {1: "ホテル", 2: "日程表", 3: "飲食店", 4: "体験スポット", 5: "観光地"}
         "multi": False,
     })
 
+    # 以降は request に応じて分岐
     req = answers.get("request")
 
-    # --- ホテル ---
+    # ===================== ホテル =====================
     if req == "ホテル":
-        prefs_choices   = PREFS_KANSAI_EN     if lang == "en" else PREFS_KANSAI
-        stay_choices    = STAY_PLAN_HOTEL_EN if lang == "en" else STAY_PLAN_HOTEL
-        people_choices  = PEOPLE_HOTEL_EN    if lang == "en" else PEOPLE_HOTEL
-        hotel_choices   = HOTELS            # ホテルタイプは中身日本語のままでもOK
+        prefs_choices   = PREFS_KANSAI_EN      if lang == "en" else PREFS_KANSAI
+        stay_choices    = STAY_PLAN_HOTEL_EN   if lang == "en" else STAY_PLAN_HOTEL
+        people_choices  = PEOPLE_HOTEL_EN      if lang == "en" else PEOPLE_HOTEL
+        hotel_choices   = HOTELS               # 中身は日本語だが表示は _render 側で行うならこのままでもOK
 
         title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
         title_stay   = "How many days & nights?"     if lang == "en" else "何泊何日ですか？"
@@ -432,14 +440,14 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         ]
         return seq
 
-    # --- 飲食店 ---
+    # ===================== 飲食店 =====================
     if req == "飲食店":
-        meal_choices   = MEAL_TIMES_EN   if lang == "en" else MEAL_TIMES
-        area_choices   = AREAS_FOOD_EN   if lang == "en" else AREAS_FOOD
-        people_choices = PEOPLE_FOOD_EN  if lang == "en" else PEOPLE_FOOD
-        comp_choices   = COMPANION_FOOD_EN if lang == "en" else COMPANION_FOOD
-        cui_choices    = CUISINES_EN     if lang == "en" else CUISINES
-        budget_choices = BUDGET_FOOD_EN  if lang == "en" else BUDGET_FOOD
+        meal_choices   = MEAL_TIMES_EN        if lang == "en" else MEAL_TIMES
+        area_choices   = AREAS_FOOD_EN        if lang == "en" else AREAS_FOOD
+        people_choices = PEOPLE_FOOD_EN       if lang == "en" else PEOPLE_FOOD
+        comp_choices   = COMPANION_FOOD_EN    if lang == "en" else COMPANION_FOOD
+        cui_choices    = CUISINES_EN          if lang == "en" else CUISINES
+        budget_choices = BUDGET_FOOD_EN       if lang == "en" else BUDGET_FOOD
 
         title_meal   = "Which meal?"                if lang == "en" else "食事のタイミングを選んでください。"
         title_area   = "Which area?"                if lang == "en" else "エリアを選んでください。"
@@ -458,12 +466,12 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         ]
         return seq
 
-    # --- 体験スポット ---
+    # ===================== 体験スポット =====================
     if req == "体験スポット":
-        pref_choices   = AREAS_EXP_EN     if lang == "en" else AREAS_EXP
-        people_choices = PEOPLE_EXP_EN    if lang == "en" else PEOPLE_EXP
-        comp_choices   = COMPANION_EXP_EN if lang == "en" else COMPANION_EXP
-        genre_choices  = EXP_GENRES_EN    if lang == "en" else EXP_GENRES
+        pref_choices   = AREAS_EXP_EN        if lang == "en" else AREAS_EXP
+        people_choices = PEOPLE_EXP_EN       if lang == "en" else PEOPLE_EXP
+        comp_choices   = COMPANION_EXP_EN    if lang == "en" else COMPANION_EXP
+        genre_choices  = EXP_GENRES_EN       if lang == "en" else EXP_GENRES
 
         title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
         title_genre  = "What type of experience?"    if lang == "en" else "体験ジャンルを選んでください。"
@@ -478,19 +486,19 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         ]
         return seq
 
-    # --- 観光地 ---
+    # ===================== 観光地 =====================
     if req == "観光地":
         pref_choices = AREAS_SIGHT_EN if lang == "en" else AREAS_SIGHT
         title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
 
         seq += [
-            {"key": "pref", "title": title_pref, "choices": pref_choices, "multi": False}
+            {"key": "pref", "title": title_pref, "choices": pref_choices, "multi": False},
         ]
         return seq
 
-    # --- 日程表 ---
+    # ===================== 日程表 =====================
     if req == "日程表":
-        prefs_choices   = PREFS_MULTI_EN      if lang == "en" else PREFS_MULTI
+        prefs_choices   = PREFS_KANSAI_EN     if lang == "en" else PREFS_MULTI
         stay_choices    = STAY_PLAN_ITI_EN    if lang == "en" else STAY_PLAN_ITI
         themes_choices  = THEMES_MULTI_EN     if lang == "en" else THEMES_MULTI
         trans_choices   = TRANSPORT_ITI_EN    if lang == "en" else TRANSPORT_ITI
@@ -529,6 +537,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         ]
         return seq
 
+    # request 未選択時は lang / request だけ返す
     return seq
 
 
@@ -1968,6 +1977,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
