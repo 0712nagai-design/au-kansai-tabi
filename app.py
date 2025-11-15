@@ -1309,13 +1309,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
 
     req = answers.get("request")
 
-
-    if req == "ホテル":
-        hotels_text = _call_openai_text(build_hotel3_prompt(answers))
-        _send_hotels_three(uid, reply_token, hotels_text)
-        _send_finish_menu(uid)
-        return
-
     if req == "ホテル":
         hotels_text = _call_openai_text(build_hotel3_prompt(answers), lang)
         _send_hotels_three(uid, reply_token, hotels_text)
@@ -1345,7 +1338,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         _send_itinerary(uid, reply_token, schedule)
         _send_finish_menu(uid, lang)
         return
-
 
     line_bot_api.reply_message(reply_token, TextSendMessage(text="未対応のリクエストです。"))
 
@@ -1489,6 +1481,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
