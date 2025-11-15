@@ -808,36 +808,41 @@ def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
 def _validate_and_store(uid: str, step: int, text: str) -> bool:
     state = users[uid]
     seq = _get_question_sequence(state.get("answers", {}))
-    q = seq[step]; key = q["key"]
-    state.setdefault("answers", {}); state.setdefault("multi_temp", {})
+    q = seq[step]
+    key = q["key"]
+    state.setdefault("answers", {})
+    state.setdefault("multi_temp", {})
 
-    # choicesあり
+    # choices あり（通常の選択肢）
     if q.get("choices"):
         n = _label_to_num(q["choices"], text)
         if n is not None:
             val = q["choices"][n]
             if q.get("multi"):
+                # 複数選択中
                 sel = state["multi_temp"].setdefault(key, [])
                 if val not in sel:
                     sel.append(val)
                 return True
             else:
+                # 単一選択
                 state["answers"][key] = val
+
+                # 飲食店エリア = 現在地から近く → 位置情報フラグ
                 if state["answers"].get("request") == "飲食店" and key == "area":
-                 if state["answers"].get("request") == "飲食店" and key == "area":
-    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
-        state["need_location"] = True
+                    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
+                        state["need_location"] = True
+                return True
 
-
-    # マルチ選択の確定
-    if q.get("multi") and text.strip() == "完了":
+    # マルチ選択の確定（「完了」/「Done」）
+    if q.get("multi") and text.strip() in {"完了", "Done"}:
         picked = state["multi_temp"].get(key, [])
         if not picked:
             return False
         state["answers"][key] = picked
         return True
 
-    # 日付
+    # 日付入力
     if key == "date":
         try:
             datetime.strptime(text.strip(), "%Y-%m-%d")
@@ -1915,7 +1920,7 @@ def on_message(event: MessageEvent):
     # 複数選択：『完了』を待つ。ただし「1,3,5」の一括指定は自動確定で次へ
     seq_now = _get_question_sequence(state.get("answers", {}))
     q_now = seq_now[step]
-    if q_now.get("multi") and text != "完了" and not state.pop("_autodone", False):
+   if q_now.get("multi") and text not in {"完了", "Done"} and not state.pop("_autodone", False):
         line_bot_api.reply_message(
             event.reply_token,
             _render_question(step, state)
@@ -1962,6 +1967,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
