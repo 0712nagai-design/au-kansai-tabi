@@ -1920,12 +1920,13 @@ def on_message(event: MessageEvent):
     # 複数選択：『完了』を待つ。ただし「1,3,5」の一括指定は自動確定で次へ
     seq_now = _get_question_sequence(state.get("answers", {}))
     q_now = seq_now[step]
-   if q_now.get("multi") and text not in {"完了", "Done"} and not state.pop("_autodone", False):
+    if q_now.get("multi") and text not in {"完了", "Done"} and not state.pop("_autodone", False):
         line_bot_api.reply_message(
             event.reply_token,
             _render_question(step, state)
         )
         return
+
     # 飲食店：エリア=現在地 → 位置情報が未取得なら要求
     if state["answers"].get("request") == "飲食店" and q_now["key"] == "area":
         if state.get("need_location") and not state.get("geo"):
