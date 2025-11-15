@@ -815,14 +815,16 @@ def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
     return None
 
 def _validate_and_store(uid: str, step: int, text: str) -> bool:
-    # --- 特別処理：言語選択を英語に強制認識 ---
-if text in {"English", "english", "EN", "2"}:
-    state["answers"]["lang"] = "English"
-    return True
+    state = users[uid]
 
-if text in {"日本語", "にほんご", "JP", "1"}:
-    state["answers"]["lang"] = "日本語"
-    return True
+    # --- 特別処理：言語選択を英語に強制認識 ---
+    if text in {"English", "english", "EN", "2"}:
+        state["answers"]["lang"] = "English"
+        return True
+
+    if text in {"日本語", "にほんご", "JP", "1"}:
+        state["answers"]["lang"] = "日本語"
+        return True
 
     state = users[uid]
     seq = _get_question_sequence(state.get("answers", {}))
@@ -1986,6 +1988,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
