@@ -1386,30 +1386,48 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-   # --- 他のプランメニューからのダイレクト分岐 ---
-if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
-    lang = LAST_LANG.get(uid, "日本語")
-    users[uid] = {
-        # lang と request は既に決まっているので、次の質問はインデックス2から
-        "step": 2,
-        "answers": {"lang": lang, "request": text},
-        "hist": deque(maxlen=MAX_TURNS),
-        "multi_temp": {}
-    }
-    line_bot_api.reply_message(event.reply_token, _render_question(2, users[uid]))
-    return
-
+    # --- 他のプランメニューからのダイレクト分岐 ---
+    if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
+        lang = LAST_LANG.get(uid, "日本語")
+        users[uid] = {
+            # lang と request は既に決まっているので、次の質問はインデックス2から
+            "step": 2,
+            "answers": {"lang": lang, "request": text},
+            "hist": deque(maxlen=MAX_TURNS),
+            "multi_temp": {}
+        }
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(2, users[uid])
+        )
+        return
 
     # 初期化
     if text in RESTART or text.lower() in RESTART:
-        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
-        line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
+        users[uid] = {
+            "step": 0,
+            "answers": {},
+            "hist": deque(maxlen=MAX_TURNS),
+            "multi_temp": {}
+        }
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(0, users[uid])
+        )
         return
 
     # セッション未作成 → 作成
     if uid not in users or not users[uid]:
-        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
-        line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
+        users[uid] = {
+            "step": 0,
+            "answers": {},
+            "hist": deque(maxlen=MAX_TURNS),
+            "multi_temp": {}
+        }
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(0, users[uid])
+        )
         return
 
     state = users[uid]
@@ -1418,14 +1436,20 @@ if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光
     # 入力の検証＆保存
     ok = _validate_and_store(uid, step, text)
     if not ok:
-        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(step, state)
+        )
         return
 
     # 複数選択：『完了』を待つ。ただし「1,3,5」の一括指定は自動確定で次へ
     seq_now = _get_question_sequence(state.get("answers", {}))
     q_now = seq_now[step]
     if q_now.get("multi") and text != "完了" and not state.pop("_autodone", False):
-        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(step, state)
+        )
         return
 
     # 飲食店：エリア=現在地 → 位置情報が未取得なら要求
@@ -1438,7 +1462,10 @@ if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光
     state["step"] = step + 1
     seq = _get_question_sequence(state.get("answers", {}))
     if state["step"] < len(seq):
-        line_bot_api.reply_message(event.reply_token, _render_question(state["step"], state))
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(state["step"], state)
+        )
         return
 
     # すべて回答済み → 提案
@@ -1447,51 +1474,22 @@ if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光
         send_plan_parts(event.reply_token, uid, answers)
     except Exception as e:
         app.logger.exception("OpenAI API error")
-        chunks = f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})"
+        chunks = (
+            "サーバ側で一時的なエラーが発生しました。\n"
+            f"(debug: {type(e).__name__})"
+        )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=chunks))
         return
 
     users.pop(uid, None)
 
-# 位置情報メッセージの受信（飲食店で現在地指定時）
-@handler.add(MessageEvent, message=LocationMessage)
-def on_location(event: MessageEvent):
-    uid = event.source.user_id
-    if uid not in users or not users[uid]:
-        users[uid] = {"step": 0, "answers": {}, "hist": deque(maxlen=MAX_TURNS), "multi_temp": {}}
-        line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
-        return
-
-    state = users[uid]
-    lat = event.message.latitude
-    lng = event.message.longitude
-    state["answers"]["geo"] = f"({lat:.6f},{lng:.6f})"
-    state["geo"] = (lat, lng)
-    state["need_location"] = False
-
-    # 次の質問へ
-    state["step"] = state.get("step", 0) + 1
-    seq = _get_question_sequence(state.get("answers", {}))
-    if state["step"] < len(seq):
-        line_bot_api.reply_message(event.reply_token, _render_question(state["step"], state))
-        return
-
-    # 全回答完了 → 提案
-    try:
-        send_plan_parts(event.reply_token, uid, state["answers"].copy())
-    except Exception as e:
-        app.logger.exception("OpenAI API error")
-        chunks = f"サーバ側で一時的なエラーが発生しました。\n(debug: {type(e).__name__})"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=chunks))
-        return
-
-    users.pop(uid, None)
 
 # ====================== ローカル実行 ======================
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
