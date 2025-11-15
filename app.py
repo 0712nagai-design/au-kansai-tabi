@@ -183,7 +183,17 @@ ACT_TITLE_RE    = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
 # ====================== 分岐質問 定義 ======================
 REQUESTS = {1: "ホテル", 2: "日程表", 3: "飲食店", 4: "体験スポット", 5: "観光地"}
+LANG_CHOICES = {1: "日本語", 2: "English"}
 
+def _get_lang_code(answers: Dict[str, Any]) -> str:
+    """
+    answers["lang"] から 'ja' / 'en' を返す。
+    未設定のときは 'ja'。
+    """
+    lang = answers.get("lang", "")
+    if str(lang).lower().startswith("e"):
+        return "en"
+    return "ja"
 PREFS_KANSAI = {1: "京都", 2: "大阪", 3: "奈良", 4: "兵庫", 5: "滋賀", 6: "和歌山"}
 
 # --- ホテル ---
@@ -218,61 +228,120 @@ ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"
 TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
-    # 最初の質問は「何を提案しますか？」のみ（言語選択は削除）
+    lang = _get_lang_code(answers)
+
+    # 言語選択（0問目）
     seq: List[Dict[str, Any]] = [
-        {"key": "request", "title": "何を提案しますか？", "choices": REQUESTS, "multi": False},
+        {
+            "key": "lang",
+            "title": "言語を選んでください / Choose your language",
+            "choices": LANG_CHOICES,
+            "multi": False,
+        },
     ]
+
+    # 1問目: 何を提案しますか？
+    if lang == "en":
+        req_title = "What would you like me to suggest?"
+    else:
+        req_title = "何を提案しますか？"
+
+    seq.append({
+        "key": "request",
+        "title": req_title,
+        "choices": REQUESTS,
+        "multi": False,
+    })
+
     req = answers.get("request")
 
     if req == "ホテル":
+        title_pref = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
+        title_stay = "How many days & nights?" if lang == "en" else "何泊何日ですか？"
+        title_people = "How many people?" if lang == "en" else "人数を選んでください。"
+        title_hotel = "What type of hotel?" if lang == "en" else "ホテルタイプを選んでください。"
+
         seq += [
-            {"key": "pref",      "title": "関西の都道府県を1つ選んでください。", "choices": PREFS_KANSAI, "multi": False},
-            {"key": "stay_plan", "title": "何泊何日ですか？",                   "choices": STAY_PLAN_HOTEL, "multi": False},
-            {"key": "people",    "title": "人数を選んでください。",             "choices": PEOPLE_HOTEL, "multi": False},
-            {"key": "hotel",     "title": "ホテルタイプを選んでください。",     "choices": HOTELS, "multi": False},
+            {"key": "pref",      "title": title_pref,   "choices": PREFS_KANSAI,    "multi": False},
+            {"key": "stay_plan", "title": title_stay,   "choices": STAY_PLAN_HOTEL, "multi": False},
+            {"key": "people",    "title": title_people, "choices": PEOPLE_HOTEL,    "multi": False},
+            {"key": "hotel",     "title": title_hotel,  "choices": HOTELS,          "multi": False},
         ]
         return seq
 
     if req == "飲食店":
+        title_meal = "Which meal?" if lang == "en" else "食事のタイミングを選んでください。"
+        title_area = "Which area?" if lang == "en" else "エリアを選んでください。"
+        title_people = "How many people?" if lang == "en" else "人数を選んでください。"
+        title_comp = "Who are you with?" if lang == "en" else "同行者を選んでください。"
+        title_cui = "What kind of food?" if lang == "en" else "食べたいジャンルを選んでください。"
+        title_budget = "What is your budget?" if lang == "en" else "ご予算を選んでください。"
+
         seq += [
-            {"key": "meal_time", "title": "食事のタイミングを選んでください。", "choices": MEAL_TIMES, "multi": False},
-            {"key": "area",      "title": "エリアを選んでください。",         "choices": AREAS_FOOD, "multi": False},
-            {"key": "people",    "title": "人数を選んでください。",           "choices": PEOPLE_FOOD, "multi": False},
-            {"key": "companion", "title": "同行者を選んでください。",         "choices": COMPANION_FOOD, "multi": False},
-            {"key": "cuisine",   "title": "食べたいジャンルを選んでください。", "choices": CUISINES, "multi": False},
-            {"key": "budget",    "title": "ご予算を選んでください。",         "choices": BUDGET_FOOD, "multi": False},
+            {"key": "meal_time", "title": title_meal,   "choices": MEAL_TIMES,   "multi": False},
+            {"key": "area",      "title": title_area,   "choices": AREAS_FOOD,   "multi": False},
+            {"key": "people",    "title": title_people, "choices": PEOPLE_FOOD,  "multi": False},
+            {"key": "companion", "title": title_comp,   "choices": COMPANION_FOOD, "multi": False},
+            {"key": "cuisine",   "title": title_cui,    "choices": CUISINES,     "multi": False},
+            {"key": "budget",    "title": title_budget, "choices": BUDGET_FOOD,  "multi": False},
         ]
         return seq
 
     if req == "体験スポット":
+        title_pref = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
+        title_genre = "What type of experience?" if lang == "en" else "体験ジャンルを選んでください。"
+        title_people = "How many people?" if lang == "en" else "人数を選んでください。"
+        title_comp = "Who are you with?" if lang == "en" else "同行者を選んでください。"
+
         seq += [
-            {"key": "pref",      "title": "関西の都道府県を1つ選んでください。", "choices": AREAS_EXP, "multi": False},
-            {"key": "exp_genre", "title": "体験ジャンルを選んでください。",     "choices": EXP_GENRES, "multi": False},
-            {"key": "people",    "title": "人数を選んでください。",             "choices": PEOPLE_EXP, "multi": False},
-            {"key": "companion", "title": "同行者を選んでください。",           "choices": COMPANION_EXP, "multi": False},
+            {"key": "pref",      "title": title_pref,   "choices": AREAS_EXP,    "multi": False},
+            {"key": "exp_genre", "title": title_genre,  "choices": EXP_GENRES,   "multi": False},
+            {"key": "people",    "title": title_people, "choices": PEOPLE_EXP,   "multi": False},
+            {"key": "companion", "title": title_comp,   "choices": COMPANION_EXP,"multi": False},
         ]
         return seq
 
     if req == "観光地":
+        title_pref = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
         seq += [
-            {"key": "pref", "title": "関西の都道府県を1つ選んでください。", "choices": AREAS_SIGHT, "multi": False}
+            {"key": "pref", "title": title_pref, "choices": AREAS_SIGHT, "multi": False}
         ]
         return seq
 
     if req == "日程表":
+        if lang == "en":
+            t_prefs   = "Select prefectures to visit (you can choose multiple: e.g. 1,3,6)."
+            t_date    = "Enter the departure date (e.g. 2025-03-20)."
+            t_stay    = "How many days & nights?"
+            t_themes  = "Select travel themes (you can choose multiple)."
+            t_trans   = "Main transportation?"
+            t_comp    = "Who are you traveling with?"
+            t_dept    = "When do you plan to depart?"
+            t_arrv    = "When do you plan to return?"
+        else:
+            t_prefs   = "訪問する都道府県を選んでください（複数選択可：例 1,3,6 で同時選択。タップの場合は『完了』）"
+            t_date    = "出発日を入力してください（例: 2025-03-20）"
+            t_stay    = "何泊何日ですか？"
+            t_themes  = "旅行のテーマを選んでください（複数選択可：例 1,4,5。タップの場合は『完了』）"
+            t_trans   = "主な交通手段を選んでください。"
+            t_comp    = "同行者を選んでください。"
+            t_dept    = "出発時間帯を選んでください。"
+            t_arrv    = "帰着時間帯を選んでください。"
+
         seq += [
-            {"key": "prefs",   "title": "訪問する都道府県を選んでください（複数選択可：例 1,3,6 で同時選択。タップの場合は『完了』）", "choices": PREFS_MULTI, "multi": True},
-            {"key": "date",    "title": "出発日を入力してください（例: 2025-03-20）", "choices": {}, "multi": False},
-            {"key": "stay",    "title": "何泊何日ですか？", "choices": STAY_PLAN_ITI, "multi": False},
-            {"key": "themes",  "title": "旅行のテーマを選んでください（複数選択可：例 1,4,5。タップの場合は『完了』）", "choices": THEMES_MULTI, "multi": True},
-            {"key": "transport","title":"主な交通手段を選んでください。", "choices": TRANSPORT_ITI, "multi": False},
-            {"key": "companion","title":"同行者を選んでください。", "choices": COMPANION_ITI, "multi": False},
-            {"key": "dept",    "title": "出発時間帯を選んでください。", "choices": DEPT_CHOICES, "multi": False},
-            {"key": "arrv",    "title": "帰着時間帯を選んでください。", "choices": ARRV_CHOICES, "multi": False},
+            {"key": "prefs",   "title": t_prefs,  "choices": PREFS_MULTI,   "multi": True},
+            {"key": "date",    "title": t_date,   "choices": {},            "multi": False},
+            {"key": "stay",    "title": t_stay,   "choices": STAY_PLAN_ITI, "multi": False},
+            {"key": "themes",  "title": t_themes, "choices": THEMES_MULTI,  "multi": True},
+            {"key": "transport","title":t_trans,  "choices": TRANSPORT_ITI, "multi": False},
+            {"key": "companion","title":t_comp,   "choices": COMPANION_ITI, "multi": False},
+            {"key": "dept",    "title": t_dept,   "choices": DEPT_CHOICES,  "multi": False},
+            {"key": "arrv",    "title": t_arrv,   "choices": ARRV_CHOICES,  "multi": False},
         ]
         return seq
 
     return seq
+
 
 # ========= Flex Question（見切れ対策・✅完了対応） =========
 def _flex_choice_button(label: str, out_text: str) -> dict:
@@ -302,36 +371,69 @@ def _flex_choice_button(label: str, out_text: str) -> dict:
         }]
     }
 
-def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]], show_done: bool) -> dict:
+def _flex_question_bubble(title: str, selected_line: str, pairs: List[List[dict]], show_done: bool, lang: str) -> dict:
     rows = []
     for row in pairs:
         if len(row) == 1:
-            row.append({"type":"filler"})
-        rows.append({"type":"box","layout":"horizontal","spacing":"14px","contents":row})
+            row.append({"type": "filler"})
+        rows.append({"type": "box", "layout": "horizontal", "spacing": "14px", "contents": row})
 
     footer_contents = []
     if show_done:
+        done_label = "✅ 完了" if lang == "ja" else "✅ Done"
         footer_contents.append({
-            "type":"box","layout":"vertical","cornerRadius":"12px","backgroundColor":"#22C55E","paddingAll":"14px",
-            "action":{"type":"message","label":"✅ 完了","text":"完了"},
-            "contents":[{"type":"text","text":"✅ 完了","weight":"bold","size":"20px","align":"center","color":"#FFFFFF"}]
+            "type": "box",
+            "layout": "vertical",
+            "cornerRadius": "12px",
+            "backgroundColor": "#22C55E",
+            "paddingAll": "14px",
+            "action": {"type": "message", "label": done_label, "text": "完了"},
+            "contents": [{
+                "type": "text",
+                "text": done_label,
+                "weight": "bold",
+                "size": "20px",
+                "align": "center",
+                "color": "#FFFFFF"
+            }]
         })
+
+    restart_label = "↪ 最初から" if lang == "ja" else "↪ Back to start"
     footer_contents.append({
-        "type":"text","text":"↪ 最初から","size":"14px","color":"#4F46E5","align":"center","margin":"8px",
-        "action":{"type":"message","label":"最初から","text":"最初から"}
+        "type": "text",
+        "text": restart_label,
+        "size": "14px",
+        "color": "#4F46E5",
+        "align": "center",
+        "margin": "8px",
+        "action": {"type": "message", "label": restart_label, "text": "最初から"}
     })
 
     return {
-        "type":"bubble","size":"mega",
-        "body":{"type":"box","layout":"vertical","spacing":"12px","paddingAll":"16px",
-            "contents":[
-                {"type":"text","text":title,"wrap":True,"size":"24px","weight":"bold"},
-                ({"type":"text","text":selected_line,"size":"14px","color":"#6B7280","wrap":True} if selected_line else {"type":"filler"}),
-                {"type":"separator"},
+        "type": "bubble",
+        "size": "mega",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "12px",
+            "paddingAll": "16px",
+            "contents": [
+                {"type": "text", "text": title, "wrap": True, "size": "24px", "weight": "bold"},
+                ({"type": "text", "text": selected_line, "size": "14px", "color": "#6B7280", "wrap": True}
+                 if selected_line else {"type": "filler"}),
+                {"type": "separator"},
                 *rows
-            ]},
-        "footer":{"type":"box","layout":"vertical","spacing":"6px","paddingAll":"12px","contents":footer_contents}
+            ]
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "6px",
+            "paddingAll": "12px",
+            "contents": footer_contents
+        }
     }
+
 REQUEST_IMAGE_URLS = {
     "ホテル":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
     "飲食店":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png",
@@ -339,15 +441,27 @@ REQUEST_IMAGE_URLS = {
     "観光地":     "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png",
 }
 
+REQUEST_LABELS_EN = {
+    "ホテル": "Hotels",
+    "飲食店": "Restaurants",
+    "体験スポット": "Experiences",
+    "観光地": "Sightseeing",
+    "日程表": "Itinerary",
+}
+
+
 def _render_question(idx: int, state: State):
-    seq = _get_question_sequence(state.get("answers", {}))
+    answers = state.get("answers", {})
+    lang = _get_lang_code(answers)  # 'ja' or 'en'
+
+    seq = _get_question_sequence(answers)
     q = seq[idx]
     title = q["title"]
 
-    # --- Q1「何を提案しますか？」だけ、画像付きの特別レイアウト ---
+    # --- Q1: request（画像付き） ---
     if q["key"] == "request":
 
-        def img_btn(label: str, url: str) -> dict:
+        def img_btn(display_label: str, send_text: str, url: str) -> dict:
             return {
                 "type": "box",
                 "layout": "vertical",
@@ -355,14 +469,14 @@ def _render_question(idx: int, state: State):
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
                 "height": "160px",
-                "action": {"type": "message", "label": label, "text": label},
+                "action": {"type": "message", "label": display_label, "text": send_text},
                 "contents": [
                     {
                         "type": "image",
                         "url": url,
                         "size": "full",
-                        "aspectRatio": "16:9",   # 小さめ横長
-                        "aspectMode": "fit"      # 見切れ防止
+                        "aspectRatio": "16:9",
+                        "aspectMode": "fit"
                     },
                     {
                         "type": "box",
@@ -371,7 +485,7 @@ def _render_question(idx: int, state: State):
                         "contents": [
                             {
                                 "type": "text",
-                                "text": label,
+                                "text": display_label,
                                 "weight": "bold",
                                 "size": "14px",
                                 "align": "center",
@@ -383,7 +497,7 @@ def _render_question(idx: int, state: State):
                 ]
             }
 
-        def txt_btn(label: str) -> dict:
+        def txt_btn(display_label: str, send_text: str) -> dict:
             return {
                 "type": "box",
                 "layout": "vertical",
@@ -392,11 +506,11 @@ def _render_question(idx: int, state: State):
                 "backgroundColor": "#EEF2F7",
                 "height": "120px",
                 "justifyContent": "center",
-                "action": {"type": "message", "label": label, "text": label},
+                "action": {"type": "message", "label": display_label, "text": send_text},
                 "contents": [
                     {
                         "type": "text",
-                        "text": label,
+                        "text": display_label,
                         "weight": "bold",
                         "size": "16px",
                         "align": "center",
@@ -406,35 +520,37 @@ def _render_question(idx: int, state: State):
                 ]
             }
 
-        # 1行目: ホテル / 飲食店
+        def label_req(v: str) -> str:
+            if lang == "en":
+                return REQUEST_LABELS_EN.get(v, v)
+            return v
+
         row1 = {
             "type": "box",
             "layout": "horizontal",
             "spacing": "12px",
             "contents": [
-                img_btn("ホテル", REQUEST_IMAGE_URLS["ホテル"]),
-                img_btn("飲食店", REQUEST_IMAGE_URLS["飲食店"])
+                img_btn(label_req("ホテル"), "ホテル", REQUEST_IMAGE_URLS["ホテル"]),
+                img_btn(label_req("飲食店"), "飲食店", REQUEST_IMAGE_URLS["飲食店"])
             ]
         }
 
-        # 2行目: 体験スポット / 観光地
         row2 = {
             "type": "box",
             "layout": "horizontal",
             "spacing": "12px",
             "contents": [
-                img_btn("体験スポット", REQUEST_IMAGE_URLS["体験スポット"]),
-                img_btn("観光地", REQUEST_IMAGE_URLS["観光地"])
+                img_btn(label_req("体験スポット"), "体験スポット", REQUEST_IMAGE_URLS["体験スポット"]),
+                img_btn(label_req("観光地"), "観光地", REQUEST_IMAGE_URLS["観光地"])
             ]
         }
 
-        # 3行目: 日程表（テキスト）＋空白
         row3 = {
             "type": "box",
             "layout": "horizontal",
             "spacing": "12px",
             "contents": [
-                txt_btn("日程表"),
+                txt_btn(label_req("日程表"), "日程表"),
                 {"type": "filler"}
             ]
         }
@@ -450,7 +566,7 @@ def _render_question(idx: int, state: State):
                 "contents": [
                     {
                         "type": "text",
-                        "text": title,  # 「何を提案しますか？」
+                        "text": title,
                         "size": "24px",
                         "weight": "bold",
                         "wrap": True
@@ -466,16 +582,20 @@ def _render_question(idx: int, state: State):
         return FlexSendMessage(alt_text=title, contents=bubble)
 
     # =========================
-    # 2問目以降はボタンUI
+    # それ以外の質問（従来のボタンUI）
     # =========================
     selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
-    selected_line = (
-        f"(選択中：{'、'.join(selected) if selected else 'なし'})"
-        if q.get("multi") else ""
-    )
+    if q.get("multi"):
+        if lang == "en":
+            selected_line = f"(Selected: {', '.join(selected) if selected else 'none'})"
+        else:
+            selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})"
+    else:
+        selected_line = ""
 
     pairs, row = [], []
     for n, label in q.get("choices", {}).items():
+        # 表示ラベルはそのまま（日本語）、押したときは番号を送る
         btn = _flex_choice_button(label, str(n))
         row.append(btn)
         if len(row) == 2:
@@ -484,8 +604,9 @@ def _render_question(idx: int, state: State):
     if row:
         pairs.append(row)
 
-    bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False))
+    bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False), lang)
     return FlexSendMessage(alt_text=title, contents=bubble)
+
 
     
 def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
@@ -555,7 +676,7 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
     return False
 
 # ====================== OpenAI呼び出し ======================
-SYSTEM_PROMPT = (
+SYSTEM_PROMPT_BASE = (
     "You are AI Travel Navi Kansai.\n"
     "URLは生URL（Markdownリンク禁止）。画像URLは出さない。\n"
     "架空の施設名・店舗名・ホテル名などを新たに作らないこと。\n"
@@ -563,11 +684,21 @@ SYSTEM_PROMPT = (
     "条件に合う実在の候補が3件見つからない場合は、無理に埋めず、見つからない旨をはっきり書いてください。\n"
 )
 
-def _call_openai_text(user_prompt: str) -> str:
+
+def _call_openai_text(user_prompt: str, lang: str = "日本語") -> str:
+    # lang: "日本語" or "English"
+    if str(lang).lower().startswith("e"):
+        sys_prompt = SYSTEM_PROMPT_BASE + "All responses must be written in natural English.\n"
+    else:
+        sys_prompt = SYSTEM_PROMPT_BASE + "すべての回答は自然な日本語で出力してください。\n"
+
     res = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.6,
-        messages=[{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":user_prompt}],
+        messages=[
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
     )
     return (res.choices[0].message.content or "").strip()
 
@@ -1047,9 +1178,10 @@ def _send_itinerary(uid: str, reply_token: str, schedule_text: str):
             line_bot_api.push_message(uid, _flex_list_bubble(f"{day_title} の予定", trio))
 
 # ====================== “他のプランを提案” メニュー ======================
-def _send_finish_menu(uid: str):
-    # 画像付きボタン（横2個並べる用。画像小さめ）
-    def _img_btn(label: str, text: str, url: str) -> dict:
+def _send_finish_menu(uid: str, lang: str):
+    is_en = str(lang).lower().startswith("e")
+
+    def _img_btn(label_display: str, text_send: str, url: str) -> dict:
         return {
             "type": "box",
             "layout": "vertical",
@@ -1057,14 +1189,14 @@ def _send_finish_menu(uid: str):
             "cornerRadius": "16px",
             "backgroundColor": "#FFFFFF",
             "height": "160px",
-            "action": {"type": "message", "label": label, "text": text},
+            "action": {"type": "message", "label": label_display, "text": text_send},
             "contents": [
                 {
                     "type": "image",
                     "url": url,
                     "size": "full",
-                    "aspectRatio": "16:9",   # 横長＆小さめ
-                    "aspectMode": "fit"      # 見切れ防止
+                    "aspectRatio": "16:9",
+                    "aspectMode": "fit"
                 },
                 {
                     "type": "box",
@@ -1073,7 +1205,7 @@ def _send_finish_menu(uid: str):
                     "contents": [
                         {
                             "type": "text",
-                            "text": label,
+                            "text": label_display,
                             "weight": "bold",
                             "size": "14px",
                             "align": "center",
@@ -1084,8 +1216,7 @@ def _send_finish_menu(uid: str):
             ]
         }
 
-    # テキストだけのボタン（高さを画像ボタンに合わせる）
-    def _txt_btn(label: str, text: str) -> dict:
+    def _txt_btn(label_display: str, text_send: str) -> dict:
         return {
             "type": "box",
             "layout": "vertical",
@@ -1094,11 +1225,11 @@ def _send_finish_menu(uid: str):
             "backgroundColor": "#EEF2F7",
             "height": "120px",
             "justifyContent": "center",
-            "action": {"type": "message", "label": label, "text": text},
+            "action": {"type": "message", "label": label_display, "text": text_send},
             "contents": [
                 {
                     "type": "text",
-                    "text": label,
+                    "text": label_display,
                     "weight": "bold",
                     "size": "16px",
                     "align": "center",
@@ -1108,15 +1239,21 @@ def _send_finish_menu(uid: str):
             ]
         }
 
-    # 2列レイアウト（横並び2個ずつ）
+    def t_req(v: str) -> str:
+        if is_en:
+            return REQUEST_LABELS_EN.get(v, v)
+        return v
+
+    title_text = "他のプランを提案" if not is_en else "See other suggestions"
+
     row1 = {
         "type": "box",
         "layout": "horizontal",
         "spacing": "12px",
         "contents": [
-            _img_btn("ホテル", "ホテル",
+            _img_btn(t_req("ホテル"), "ホテル",
                      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png"),
-            _txt_btn("日程表", "日程表"),
+            _txt_btn(t_req("日程表"), "日程表"),
         ]
     }
 
@@ -1125,21 +1262,23 @@ def _send_finish_menu(uid: str):
         "layout": "horizontal",
         "spacing": "12px",
         "contents": [
-            _img_btn("飲食店", "飲食店",
+            _img_btn(t_req("飲食店"), "飲食店",
                      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E9%A3%B2%E9%A3%9F%E5%BA%97.png"),
-            _img_btn("体験スポット", "体験スポット",
+            _img_btn(t_req("体験スポット"), "体験スポット",
                      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E4%BD%93%E9%A8%93.png"),
         ]
     }
+
+    start_label = "最初から" if not is_en else "Back to start"
 
     row3 = {
         "type": "box",
         "layout": "horizontal",
         "spacing": "12px",
         "contents": [
-            _img_btn("観光地", "観光地",
+            _img_btn(t_req("観光地"), "観光地",
                      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png"),
-            _txt_btn("最初から", "最初から"),
+            _txt_btn(start_label, "最初から"),
         ]
     }
 
@@ -1152,35 +1291,24 @@ def _send_finish_menu(uid: str):
             "spacing": "16px",
             "paddingAll": "16px",
             "contents": [
-                {
-                    "type": "text",
-                    "text": "他のプランを提案",
-                    "size": "24px",
-                    "weight": "bold"
-                },
+                {"type": "text", "text": title_text, "size": "24px", "weight": "bold"},
                 {"type": "separator"},
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "spacing": "12px",
-                    "contents": [row1, row2, row3]
-                }
+                {"type": "box", "layout": "vertical", "spacing": "12px", "contents": [row1, row2, row3]},
             ]
         }
     }
 
-    line_bot_api.push_message(
-        uid,
-        FlexSendMessage(alt_text="他のプランを提案", contents=bubble)
-    )
+    line_bot_api.push_message(uid, FlexSendMessage(alt_text=title_text, contents=bubble))
 
 
 
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # 直近言語を保存（他のプラン分岐で使う）※今は常にja運用だが形だけ保持
-    LAST_LANG[uid] = answers.get("lang", LAST_LANG.get(uid, "ja"))
+    # 言語を取得＆保存
+    lang = answers.get("lang", LAST_LANG.get(uid, "日本語"))
+    LAST_LANG[uid] = lang
 
     req = answers.get("request")
+
 
     if req == "ホテル":
         hotels_text = _call_openai_text(build_hotel3_prompt(answers))
@@ -1188,29 +1316,36 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         _send_finish_menu(uid)
         return
 
+    if req == "ホテル":
+        hotels_text = _call_openai_text(build_hotel3_prompt(answers), lang)
+        _send_hotels_three(uid, reply_token, hotels_text)
+        _send_finish_menu(uid, lang)
+        return
+
     if req == "飲食店":
-        foods_text = _call_openai_text(build_food3_prompt(answers))
+        foods_text = _call_openai_text(build_food3_prompt(answers), lang)
         _send_food_three(uid, reply_token, foods_text)
-        _send_finish_menu(uid)
+        _send_finish_menu(uid, lang)
         return
 
     if req == "体験スポット":
-        exp_text = _call_openai_text(build_experience3_prompt(answers))
+        exp_text = _call_openai_text(build_experience3_prompt(answers), lang)
         _send_experiences_three(uid, reply_token, exp_text)
-        _send_finish_menu(uid)
+        _send_finish_menu(uid, lang)
         return
 
     if req == "観光地":
-        sight_text = _call_openai_text(build_sightseeing3_prompt(answers))
+        sight_text = _call_openai_text(build_sightseeing3_prompt(answers), lang)
         _send_sightseeing_three(uid, reply_token, sight_text)
-        _send_finish_menu(uid)
+        _send_finish_menu(uid, lang)
         return
 
     if req == "日程表":
-        schedule = _call_openai_text(build_itinerary_prompt(answers))
+        schedule = _call_openai_text(build_itinerary_prompt(answers), lang)
         _send_itinerary(uid, reply_token, schedule)
-        _send_finish_menu(uid)
+        _send_finish_menu(uid, lang)
         return
+
 
     line_bot_api.reply_message(reply_token, TextSendMessage(text="未対応のリクエストです。"))
 
@@ -1251,17 +1386,19 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-    # --- 他のプランメニューからのダイレクト分岐 ---
-    if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
-        users[uid] = {
-            # 言語質問を削除したので、request の次の質問はインデックス 1
-            "step": 1,
-            "answers": {"lang": LAST_LANG.get(uid, "ja"), "request": text},
-            "hist": deque(maxlen=MAX_TURNS),
-            "multi_temp": {}
-        }
-        line_bot_api.reply_message(event.reply_token, _render_question(1, users[uid]))
-        return
+   # --- 他のプランメニューからのダイレクト分岐 ---
+if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
+    lang = LAST_LANG.get(uid, "日本語")
+    users[uid] = {
+        # lang と request は既に決まっているので、次の質問はインデックス2から
+        "step": 2,
+        "answers": {"lang": lang, "request": text},
+        "hist": deque(maxlen=MAX_TURNS),
+        "multi_temp": {}
+    }
+    line_bot_api.reply_message(event.reply_token, _render_question(2, users[uid]))
+    return
+
 
     # 初期化
     if text in RESTART or text.lower() in RESTART:
@@ -1355,6 +1492,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
