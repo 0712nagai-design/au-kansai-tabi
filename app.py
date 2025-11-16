@@ -1123,6 +1123,7 @@ Short description: 1-line summary (location / rooms / bath / breakfast / family-
 📍 Googleマップ：https://...
 """.strip()
 
+
 def _parse_hotel_block(block: str):
     name = desc = price = ""
     area = ""
@@ -1152,6 +1153,7 @@ def _parse_hotel_block(block: str):
         "official": off,
         "map": mp
     }
+
 
 def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
     is_en = str(lang).lower().startswith("e")
@@ -1187,14 +1189,15 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
                 lines.append(f"💰 Price range: {info['price']}")
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-    items.append({
-        "title": info["name"],
-        "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
-        "official": info.get("official") or "",
-        "map": info.get("map") or "",
-        # ★ ホテル用の画像
-        "image": REQUEST_IMAGE_URLS.get("ホテル")
-    })
+
+        items.append({
+            "title": info["name"],
+            "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            # ★ ホテル用の画像
+            "image": REQUEST_IMAGE_URLS.get("ホテル")
+        })
 
     list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
     if items:
@@ -1280,14 +1283,17 @@ def _parse_food_block(block: str) -> Dict[str, Optional[str]]:
     if lines:
         name = re.sub(r"^\s*[🍽\d\.\)\）\s]*", "", lines[0])
     mshort = re.search(r"^(?:短評|特徴)[:：]\s*(.+)$", block, re.M)
-    mprice = PRICE_RE.search(block); mhours = HOURS_RE.search(block)
-    moff   = OFFICIAL_URL_RE.search(block); mmap = MAP_URL_RE.search(block)
+    mprice = PRICE_RE.search(block)
+    mhours = HOURS_RE.search(block)
+    moff   = OFFICIAL_URL_RE.search(block)
+    mmap   = MAP_URL_RE.search(block)
     if mshort: short = mshort.group(1).strip()
     if mprice: price = mprice.group(1).strip()
     if mhours: hours = mhours.group(1).strip()
     if moff:   off   = moff.group(1)
     if mmap:   mp    = mmap.group(1)
     return {"name": name or "飲食店", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
+
 
 def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
     is_en = str(lang).lower().startswith("e")
@@ -1324,18 +1330,18 @@ def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-           items.append({
-        "title": info["name"],
-        "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
-        "official": info.get("official") or "",
-        "map": info.get("map") or "",
-        # ★ 飲食店用の画像
-        "image": REQUEST_IMAGE_URLS.get("飲食店")
-    })
+        items.append({
+            "title": info["name"],
+            "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            # ★ 飲食店用の画像
+            "image": REQUEST_IMAGE_URLS.get("飲食店")
+        })
+
     list_title = "🍽 お店候補（3件）" if not is_en else "🍽 Restaurant options (3)"
     if items:
         line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
-
 
 
 # ====================== 体験スポット：3件提案 ======================
@@ -1412,15 +1418,27 @@ def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
     if lines:
         name = re.sub(r"^\s*[🎯\d\.\)\）\s]*", "", lines[0])
     mshort = re.search(r"^(?:短評|特徴)[:：]\s*(.+)$", block, re.M)
-    mprice = PRICE_RE.search(block); mhours = HOURS_RE.search(block); mdura = DURA_RE.search(block)
-    moff   = OFFICIAL_URL_RE.search(block); mmap = MAP_URL_RE.search(block)
+    mprice = PRICE_RE.search(block)
+    mhours = HOURS_RE.search(block)
+    mdura = DURA_RE.search(block)
+    moff   = OFFICIAL_URL_RE.search(block)
+    mmap   = MAP_URL_RE.search(block)
     if mshort: short = mshort.group(1).strip()
     if mprice: price = mprice.group(1).strip()
     if mhours: hours = mhours.group(1).strip()
     if mdura:  dura  = mdura.group(1).strip()
     if moff:   off   = moff.group(1)
     if mmap:   mp    = mmap.group(1)
-    return {"name": name or "体験スポット", "short": short, "price": price, "hours": hours, "dura": dura, "official": off, "map": mp}
+    return {
+        "name": name or "体験スポット",
+        "short": short,
+        "price": price,
+        "hours": hours,
+        "dura": dura,
+        "official": off,
+        "map": mp
+    }
+
 
 def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
     is_en = str(lang).lower().startswith("e")
@@ -1461,15 +1479,20 @@ def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-           sub = info.get("short") or (f"Duration: {info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
-    items.append({
-        "title": info["name"],
-        "subtitle": sub[:60],
-        "official": info.get("official") or "",
-        "map": info.get("map") or "",
-        # ★ 体験スポット用の画像
-        "image": REQUEST_IMAGE_URLS.get("体験スポット")
-    })
+        sub = (
+            info.get("short")
+            or (f"Duration: {info.get('dura','')}" if info.get("dura") else info.get("hours"))
+            or " "
+        )
+
+        items.append({
+            "title": info["name"],
+            "subtitle": sub[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            # ★ 体験スポット用の画像
+            "image": REQUEST_IMAGE_URLS.get("体験スポット")
+        })
 
     list_title = "🎯 体験スポット（3件）" if not is_en else "🎯 Experiences (3)"
     if items:
@@ -1540,6 +1563,7 @@ Short comment: 1-line summary (highlights / history / typical required time)
 📍 Googleマップ：https://...
 """.strip()
 
+
 def _parse_sightseeing_block(block: str) -> Dict[str, Optional[str]]:
     lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
     name = short = price = hours = ""
@@ -1547,14 +1571,24 @@ def _parse_sightseeing_block(block: str) -> Dict[str, Optional[str]]:
     if lines:
         name = re.sub(r"^\s*[🏯\d\.\)\）\s]*", "", lines[0])
     mshort = re.search(r"^(?:短評|特徴)[:：]\s*(.+)$", block, re.M)
-    mprice = PRICE_RE.search(block); mhours = HOURS_RE.search(block)
-    moff   = OFFICIAL_URL_RE.search(block); mmap = MAP_URL_RE.search(block)
+    mprice = PRICE_RE.search(block)
+    mhours = HOURS_RE.search(block)
+    moff   = OFFICIAL_URL_RE.search(block)
+    mmap   = MAP_URL_RE.search(block)
     if mshort: short = mshort.group(1).strip()
     if mprice: price = mprice.group(1).strip()
     if mhours: hours = mhours.group(1).strip()
     if moff:   off   = moff.group(1)
     if mmap:   mp    = mmap.group(1)
-    return {"name": name or "観光地", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
+    return {
+        "name": name or "観光地",
+        "short": short,
+        "price": price,
+        "hours": hours,
+        "official": off,
+        "map": mp
+    }
+
 
 def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
     is_en = str(lang).lower().startswith("e")
@@ -1591,19 +1625,22 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-        sub = info.get("short") or (f"Hours: {info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
-            sub = info.get("short") or (f"Hours: {info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
-    items.append({
-        "title": info["name"],
-        "subtitle": sub[:60],
-        "official": info.get("official") or "",
-        "map": info.get("map") or "",
-        # ★ 観光地用の画像
-        "image": REQUEST_IMAGE_URLS.get("観光地")
-    })
+        sub = (
+            info.get("short")
+            or (f"Hours: {info.get('hours','')}" if info.get("hours") else info.get("price"))
+            or " "
+        )
 
+        items.append({
+            "title": info["name"],
+            "subtitle": sub[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            # ★ 観光地用の画像
+            "image": REQUEST_IMAGE_URLS.get("観光地")
+        })
 
-       list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
+    list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
     if items:
         line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
 
@@ -2077,6 +2114,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
