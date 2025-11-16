@@ -2080,7 +2080,6 @@ def on_message(event: MessageEvent):
             _ask_location(event.reply_token, lang)
             return
 
-
     # 次の質問へ
     state["step"] = step + 1
     seq = _get_question_sequence(state.get("answers", {}))
@@ -2092,7 +2091,6 @@ def on_message(event: MessageEvent):
         return
 
     # すべて回答済み → 提案
-       # すべて回答済み → 提案
     answers = state["answers"].copy()
     try:
         send_plan_parts(event.reply_token, uid, answers)
@@ -2109,11 +2107,76 @@ def on_message(event: MessageEvent):
 
     users.pop(uid, None)
 
+
+@handler.add(MessageEvent, message=LocationMessage)
+def on_location(event: MessageEvent):
+    uid = event.source.user_id
+
+    # セッションがない場合（いきなり位置情報だけ送られたとき）
+    if uid not in users or not users[uid]:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="はじめに「スタート」と送って、プラン作成を始めてください。")
+        )
+        return
+
+    state = users[uid]
+
+    # 位置情報を保存（answers にも入れるのがポイント）
+    geo = {
+        "lat": event.message.latitude,
+        "lng": event.message.longitude,
+        "address": event.message.address,
+    }
+    state["geo"] = geo
+    state.setdefault("answers", {})["geo"] = geo
+    state.pop("need_location", None)  # フラグ解除
+
+    # 飲食店以外なら、とりあえず受領メッセージだけ返して終了
+    if state["answers"].get("request") != "飲食店":
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="位置情報を受け取りました。")
+        )
+        return
+
+    # ここから「エリア=現在地から近く」を選んだ続きに進める
+    step = state.get("step", 0)
+    state["step"] = step + 1  # 次の質問へ
+
+    seq = _get_question_sequence(state.get("answers", {}))
+    if state["step"] < len(seq):
+        # まだ質問が残っている → 次の質問を出す（人数/同行者/ジャンル/予算など）
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(state["step"], state)
+        )
+        return
+
+    # すべて回答済み → プラン生成（飲食店3件）
+    answers = state["answers"].copy()
+    try:
+        send_plan_parts(event.reply_token, uid, answers)
+    except Exception as e:
+        app.logger.exception("OpenAI API error (location flow)")
+        lang = answers.get("lang", "日本語")
+        is_en = str(lang).lower().startswith("e")
+        if not is_en:
+            msg = "サーバ側で一時的なエラーが発生しました。\n(debug: {0})".format(type(e).__name__)
+        else:
+            msg = "A temporary server error occurred.\n(debug: {0})".format(type(e).__name__)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+        return
+
+    # セッション終了
+    users.pop(uid, None)
+
 # ====================== ローカル実行 ======================
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
