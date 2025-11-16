@@ -16,6 +16,13 @@ from linebot.models import (
     TemplateSendMessage, ButtonsTemplate, URITemplateAction,
     QuickReply, QuickReplyButton, LocationAction, FlexSendMessage
 )
+from linebot.models import (
+    MessageEvent, TextMessage, LocationMessage,
+    TextSendMessage,
+    TemplateSendMessage, ButtonsTemplate, URITemplateAction,
+    QuickReply, QuickReplyButton, LocationAction, FlexSendMessage,
+    CarouselTemplate, CarouselColumn,   # ★ 追加
+)
 
 # OpenAI v1
 from openai import OpenAI
@@ -989,6 +996,76 @@ def _flex_list_bubble(header_title: str, items: List[Dict[str, str]]) -> FlexSen
         }
     }
     return FlexSendMessage(alt_text=header_title, contents=bubble)
+def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> TemplateSendMessage:
+    """
+    items: {
+      "title": str,
+      "subtitle": str,
+      "official": str,  # 公式サイトURL or 予約サイトURL
+      "map": str,       # GoogleマップURL or 緯度経度 or 検索ワード
+      "image": str,     # サムネイル画像URL（任意）
+    } の配列を想定
+    """
+    columns = []
+
+    for it in items[:10]:  # カルーセルは最大10列
+        title = (it.get("title") or "")[:40] or "No title"
+        text = (it.get("subtitle") or " ")[:60]
+
+        # ---------- 画像 ----------
+        img = it.get("image") or ""
+        # URLっぽくなければデフォ画像に差し替え
+        if not img or not img.startswith("http"):
+            # 共通のプレースホルダー（お好みで差し替えOK）
+            img = "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png"
+
+        # ---------- ボタン ----------
+        actions = []
+
+        # 公式サイト
+        if it.get("official"):
+            official_url = _clean_url(it["official"])
+            if official_url and official_url.startswith("http"):
+                actions.append(
+                    URITemplateAction(
+                        label="公式サイト",
+                        uri=official_url,
+                    )
+                )
+
+        # Googleマップ
+        if it.get("map"):
+            map_url = _normalize_map_url(it["map"], fallback_query=it.get("title", ""))
+            if map_url and map_url.startswith("http"):
+                actions.append(
+                    URITemplateAction(
+                        label="Googleマップ",
+                        uri=map_url,
+                    )
+                )
+
+        # どちらも無いときは検索にフォールバック
+        if not actions:
+            actions.append(
+                URITemplateAction(
+                    label="検索",
+                    uri=f"https://www.google.com/search?q={quote(it.get('title',''))}"
+                )
+            )
+
+        columns.append(
+            CarouselColumn(
+                thumbnail_image_url=img,
+                title=title,
+                text=text,
+                actions=actions[:3],  # 3個まで
+            )
+        )
+
+    return TemplateSendMessage(
+        alt_text=header_title,
+        template=CarouselTemplate(columns=columns)
+    )
 
 # ====================== ホテル：3件提案 ======================
 def build_hotel3_prompt(answers: Dict[str, Any], lang: str) -> str:
@@ -1110,17 +1187,18 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
                 lines.append(f"💰 Price range: {info['price']}")
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
-
-        items.append({
-            "title": info["name"],
-            "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or ""
-        })
+    items.append({
+        "title": info["name"],
+        "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
+        "official": info.get("official") or "",
+        "map": info.get("map") or "",
+        # ★ ホテル用の画像
+        "image": REQUEST_IMAGE_URLS.get("ホテル")
+    })
 
     list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
+        line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
 
 
 # ====================== 飲食店：3件提案 ======================
@@ -1246,16 +1324,18 @@ def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-        items.append({
-            "title": info["name"],
-            "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or ""
-        })
-
+           items.append({
+        "title": info["name"],
+        "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
+        "official": info.get("official") or "",
+        "map": info.get("map") or "",
+        # ★ 飲食店用の画像
+        "image": REQUEST_IMAGE_URLS.get("飲食店")
+    })
     list_title = "🍽 お店候補（3件）" if not is_en else "🍽 Restaurant options (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
+        line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 
 # ====================== 体験スポット：3件提案 ======================
@@ -1381,17 +1461,20 @@ def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-        sub = info.get("short") or (f"Duration: {info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
-        items.append({
-            "title": info["name"],
-            "subtitle": sub[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or ""
-        })
+           sub = info.get("short") or (f"Duration: {info.get('dura','')}" if info.get("dura") else info.get("hours")) or " "
+    items.append({
+        "title": info["name"],
+        "subtitle": sub[:60],
+        "official": info.get("official") or "",
+        "map": info.get("map") or "",
+        # ★ 体験スポット用の画像
+        "image": REQUEST_IMAGE_URLS.get("体験スポット")
+    })
 
     list_title = "🎯 体験スポット（3件）" if not is_en else "🎯 Experiences (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
+        line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 # ====================== 観光地：3件提案 ======================
 def build_sightseeing3_prompt(answers: Dict[str, Any], lang: str) -> str:
@@ -1509,16 +1592,20 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
         sub = info.get("short") or (f"Hours: {info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
-        items.append({
-            "title": info["name"],
-            "subtitle": sub[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or ""
-        })
+            sub = info.get("short") or (f"Hours: {info.get('hours','')}" if info.get("hours") else info.get("price")) or " "
+    items.append({
+        "title": info["name"],
+        "subtitle": sub[:60],
+        "official": info.get("official") or "",
+        "map": info.get("map") or "",
+        # ★ 観光地用の画像
+        "image": REQUEST_IMAGE_URLS.get("観光地")
+    })
 
-    list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
+
+       list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
     if items:
-        line_bot_api.push_message(uid, _flex_list_bubble(list_title, items))
+        line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
 
 # ====================== 日程表 生成＆送信 ======================
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
@@ -1990,6 +2077,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
