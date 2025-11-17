@@ -795,53 +795,53 @@ def _render_question(idx: int, state: State):
 
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館）を画像ボタンにする ---
+       # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館）を画像ボタンにする ---
     if q["key"] == "hotel":
 
         def hotel_btn(label: str, num: int) -> dict:
-    # ラベルに対応する画像がなければ、共通のホテル画像にフォールバック
-    img_url = HOTEL_TYPE_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS.get("ホテル")
+            # ラベルに対応する画像がなければ、共通のホテル画像にフォールバック
+            img_url = HOTEL_TYPE_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS.get("ホテル")
 
-    return {
-        "type": "box",
-        "layout": "vertical",
-        "flex": 1,
-        "cornerRadius": "16px",
-        "backgroundColor": "#FFFFFF",
-        "height": "160px",
-        "action": {
-            "type": "message",
-            "label": label,
-            "text": str(num),
-        },
-        "contents": [
-            {
-                "type": "image",
-                "url": img_url,
-                "size": "full",
-                "aspectRatio": "16:9",
-                "aspectMode": "cover",
-            },
-            {
+            return {
                 "type": "box",
                 "layout": "vertical",
-                "paddingAll": "4px",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "160px",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    "text": str(num),
+                },
                 "contents": [
                     {
-                        "type": "text",
-                        "text": label,
-                        "weight": "bold",
-                        "size": "14px",
-                        "align": "center",
-                        "color": "#111111",
-                        "wrap": True,
-                    }
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "16:9",
+                        "aspectMode": "cover",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True,
+                            }
+                        ],
+                    },
                 ],
-            },
-        ],
-    }
+            }
 
-        # HOTELS = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館"}
+        # HOTELS = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館", 5: "こだわらない"}
         choices = q.get("choices", {})
         btns = [hotel_btn(label, num) for num, label in choices.items()]
 
@@ -889,6 +889,7 @@ def _render_question(idx: int, state: State):
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
+
 
     # =========================
     # それ以外の質問（従来のボタンUI）
@@ -2280,6 +2281,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
