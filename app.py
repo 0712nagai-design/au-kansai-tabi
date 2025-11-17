@@ -670,6 +670,14 @@ MEAL_TIME_IMAGE_URLS = {
     2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hiru.png",  # 昼
     3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/yoru.png",  # 夜
 }
+COMPANION_IMAGE_URLS = {
+    # 1: 一人, 2: カップル, 3: 友達, 4: 家族
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hitori.png",
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/capple.png",
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tomodati.png",
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/family.png",
+}
+
 def _render_question(idx: int, state: State):
     answers = state.get("answers", {})
     lang = _get_lang_code(answers)  # 'ja' or 'en'
@@ -885,6 +893,101 @@ def _render_question(idx: int, state: State):
                     {
                         "type": "text",
                         "text": title,
+                        "size": "24px",
+                        "weight": "bold",
+                        "wrap": True,
+                    },
+                    {"type": "separator"},
+                    *rows,
+                ],
+            },
+        }
+        return FlexSendMessage(alt_text=title, contents=bubble)
+　　    # --- 飲食店/体験スポット：同行者（ 一人 / カップル / 友達 / 家族 ）を画像ボタンにする ---
+   　 if q["key"] == "companion" and answers.get("request") in {"飲食店", "Restaurants", "体験スポット", "Experiences"}:
+
+        def companion_btn(num: int, label: str) -> dict:
+            # num = 1〜4 に応じて画像を決定。なければ飲食店共通画像にフォールバック
+            img_url = COMPANION_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
+
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "160px",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    # 押したときに「1」「2」「3」「4」などの数字を送る
+                    "text": str(num),
+                },
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "16:9",
+                        "aspectMode": "cover",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,  # 日本語なら「一人」、英語なら「Solo」など
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True,
+                            }
+                        ],
+                    },
+                ],
+            }
+
+        choices = q.get("choices", {})  # {1:"一人",2:"カップル",3:"友達",4:"家族"} or 英語版
+        btns = [companion_btn(num, label) for num, label in choices.items()]
+
+        # 2列×2行レイアウトに並べる
+        rows = []
+        row = []
+        for b in btns:
+            row.append(b)
+            if len(row) == 2:
+                rows.append({
+                    "type": "box",
+                    "layout": "horizontal",
+                    "spacing": "12px",
+                    "contents": row,
+                })
+                row = []
+        if row:
+            # 要素が奇数のときは filler で埋める（今回は4つなので実質保険）
+            row.append({"type": "filler"})
+            rows.append({
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "12px",
+                "contents": row,
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "16px",
+                "paddingAll": "16px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,  # 「同行者を選んでください」など
                         "size": "24px",
                         "weight": "bold",
                         "wrap": True,
@@ -2380,6 +2483,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
