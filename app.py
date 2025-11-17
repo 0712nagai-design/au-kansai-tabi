@@ -692,6 +692,14 @@ EXP_GENRE_IMAGE_URLS = {
     4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/monozukuri.png",  # モノづくり体験
     5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/syoku.png",    # グルメ・食体験
 }
+PREF_IMAGE_URLS = {
+    "京都": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kyoto.png",
+    "奈良": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/nara.png",
+    "兵庫": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hyogo.png",
+    "大阪": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/osaka.png",
+    "和歌山": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wakayama.png",
+    "滋賀": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/siga.png",
+}
 
 
 def _render_question(idx: int, state: State):
@@ -823,6 +831,102 @@ def _render_question(idx: int, state: State):
             }
         }
 
+        return FlexSendMessage(alt_text=title, contents=bubble)
+　　    # --- 都道府県選択（京都 / 奈良 / 兵庫 / 大阪 / 和歌山 / 滋賀）を画像ボタンにする ---
+    if q["key"] == "pref":
+
+        def pref_btn(num: int, label: str) -> dict:
+            # ラベルに対応する画像がなければ観光地の共通画像にフォールバック
+            img_url = PREF_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS.get("観光地")
+
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "160px",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    # 押したときは番号（1〜6）だけ返す
+                    "text": str(num),
+                },
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "16:9",
+                        "aspectMode": "cover",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True,
+                            }
+                        ],
+                    },
+                ],
+            }
+
+        # choices 例: {1:"京都",2:"大阪",3:"奈良",...}
+        choices = q.get("choices", {})
+        btns = [pref_btn(num, label) for num, label in choices.items()]
+
+        # 2列ずつ並べる（最大 2x3）
+        rows = []
+        row = []
+        for b in btns:
+            row.append(b)
+            if len(row) == 2:
+                rows.append({
+                    "type": "box",
+                    "layout": "horizontal",
+                    "spacing": "12px",
+                    "contents": row,
+                })
+                row = []
+        if row:
+            # 個数が奇数のとき右側を filler で埋める
+            row.append({"type": "filler"})
+            rows.append({
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "12px",
+                "contents": row,
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "16px",
+                "paddingAll": "16px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,
+                        "size": "24px",
+                        "weight": "bold",
+                        "wrap": True,
+                    },
+                    {"type": "separator"},
+                    *rows,
+                ],
+            },
+        }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
     # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館） ---
@@ -2675,6 +2779,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
