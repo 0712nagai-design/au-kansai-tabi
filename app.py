@@ -662,8 +662,14 @@ HOTEL_TYPE_IMAGE_URLS = {
     "こだわらない": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
 }
 
-
-
+# ★ 食事タイミング別の画像（番号で紐づける）
+# MEAL_TIMES   = {1: "朝", 2: "昼", 3: "夜"}
+# MEAL_TIMES_EN= {1: "Breakfast", 2: "Lunch", 3: "Dinner"}
+MEAL_TIME_IMAGE_URLS = {
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/asa.png",   # 朝
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hiru.png",  # 昼
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/yoru.png",  # 夜
+}
 def _render_question(idx: int, state: State):
     answers = state.get("answers", {})
     lang = _get_lang_code(answers)  # 'ja' or 'en'
@@ -795,7 +801,7 @@ def _render_question(idx: int, state: State):
 
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-       # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館）を画像ボタンにする ---
+    # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館）を画像ボタンにする ---
     if q["key"] == "hotel":
 
         def hotel_btn(label: str, num: int) -> dict:
@@ -890,6 +896,99 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
+    # --- 飲食店：食事タイミング（朝 / 昼 / 夜）を画像ボタンにする ---
+    if q["key"] == "meal_time":
+
+        def meal_btn(num: int, label: str) -> dict:
+            # 朝=1, 昼=2, 夜=3 の画像。なければ飲食店共通画像にフォールバック
+            img_url = MEAL_TIME_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
+
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "160px",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    "text": str(num),  # 「1」「2」「3」を送る
+                },
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "16:9",
+                        "aspectMode": "cover",
+                    },
+                    {
+                        "type": "box",
+                            "layout": "vertical",
+                            "paddingAll": "4px",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": label,  # 日本語なら「朝」、英語なら「Breakfast」
+                                    "weight": "bold",
+                                    "size": "14px",
+                                    "align": "center",
+                                    "color": "#111111",
+                                    "wrap": True,
+                                }
+                            ],
+                        },
+                    ],
+                }
+
+        choices = q.get("choices", {})  # {1: "朝", 2: "昼", 3: "夜"} or EN版
+        btns = [meal_btn(num, label) for num, label in choices.items()]
+
+        # 2列×2行（朝・昼 / 夜+filler）のレイアウト
+        rows = []
+        row = []
+        for b in btns:
+            row.append(b)
+            if len(row) == 2:
+                rows.append({
+                    "type": "box",
+                    "layout": "horizontal",
+                    "spacing": "12px",
+                    "contents": row,
+                })
+                row = []
+        if row:
+            row.append({"type": "filler"})
+            rows.append({
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "12px",
+                "contents": row,
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "16px",
+                "paddingAll": "16px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,  # 「食事のタイミングを選んでください。」など
+                        "size": "24px",
+                        "weight": "bold",
+                        "wrap": True,
+                    },
+                    {"type": "separator"},
+                    *rows,
+                ],
+            },
+        }
+        return FlexSendMessage(alt_text=title, contents=bubble)
 
     # =========================
     # それ以外の質問（従来のボタンUI）
@@ -2281,6 +2380,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
