@@ -903,12 +903,12 @@ def _render_question(idx: int, state: State):
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
-　　    # --- 飲食店/体験スポット：同行者（ 一人 / カップル / 友達 / 家族 ）を画像ボタンにする ---
-   　 if q["key"] == "companion" and answers.get("request") in {"飲食店", "Restaurants", "体験スポット", "Experiences"}:
 
-        def companion_btn(num: int, label: str) -> dict:
-            # num = 1〜4 に応じて画像を決定。なければ飲食店共通画像にフォールバック
-            img_url = COMPANION_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
+    # --- 飲食店：食事タイミング（朝 / 昼 / 夜）を画像ボタンにする ---
+    if q["key"] == "meal_time":
+
+        def meal_btn(num: int, label: str) -> dict:
+            img_url = MEAL_TIME_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
 
             return {
                 "type": "box",
@@ -920,7 +920,6 @@ def _render_question(idx: int, state: State):
                 "action": {
                     "type": "message",
                     "label": label,
-                    # 押したときに「1」「2」「3」「4」などの数字を送る
                     "text": str(num),
                 },
                 "contents": [
@@ -938,7 +937,7 @@ def _render_question(idx: int, state: State):
                         "contents": [
                             {
                                 "type": "text",
-                                "text": label,  # 日本語なら「一人」、英語なら「Solo」など
+                                "text": label,
                                 "weight": "bold",
                                 "size": "14px",
                                 "align": "center",
@@ -950,10 +949,9 @@ def _render_question(idx: int, state: State):
                 ],
             }
 
-        choices = q.get("choices", {})  # {1:"一人",2:"カップル",3:"友達",4:"家族"} or 英語版
-        btns = [companion_btn(num, label) for num, label in choices.items()]
+        choices = q.get("choices", {})  # {1:"朝",2:"昼",3:"夜"} or EN版
+        btns = [meal_btn(num, label) for num, label in choices.items()]
 
-        # 2列×2行レイアウトに並べる
         rows = []
         row = []
         for b in btns:
@@ -967,7 +965,6 @@ def _render_question(idx: int, state: State):
                 })
                 row = []
         if row:
-            # 要素が奇数のときは filler で埋める（今回は4つなので実質保険）
             row.append({"type": "filler"})
             rows.append({
                 "type": "box",
@@ -987,7 +984,7 @@ def _render_question(idx: int, state: State):
                 "contents": [
                     {
                         "type": "text",
-                        "text": title,  # 「同行者を選んでください」など
+                        "text": title,
                         "size": "24px",
                         "weight": "bold",
                         "wrap": True,
@@ -999,12 +996,11 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店：食事タイミング（朝 / 昼 / 夜）を画像ボタンにする ---
-    if q["key"] == "meal_time":
+    # --- 飲食店/体験スポット：同行者（画像ボタン） ---
+    if q["key"] == "companion" and answers.get("request") in {"飲食店", "Restaurants", "体験スポット", "Experiences"}:
 
-        def meal_btn(num: int, label: str) -> dict:
-            # 朝=1, 昼=2, 夜=3 の画像。なければ飲食店共通画像にフォールバック
-            img_url = MEAL_TIME_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
+        def companion_btn(num: int, label: str) -> dict:
+            img_url = COMPANION_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
 
             return {
                 "type": "box",
@@ -1016,7 +1012,7 @@ def _render_question(idx: int, state: State):
                 "action": {
                     "type": "message",
                     "label": label,
-                    "text": str(num),  # 「1」「2」「3」を送る
+                    "text": str(num),
                 },
                 "contents": [
                     {
@@ -1028,27 +1024,26 @@ def _render_question(idx: int, state: State):
                     },
                     {
                         "type": "box",
-                            "layout": "vertical",
-                            "paddingAll": "4px",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": label,  # 日本語なら「朝」、英語なら「Breakfast」
-                                    "weight": "bold",
-                                    "size": "14px",
-                                    "align": "center",
-                                    "color": "#111111",
-                                    "wrap": True,
-                                }
-                            ],
-                        },
-                    ],
-                }
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True,
+                            }
+                        ],
+                    },
+                ],
+            }
 
-        choices = q.get("choices", {})  # {1: "朝", 2: "昼", 3: "夜"} or EN版
-        btns = [meal_btn(num, label) for num, label in choices.items()]
+        choices = q.get("choices", {})  # {1:"一人",2:"カップル",3:"友達",4:"家族"} or EN版
+        btns = [companion_btn(num, label) for num, label in choices.items()]
 
-        # 2列×2行（朝・昼 / 夜+filler）のレイアウト
         rows = []
         row = []
         for b in btns:
@@ -1081,7 +1076,7 @@ def _render_question(idx: int, state: State):
                 "contents": [
                     {
                         "type": "text",
-                        "text": title,  # 「食事のタイミングを選んでください。」など
+                        "text": title,
                         "size": "24px",
                         "weight": "bold",
                         "wrap": True,
@@ -1107,7 +1102,6 @@ def _render_question(idx: int, state: State):
 
     pairs, row = [], []
     for n, label in q.get("choices", {}).items():
-        # 表示ラベルはそのまま（日本語）、押したときは番号を送る
         btn = _flex_choice_button(label, str(n))
         row.append(btn)
         if len(row) == 2:
@@ -2483,6 +2477,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
