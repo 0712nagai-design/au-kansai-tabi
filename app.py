@@ -818,11 +818,10 @@ def _render_question(idx: int, state: State):
 
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館）を画像ボタンにする ---
+    # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館） ---
     if q["key"] == "hotel":
 
         def hotel_btn(label: str, num: int) -> dict:
-            # ラベルに対応する画像がなければ、共通のホテル画像にフォールバック
             img_url = HOTEL_TYPE_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS.get("ホテル")
 
             return {
@@ -864,11 +863,9 @@ def _render_question(idx: int, state: State):
                 ],
             }
 
-        # HOTELS = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館", 5: "こだわらない"}
-        choices = q.get("choices", {})
+        choices = q.get("choices", {})  # {1:"高級",2:"中価格",3:"コスパ",4:"和風旅館",5:"こだわらない"}
         btns = [hotel_btn(label, num) for num, label in choices.items()]
 
-        # 2列×2行に並べる
         rows = []
         row = []
         for b in btns:
@@ -913,7 +910,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店：食事タイミング（朝 / 昼 / 夜）を画像ボタンにする ---
+    # --- 飲食店：食事タイミング（朝 / 昼 / 夜） ---
     if q["key"] == "meal_time":
 
         def meal_btn(num: int, label: str) -> dict:
@@ -958,7 +955,7 @@ def _render_question(idx: int, state: State):
                 ],
             }
 
-        choices = q.get("choices", {})  # {1:"朝",2:"昼",3:"夜"} or EN版
+        choices = q.get("choices", {})  # {1:"朝",2:"昼",3:"夜"} or EN
         btns = [meal_btn(num, label) for num, label in choices.items()]
 
         rows = []
@@ -1005,7 +1002,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店/体験スポット：同行者（画像ボタン） ---
+    # --- 飲食店/体験スポット：同行者 ---
     if q["key"] == "companion" and answers.get("request") in {"飲食店", "Restaurants", "体験スポット", "Experiences"}:
 
         def companion_btn(num: int, label: str) -> dict:
@@ -1050,7 +1047,7 @@ def _render_question(idx: int, state: State):
                 ],
             }
 
-        choices = q.get("choices", {})  # {1:"一人",2:"カップル",3:"友達",4:"家族"} or EN版
+        choices = q.get("choices", {})  # {1:"一人",2:"カップル",3:"友達",4:"家族"}
         btns = [companion_btn(num, label) for num, label in choices.items()]
 
         rows = []
@@ -1096,8 +1093,9 @@ def _render_question(idx: int, state: State):
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
-　　　    # --- 飲食店：食べたいジャンル（和食 / 洋食 / 中華 / ラーメン / カフェ・スイーツ / こだわらない） ---
-    if q["key"] == "food_genre":
+
+    # --- 飲食店：食べたいジャンル（和食 / 洋食 / 中華 / ラーメン / カフェ・スイーツ / こだわらない） ---
+    if q["key"] == "cuisine":  # ★ここを food_genre ではなく cuisine にする
 
         def genre_btn(num: int, label: str) -> dict:
             img_url = FOOD_GENRE_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
@@ -1144,7 +1142,6 @@ def _render_question(idx: int, state: State):
         choices = q.get("choices", {})  # {1:"和食",2:"洋食",3:"中華",4:"ラーメン",5:"カフェ・スイーツ",6:"こだわらない"}
         btns = [genre_btn(num, label) for num, label in choices.items()]
 
-        # 2列 × 3行になる（6項目）
         rows = []
         row = []
         for b in btns:
@@ -2578,6 +2575,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
