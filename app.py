@@ -685,6 +685,13 @@ FOOD_GENRE_IMAGE_URLS = {
     5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/coffee.png",    # カフェ・スイーツ
     6: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wasyoku.png",   # こだわらない（仮）
 }
+EXP_GENRE_IMAGE_URLS = {
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/onnsenn.png",   # 温泉
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/sizenn.png",   # 自然体験
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/bunka.png",    # 文化体験
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/monozukuri.png",  # モノづくり体験
+    5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/syoku.png",    # グルメ・食体験
+}
 
 
 def _render_question(idx: int, state: State):
@@ -863,7 +870,7 @@ def _render_question(idx: int, state: State):
                 ],
             }
 
-        choices = q.get("choices", {})  # {1:"高級",2:"中価格",3:"コスパ",4:"和風旅館",5:"こだわらない"}
+        choices = q.get("choices", {})
         btns = [hotel_btn(label, num) for num, label in choices.items()]
 
         rows = []
@@ -1047,7 +1054,7 @@ def _render_question(idx: int, state: State):
                 ],
             }
 
-        choices = q.get("choices", {})  # {1:"一人",2:"カップル",3:"友達",4:"家族"}
+        choices = q.get("choices", {})  # {1:"一人",2:"カップル",3:"友達",4:"家族"} or EN
         btns = [companion_btn(num, label) for num, label in choices.items()]
 
         rows = []
@@ -1094,8 +1101,100 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店：食べたいジャンル（和食 / 洋食 / 中華 / ラーメン / カフェ・スイーツ / こだわらない） ---
-    if q["key"] == "cuisine":  # ★ここを food_genre ではなく cuisine にする
+    # --- 体験スポット：体験ジャンル ---
+    if q["key"] == "exp_genre":
+
+        def exp_genre_btn(num: int, label: str) -> dict:
+            img_url = EXP_GENRE_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("体験スポット")
+
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "160px",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    "text": str(num),
+                },
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "16:9",
+                        "aspectMode": "cover",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True,
+                            }
+                        ],
+                    },
+                ],
+            }
+
+        choices = q.get("choices", {})
+        btns = [exp_genre_btn(num, label) for num, label in choices.items()]
+
+        rows = []
+        row = []
+        for b in btns:
+            row.append(b)
+            if len(row) == 2:
+                rows.append({
+                    "type": "box",
+                    "layout": "horizontal",
+                    "spacing": "12px",
+                    "contents": row,
+                })
+                row = []
+        if row:
+            row.append({"type": "filler"})
+            rows.append({
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "12px",
+                "contents": row,
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "16px",
+                "paddingAll": "16px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,
+                        "size": "24px",
+                        "weight": "bold",
+                        "wrap": True,
+                    },
+                    {"type": "separator"},
+                    *rows,
+                ],
+            },
+        }
+        return FlexSendMessage(alt_text=title, contents=bubble)
+
+    # --- 飲食店：食べたいジャンル ---
+    if q["key"] == "food_genre":  # もし key が "cuisine" ならここを "cuisine" に変更
 
         def genre_btn(num: int, label: str) -> dict:
             img_url = FOOD_GENRE_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
@@ -1139,7 +1238,7 @@ def _render_question(idx: int, state: State):
                 ],
             }
 
-        choices = q.get("choices", {})  # {1:"和食",2:"洋食",3:"中華",4:"ラーメン",5:"カフェ・スイーツ",6:"こだわらない"}
+        choices = q.get("choices", {})
         btns = [genre_btn(num, label) for num, label in choices.items()]
 
         rows = []
@@ -1210,6 +1309,7 @@ def _render_question(idx: int, state: State):
 
     bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False), lang)
     return FlexSendMessage(alt_text=title, contents=bubble)
+
 
 
     
@@ -2575,6 +2675,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
