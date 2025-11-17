@@ -658,7 +658,10 @@ HOTEL_TYPE_IMAGE_URLS = {
     "中価格": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyuukakaku.png",
     "コスパ": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kosupa.png",
     "和風旅館": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wahuu.png",
+    # こだわらない → 汎用ホテル画像でOK（とりあえず全体用のホテル画像を使う）
+    "こだわらない": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
 }
+
 
 
 def _render_question(idx: int, state: State):
@@ -796,46 +799,47 @@ def _render_question(idx: int, state: State):
     if q["key"] == "hotel":
 
         def hotel_btn(label: str, num: int) -> dict:
-            img_url = HOTEL_TYPE_IMAGE_URLS.get(label, "")
-            return {
+    # ラベルに対応する画像がなければ、共通のホテル画像にフォールバック
+    img_url = HOTEL_TYPE_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS.get("ホテル")
+
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "flex": 1,
+        "cornerRadius": "16px",
+        "backgroundColor": "#FFFFFF",
+        "height": "160px",
+        "action": {
+            "type": "message",
+            "label": label,
+            "text": str(num),
+        },
+        "contents": [
+            {
+                "type": "image",
+                "url": img_url,
+                "size": "full",
+                "aspectRatio": "16:9",
+                "aspectMode": "cover",
+            },
+            {
                 "type": "box",
                 "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "height": "160px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    # ★ ここ重要：押したとき「1」「2」など数字だけ返す
-                    "text": str(num),
-                },
+                "paddingAll": "4px",
                 "contents": [
                     {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectRatio": "16:9",
-                        "aspectMode": "cover",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "14px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
+                        "type": "text",
+                        "text": label,
+                        "weight": "bold",
+                        "size": "14px",
+                        "align": "center",
+                        "color": "#111111",
+                        "wrap": True,
+                    }
                 ],
-            }
+            },
+        ],
+    }
 
         # HOTELS = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館"}
         choices = q.get("choices", {})
@@ -2276,6 +2280,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
