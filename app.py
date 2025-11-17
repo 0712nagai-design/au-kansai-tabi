@@ -653,6 +653,12 @@ REQUEST_LABELS_EN = {
     "観光地": "Sightseeing",
     "日程表": "Itinerary",
 }
+HOTEL_TYPE_IMAGE_URLS = {
+    "高級": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/koukyu.png",
+    "中価格": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyuukakaku.png",
+    "コスパ": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kosupa.png",
+    "和風旅館": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wahuu.png",
+}
 
 
 def _render_question(idx: int, state: State):
@@ -784,6 +790,100 @@ def _render_question(idx: int, state: State):
             }
         }
 
+        return FlexSendMessage(alt_text=title, contents=bubble)
+
+    # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館）を画像ボタンにする ---
+    if q["key"] == "hotel":
+
+        def hotel_btn(label: str, num: int) -> dict:
+            img_url = HOTEL_TYPE_IMAGE_URLS.get(label, "")
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "160px",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    # ★ ここ重要：押したとき「1」「2」など数字だけ返す
+                    "text": str(num),
+                },
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "16:9",
+                        "aspectMode": "cover",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True,
+                            }
+                        ],
+                    },
+                ],
+            }
+
+        # HOTELS = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館"}
+        choices = q.get("choices", {})
+        btns = [hotel_btn(label, num) for num, label in choices.items()]
+
+        # 2列×2行に並べる
+        rows = []
+        row = []
+        for b in btns:
+            row.append(b)
+            if len(row) == 2:
+                rows.append({
+                    "type": "box",
+                    "layout": "horizontal",
+                    "spacing": "12px",
+                    "contents": row,
+                })
+                row = []
+        if row:
+            row.append({"type": "filler"})
+            rows.append({
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "12px",
+                "contents": row,
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "16px",
+                "paddingAll": "16px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,
+                        "size": "24px",
+                        "weight": "bold",
+                        "wrap": True,
+                    },
+                    {"type": "separator"},
+                    *rows,
+                ],
+            },
+        }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
     # =========================
@@ -2176,6 +2276,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
