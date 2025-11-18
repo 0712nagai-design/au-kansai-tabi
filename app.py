@@ -23,6 +23,7 @@ from linebot.models import (
     QuickReply, QuickReplyButton, LocationAction, FlexSendMessage,
     CarouselTemplate, CarouselColumn,   # ★ 追加
 )
+from linebot.models import FollowEvent
 
 # OpenAI v1
 from openai import OpenAI
@@ -2715,6 +2716,32 @@ def callback():
     except InvalidSignatureError:
         abort(400)
     return "OK", 200
+@handler.add(FollowEvent)
+def send_welcome_message(event):
+
+    greeting = TextSendMessage(
+        text=(
+            "ようこそ！関西旅プランAIへお越しやす✨\n"
+            "これからあんさんの旅、しっかりサポートしていきますえ。\n"
+            "おすすめスポットやお店の“お得なクーポン”も、見つかったらその都度お知らせしますわ〜！\n"
+            "ほなまず、どんなジャンルで旅したいか教えてな。"
+        )
+    )
+
+    initial_state = {
+        "answers": {},
+        "step": 0,
+        "hist": deque(maxlen=MAX_TURNS),
+        "multi_temp": {}
+    }
+
+    question = _render_question(0, initial_state)
+
+    line_bot_api.reply_message(
+        event.reply_token,
+        [greeting, question]
+    )
+)
 
 # ====================== メインハンドラ ======================
 @handler.add(MessageEvent, message=TextMessage)
@@ -2891,6 +2918,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
