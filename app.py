@@ -1108,6 +1108,121 @@ def _render_question(idx: int, state: State):
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
+    # --- 飲食店：エリア（現在地 / 京都 / 大阪 / 奈良 / 兵庫 / 滋賀 / 和歌山）を画像ボタンにする ---
+    if q["key"] == "area" and answers.get("request") in {"飲食店", "Restaurants"}:
+
+        # 英語表示のときは画像用に日本語ラベルへマッピング
+        PREF_LABEL_MAP_EN_TO_JA = {
+            "Kyoto": "京都",
+            "Osaka": "大阪",
+            "Nara": "奈良",
+            "Hyogo": "兵庫",
+            "Shiga": "滋賀",
+            "Wakayama": "和歌山",
+            "Near current location": "現在地から近く",
+        }
+
+        def area_btn(num: int, label: str) -> dict:
+            # 画像取得用のキー（日本語に揃える）
+            if lang == "en":
+                jp_label = PREF_LABEL_MAP_EN_TO_JA.get(label, label)
+            else:
+                jp_label = label
+
+            # 「現在地から近く」は共通の飲食店画像、それ以外は都道府県画像
+            if jp_label in {"現在地から近く"}:
+                img_url = REQUEST_IMAGE_URLS.get("飲食店")
+            else:
+                img_url = PREF_IMAGE_URLS.get(jp_label) or REQUEST_IMAGE_URLS.get("観光地")
+
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "cornerRadius": "16px",
+                "backgroundColor": "#FFFFFF",
+                "height": "160px",
+                "action": {
+                    "type": "message",
+                    "label": label,
+                    # 押したときは番号（1〜7）だけ返す
+                    "text": str(num),
+                },
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": img_url,
+                        "size": "full",
+                        "aspectRatio": "16:9",
+                        "aspectMode": "cover",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "4px",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": label,   # 表示はそのまま（日本語 or 英語）
+                                "weight": "bold",
+                                "size": "14px",
+                                "align": "center",
+                                "color": "#111111",
+                                "wrap": True,
+                            }
+                        ],
+                    },
+                ],
+            }
+
+        # choices 例: {1:"現在地から近く",2:"京都",3:"大阪",4:"奈良",5:"兵庫",6:"滋賀",7:"和歌山"}
+        choices = q.get("choices", {})
+        btns = [area_btn(num, label) for num, label in choices.items()]
+
+        # 2列ずつ並べる（3行＋1列 になる想定）
+        rows = []
+        row = []
+        for b in btns:
+            row.append(b)
+            if len(row) == 2:
+                rows.append({
+                    "type": "box",
+                    "layout": "horizontal",
+                    "spacing": "12px",
+                    "contents": row,
+                })
+                row = []
+        if row:
+            row.append({"type": "filler"})
+            rows.append({
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "12px",
+                "contents": row,
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "16px",
+                "paddingAll": "16px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,
+                        "size": "24px",
+                        "weight": "bold",
+                        "wrap": True,
+                    },
+                    {"type": "separator"},
+                    *rows,
+                ],
+            },
+        }
+        return FlexSendMessage(alt_text=title, contents=bubble)
 
     # --- 飲食店 / 体験スポット：同行者 ---
     if q["key"] == "companion" and answers.get("request") in {"飲食店", "Restaurants", "体験スポット", "Experiences"}:
@@ -2776,6 +2891,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
