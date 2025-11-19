@@ -673,9 +673,9 @@ MEAL_TIME_IMAGE_URLS = {
 }
 COMPANION_IMAGE_URLS = {
     1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hitori%20(1).png",   # ひとり
-    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tomodachi.png",       # 友だち
-    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/couple.png",          # カップル
-    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kazoku.png",          # 家族
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/couple.png",         # カップル
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tomodachi.png",      # 友だち
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kazoku.png",         # 家族
 }
 FOOD_GENRE_IMAGE_URLS = {
     1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wa.png",          # 和食
@@ -2384,6 +2384,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
