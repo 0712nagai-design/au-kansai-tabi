@@ -680,9 +680,9 @@ COMPANION_IMAGE_URLS = {
 FOOD_GENRE_IMAGE_URLS = {
     1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wa.png",          # 和食
     2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/you.png",         # 洋食
-    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kahue.png",       # カフェ・スイーツ
-    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyu.png",         # 中華
-    5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ramen.png",       # ラーメン
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyu.png",         # 中華
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ramen.png",       # ラーメン
+    5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kahue.png",       # カフェ・スイーツ
     6: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kodawaranai.png", # こだわらない
 }
 EXP_GENRE_IMAGE_URLS = {
