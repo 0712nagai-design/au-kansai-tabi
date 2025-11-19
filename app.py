@@ -710,7 +710,7 @@ def _render_question(idx: int, state: State):
     q = seq[idx]
     title = q["title"]
 
-    # ===================== Q1: request（ジャンル選択・画像ボタン） =====================
+    # ===================== Q1: request =====================
     if q["key"] == "request":
 
         def img_btn(display_label: str, send_text: str, url: str) -> dict:
@@ -721,12 +721,8 @@ def _render_question(idx: int, state: State):
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
                 "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": display_label,
-                    "text": send_text
-                },
+                "height": "160px",   # ← 戻した
+                "action": {"type": "message", "label": display_label, "text": send_text},
                 "contents": [
                     {
                         "type": "image",
@@ -739,17 +735,14 @@ def _render_question(idx: int, state: State):
                         "type": "box",
                         "layout": "vertical",
                         "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": display_label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
+                        "contents": [{
+                            "type": "text",
+                            "text": display_label,
+                            "weight": "bold",
+                            "size": "14px",
+                            "align": "center",
+                            "wrap": True,
+                        }],
                     },
                 ],
             }
@@ -761,162 +754,121 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#EEF2F7",
-                "height": "140px",
+                "height": "110px",  # 少し抑える
                 "justifyContent": "center",
-                "action": {
-                    "type": "message",
-                    "label": display_label,
-                    "text": send_text
-                },
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": display_label,
-                        "weight": "bold",
-                        "size": "18px",
-                        "align": "center",
-                        "color": "#111111",
-                        "wrap": True,
-                    }
-                ],
+                "action": {"type": "message", "label": display_label, "text": send_text},
+                "contents": [{
+                    "type": "text",
+                    "text": display_label,
+                    "weight": "bold",
+                    "size": "16px",
+                    "align": "center",
+                    "wrap": True,
+                }],
             }
 
         def label_req(v: str) -> str:
-            if lang == "en":
-                return REQUEST_LABELS_EN.get(v, v)
+            if lang == "en": return REQUEST_LABELS_EN.get(v, v)
             return v
 
-        row1 = {
-            "type": "box",
-            "layout": "horizontal",
-            "spacing": "12px",
-            "contents": [
-                img_btn(label_req("ホテル"), "ホテル", REQUEST_IMAGE_URLS["ホテル"]),
-                img_btn(label_req("飲食店"), "飲食店", REQUEST_IMAGE_URLS["飲食店"]),
-            ],
-        }
-
-        row2 = {
-            "type": "box",
-            "layout": "horizontal",
-            "spacing": "12px",
-            "contents": [
-                img_btn(label_req("体験スポット"), "体験スポット", REQUEST_IMAGE_URLS["体験スポット"]),
-                img_btn(label_req("観光地"), "観光地", REQUEST_IMAGE_URLS["観光地"]),
-            ],
-        }
-
-        row3 = {
-            "type": "box",
-            "layout": "horizontal",
-            "spacing": "12px",
-            "contents": [
-                txt_btn(label_req("日程表"), "日程表"),
-                {"type": "filler"},
-            ],
-        }
-
         bubble = {
             "type": "bubble",
             "size": "mega",
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "spacing": "16px",
+                "spacing": "12px",
                 "paddingAll": "14px",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
+                    {"type": "text", "text": title, "size": "22px", "weight": "bold", "wrap": True},
                     {"type": "separator"},
-                    row1,
-                    row2,
-                    row3,
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "spacing": "10px",
+                        "contents": [
+                            img_btn(label_req("ホテル"), "ホテル", REQUEST_IMAGE_URLS["ホテル"]),
+                            img_btn(label_req("飲食店"), "飲食店", REQUEST_IMAGE_URLS["飲食店"]),
+                        ],
+                    },
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "spacing": "10px",
+                        "contents": [
+                            img_btn(label_req("体験スポット"), "体験スポット", REQUEST_IMAGE_URLS["体験スポット"]),
+                            img_btn(label_req("観光地"), "観光地", REQUEST_IMAGE_URLS["観光地"]),
+                        ],
+                    },
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "spacing": "10px",
+                        "contents": [
+                            txt_btn(label_req("日程表"), "日程表"),
+                            {"type": "filler"}
+                        ]
+                    }
                 ],
             },
         }
-
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # ===================== 都道府県選択（pref：2列画像ボタン） =====================
+    # ===================== 共通：画像ボタン生成（160pxに統一） =====================
+    def vbtn(img_url, label, num):
+        return {
+            "type": "box",
+            "layout": "vertical",
+            "flex": 1,
+            "cornerRadius": "16px",
+            "backgroundColor": "#FFFFFF",
+            "paddingAll": "0px",
+            "height": "160px",   # ← 統一
+            "action": {"type": "message", "label": label, "text": str(num)},
+            "contents": [
+                {
+                    "type": "image",
+                    "url": img_url,
+                    "size": "full",
+                    "aspectMode": "cover",
+                    "aspectRatio": "4:3",
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "paddingAll": "4px",
+                    "contents": [{
+                        "type": "text",
+                        "text": label,
+                        "weight": "bold",
+                        "size": "14px",
+                        "align": "center",
+                        "wrap": True,
+                    }],
+                },
+            ],
+        }
+
+    def make_2col_rows(btns):
+        rows, row = [], []
+        for b in btns:
+            row.append(b)
+            if len(row) == 2:
+                rows.append({"type": "box", "layout": "horizontal", "spacing": "10px", "contents": row})
+                row = []
+        if row:
+            row.append({"type": "filler"})
+            rows.append({"type": "box", "layout": "horizontal", "spacing": "10px", "contents": row})
+        return rows
+
+    # ===================== 都道府県 =====================
     if q["key"] == "pref":
+        btns = []
+        for num, label in q["choices"].items():
+            img = PREF_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS["観光地"]
+            btns.append(vbtn(img, label, num))
 
-        def pref_btn(num: int, label: str) -> dict:
-            img_url = PREF_IMAGE_URLS.get(label)
-            if not img_url:
-                # 英語ラベルのときは日本語ラベルに変換して探す
-                jp_label = PREFS_KANSAI.get(num)
-                if jp_label:
-                    img_url = PREF_IMAGE_URLS.get(jp_label)
-            img_url = img_url or REQUEST_IMAGE_URLS.get("観光地")
-
-            return {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": str(num),
-                },
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectMode": "cover",
-                        "aspectRatio": "4:3",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
-                ],
-            }
-
-        choices = q.get("choices", {})
-        btns = [pref_btn(num, label) for num, label in choices.items()]
-
-        rows = []
-        row = []
-        for b in btns:
-            row.append(b)
-            if len(row) == 2:
-                rows.append({
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "12px",
-                    "contents": row,
-                })
-                row = []
-        if row:
-            row.append({"type": "filler"})
-            rows.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "12px",
-                "contents": row,
-            })
+        rows = make_2col_rows(btns)
 
         bubble = {
             "type": "bubble",
@@ -924,92 +876,25 @@ def _render_question(idx: int, state: State):
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "spacing": "16px",
+                "spacing": "14px",
                 "paddingAll": "14px",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
+                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
                     {"type": "separator"},
-                    *rows,
+                    *rows
                 ],
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # ===================== ホテルタイプ選択（hotel：2列画像ボタン） =====================
+    # ===================== ホテルタイプ =====================
     if q["key"] == "hotel":
+        btns = []
+        for num, label in q["choices"].items():
+            img = HOTEL_TYPE_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS["ホテル"]
+            btns.append(vbtn(img, label, num))
 
-        def hotel_btn(label: str, num: int) -> dict:
-            img_url = HOTEL_TYPE_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS.get("ホテル")
-
-            return {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": str(num),
-                },
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectMode": "cover",
-                        "aspectRatio": "4:3",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
-                ],
-            }
-
-        choices = q.get("choices", {})
-        btns = [hotel_btn(label, num) for num, label in choices.items()]
-
-        rows = []
-        row = []
-        for b in btns:
-            row.append(b)
-            if len(row) == 2:
-                rows.append({
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "12px",
-                    "contents": row,
-                })
-                row = []
-        if row:
-            row.append({"type": "filler"})
-            rows.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "12px",
-                "contents": row,
-            })
+        rows = make_2col_rows(btns)
 
         bubble = {
             "type": "bubble",
@@ -1017,92 +902,24 @@ def _render_question(idx: int, state: State):
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "spacing": "16px",
+                "spacing": "14px",
                 "paddingAll": "14px",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
+                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
                     {"type": "separator"},
-                    *rows,
+                    *rows
                 ],
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # ===================== 食事タイミング（meal_time：2列画像ボタン） =====================
+    # ===================== 食事タイミング =====================
     if q["key"] == "meal_time":
-
-        def meal_btn(num: int, label: str) -> dict:
-            img_url = MEAL_TIME_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
-
-            return {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": str(num),
-                },
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectMode": "cover",
-                        "aspectRatio": "4:3",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
-                ],
-            }
-
-        choices = q.get("choices", {})
-        btns = [meal_btn(num, label) for num, label in choices.items()]
-
-        rows = []
-        row = []
-        for b in btns:
-            row.append(b)
-            if len(row) == 2:
-                rows.append({
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "12px",
-                    "contents": row,
-                })
-                row = []
-        if row:
-            row.append({"type": "filler"})
-            rows.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "12px",
-                "contents": row,
-            })
+        btns = []
+        for num, label in q["choices"].items():
+            img = MEAL_TIME_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS["飲食店"]
+            btns.append(vbtn(img, label, num))
+        rows = make_2col_rows(btns)
 
         bubble = {
             "type": "bubble",
@@ -1110,92 +927,33 @@ def _render_question(idx: int, state: State):
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "spacing": "16px",
+                "spacing": "14px",
                 "paddingAll": "14px",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
+                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
                     {"type": "separator"},
-                    *rows,
+                    *rows
                 ],
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # ===================== 飲食店/体験スポット：同行者画像ボタン =====================
-    if q["key"] == "companion" and answers.get("request") in {"飲食店", "Restaurants", "体験スポット", "Experiences"}:
+    # ===================== その他の画像ボタン (companion / area / cuisine / exp_genre) =====================
+    mapping_sets = {
+        "companion": COMPANION_IMAGE_URLS,
+        "area": PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
+        "cuisine": FOOD_GENRE_IMAGE_URLS,
+        "exp_genre": EXP_GENRE_IMAGE_URLS,
+    }
 
-        def companion_btn(num: int, label: str) -> dict:
-            img_url = COMPANION_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
+    if q["key"] in mapping_sets:
+        image_map = mapping_sets[q["key"]]
+        btns = []
+        for num, label in q["choices"].items():
+            img = image_map.get(num) or image_map.get(label) or REQUEST_IMAGE_URLS.get("観光地")
+            btns.append(vbtn(img, label, num))
 
-            return {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": str(num),
-                },
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectMode": "cover",
-                        "aspectRatio": "4:3",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
-                ],
-            }
-
-        choices = q.get("choices", {})
-        btns = [companion_btn(num, label) for num, label in choices.items()]
-
-        rows = []
-        row = []
-        for b in btns:
-            row.append(b)
-            if len(row) == 2:
-                rows.append({
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "12px",
-                    "contents": row,
-                })
-                row = []
-        if row:
-            row.append({"type": "filler"})
-            rows.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "12px",
-                "contents": row,
-            })
+        rows = make_2col_rows(btns)
 
         bubble = {
             "type": "bubble",
@@ -1203,320 +961,20 @@ def _render_question(idx: int, state: State):
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "spacing": "16px",
+                "spacing": "14px",
                 "paddingAll": "14px",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
+                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
                     {"type": "separator"},
-                    *rows,
+                    *rows
                 ],
             },
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # ===================== 体験ジャンル（exp_genre：2列画像ボタン） =====================
-    if q["key"] == "exp_genre":
-
-        def exp_genre_btn(num: int, label: str) -> dict:
-            img_url = EXP_GENRE_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("体験スポット")
-
-            return {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": str(num),
-                },
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectMode": "cover",
-                        "aspectRatio": "4:3",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
-                ],
-            }
-
-        choices = q.get("choices", {})
-        btns = [exp_genre_btn(num, label) for num, label in choices.items()]
-
-        rows = []
-        row = []
-        for b in btns:
-            row.append(b)
-            if len(row) == 2:
-                rows.append({
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "12px",
-                    "contents": row,
-                })
-                row = []
-        if row:
-            row.append({"type": "filler"})
-            rows.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "12px",
-                "contents": row,
-            })
-
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "16px",
-                "paddingAll": "14px",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
-                    {"type": "separator"},
-                    *rows,
-                ],
-            },
-        }
-        return FlexSendMessage(alt_text=title, contents=bubble)
-
-    # ===================== 飲食店：エリア選択（area：2列画像ボタン） =====================
-    if q["key"] == "area" and answers.get("request") in {"飲食店", "Restaurants"}:
-
-        def area_btn(num: int, label: str) -> dict:
-            img_url = None
-
-            # 「京都 / 大阪 / 奈良 / 兵庫 / 滋賀 / 和歌山」は都道府県画像
-            jp_label = PREFS_KANSAI.get(num)
-            if label in PREF_IMAGE_URLS:
-                img_url = PREF_IMAGE_URLS[label]
-            elif jp_label and jp_label in PREF_IMAGE_URLS:
-                img_url = PREF_IMAGE_URLS[jp_label]
-
-            img_url = img_url or REQUEST_IMAGE_URLS.get("飲食店")
-
-            return {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": str(num),
-                },
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectMode": "cover",
-                        "aspectRatio": "4:3",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
-                ],
-            }
-
-        choices = q.get("choices", {})
-        btns = [area_btn(num, label) for num, label in choices.items()]
-
-        rows = []
-        row = []
-        for b in btns:
-            row.append(b)
-            if len(row) == 2:
-                rows.append({
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "12px",
-                    "contents": row,
-                })
-                row = []
-        if row:
-            row.append({"type": "filler"})
-            rows.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "12px",
-                "contents": row,
-            })
-
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "16px",
-                "paddingAll": "14px",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
-                    {"type": "separator"},
-                    *rows,
-                ],
-            },
-        }
-        return FlexSendMessage(alt_text=title, contents=bubble)
-
-    # ===================== 飲食店：ジャンル選択（cuisine：2列画像ボタン） =====================
-    if q["key"] == "cuisine":
-
-        def genre_btn(num: int, label: str) -> dict:
-            img_url = FOOD_GENRE_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS.get("飲食店")
-
-            return {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 1,
-                "cornerRadius": "16px",
-                "backgroundColor": "#FFFFFF",
-                "paddingAll": "0px",
-                "height": "200px",
-                "action": {
-                    "type": "message",
-                    "label": label,
-                    "text": str(num),
-                },
-                "contents": [
-                    {
-                        "type": "image",
-                        "url": img_url,
-                        "size": "full",
-                        "aspectMode": "cover",
-                        "aspectRatio": "4:3",
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "4px",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": label,
-                                "weight": "bold",
-                                "size": "16px",
-                                "align": "center",
-                                "color": "#111111",
-                                "wrap": True,
-                            }
-                        ],
-                    },
-                ],
-            }
-
-        choices = q.get("choices", {})
-        btns = [genre_btn(num, label) for num, label in choices.items()]
-
-        rows = []
-        row = []
-        for b in btns:
-            row.append(b)
-            if len(row) == 2:
-                rows.append({
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "12px",
-                    "contents": row,
-                })
-                row = []
-        if row:
-            row.append({"type": "filler"})
-            rows.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "12px",
-                "contents": row,
-            })
-
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "16px",
-                "paddingAll": "14px",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": title,
-                        "size": "24px",
-                        "weight": "bold",
-                        "wrap": True,
-                    },
-                    {"type": "separator"},
-                    *rows,
-                ],
-            },
-        }
-        return FlexSendMessage(alt_text=title, contents=bubble)
-
-    # ===================== それ以外：共通のテキストボタン UI =====================
+    # ===================== 最後：通常のテキストボタン =====================
     selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
-    if q.get("multi"):
-        if lang == "en":
-            selected_line = f"(Selected: {', '.join(selected) if selected else 'none'})"
-        else:
-            selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})"
-    else:
-        selected_line = ""
+    selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
 
     pairs, row = [], []
     for n, label in q.get("choices", {}).items():
@@ -1530,7 +988,6 @@ def _render_question(idx: int, state: State):
 
     bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False), lang)
     return FlexSendMessage(alt_text=title, contents=bubble)
-
 
        
        
@@ -2928,6 +2385,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
