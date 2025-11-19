@@ -710,7 +710,7 @@ def _render_question(idx: int, state: State):
     q = seq[idx]
     title = q["title"]
 
-    # --- Q1: request（画像付き） ---
+    # ===================== Q1: request（ジャンル選択・画像ボタン） =====================
     if q["key"] == "request":
 
         def img_btn(display_label: str, send_text: str, url: str) -> dict:
@@ -720,7 +720,8 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": display_label,
@@ -731,8 +732,8 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": url,
                         "size": "full",
-                        "aspectRatio": "16:9",
-                        "aspectMode": "fit"   # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3"
                     },
                     {
                         "type": "box",
@@ -743,7 +744,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": display_label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -760,7 +761,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#EEF2F7",
-                "height": "120px",
+                "height": "140px",
                 "justifyContent": "center",
                 "action": {
                     "type": "message",
@@ -772,7 +773,7 @@ def _render_question(idx: int, state: State):
                         "type": "text",
                         "text": display_label,
                         "weight": "bold",
-                        "size": "16px",
+                        "size": "18px",
                         "align": "center",
                         "color": "#111111",
                         "wrap": True,
@@ -822,7 +823,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -841,14 +842,13 @@ def _render_question(idx: int, state: State):
 
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 都道府県選択（京都 / 奈良 / 兵庫 / 大阪 / 和歌山 / 滋賀） ---
+    # ===================== 都道府県選択（pref：2列画像ボタン） =====================
     if q["key"] == "pref":
 
         def pref_btn(num: int, label: str) -> dict:
-            # 日本語ラベル・英語ラベルどちらでも画像を拾えるようにする
             img_url = PREF_IMAGE_URLS.get(label)
             if not img_url:
-                # num から日本語側の都道府県名を取得して fallback
+                # 英語ラベルのときは日本語ラベルに変換して探す
                 jp_label = PREFS_KANSAI.get(num)
                 if jp_label:
                     img_url = PREF_IMAGE_URLS.get(jp_label)
@@ -860,20 +860,20 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": label,
-                    "text": str(num),  # 番号だけ送る
+                    "text": str(num),
                 },
                 "contents": [
                     {
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "aspectRatio": "16:9",
-                        "height": "200px",
-                        "aspectMode": "fit",   # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3",
                     },
                     {
                         "type": "box",
@@ -884,7 +884,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -925,7 +925,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -941,7 +941,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- ホテルタイプ選択（高級 / 中価格 / コスパ / 和風旅館） ---
+    # ===================== ホテルタイプ選択（hotel：2列画像ボタン） =====================
     if q["key"] == "hotel":
 
         def hotel_btn(label: str, num: int) -> dict:
@@ -953,7 +953,8 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -964,9 +965,8 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "height": "200px",
-                        "aspectRatio": "16:9",
-                        "aspectMode": "fit",   # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3",
                     },
                     {
                         "type": "box",
@@ -977,7 +977,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -1018,7 +1018,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -1034,7 +1034,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店：食事タイミング（朝 / 昼 / 夜） ---
+    # ===================== 食事タイミング（meal_time：2列画像ボタン） =====================
     if q["key"] == "meal_time":
 
         def meal_btn(num: int, label: str) -> dict:
@@ -1046,7 +1046,8 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1057,9 +1058,8 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "aspectRatio": "16:9",
-                        "height": "200px",
-                        "aspectMode": "fit",   # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3",
                     },
                     {
                         "type": "box",
@@ -1070,7 +1070,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -1111,7 +1111,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -1127,7 +1127,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店/体験スポット：同行者（画像ボタン） ---
+    # ===================== 飲食店/体験スポット：同行者画像ボタン =====================
     if q["key"] == "companion" and answers.get("request") in {"飲食店", "Restaurants", "体験スポット", "Experiences"}:
 
         def companion_btn(num: int, label: str) -> dict:
@@ -1139,7 +1139,8 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1150,9 +1151,8 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "aspectRatio": "16:9",
-                        "height": "200px",
-                        "aspectMode": "fit",   # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3",
                     },
                     {
                         "type": "box",
@@ -1163,7 +1163,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -1204,7 +1204,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -1220,7 +1220,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 体験スポット：体験ジャンル ---
+    # ===================== 体験ジャンル（exp_genre：2列画像ボタン） =====================
     if q["key"] == "exp_genre":
 
         def exp_genre_btn(num: int, label: str) -> dict:
@@ -1232,7 +1232,8 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1243,9 +1244,8 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "aspectRatio": "16:9",
-                        "height": "200px",
-                        "aspectMode": "fit",   # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3",
                     },
                     {
                         "type": "box",
@@ -1256,7 +1256,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -1297,7 +1297,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -1313,21 +1313,19 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店：エリア選択（都道府県は画像ボタン） ---
+    # ===================== 飲食店：エリア選択（area：2列画像ボタン） =====================
     if q["key"] == "area" and answers.get("request") in {"飲食店", "Restaurants"}:
 
         def area_btn(num: int, label: str) -> dict:
             img_url = None
 
-            # 「京都 / 大阪 / 奈良 / 兵庫 / 滋賀 / 和歌山」なら都道府県画像を使う
-            jp_label = PREFS_KANSAI.get(num)  # 1:京都,2:大阪,...
-            # 日本語・英語どちらでも拾えるように
+            # 「京都 / 大阪 / 奈良 / 兵庫 / 滋賀 / 和歌山」は都道府県画像
+            jp_label = PREFS_KANSAI.get(num)
             if label in PREF_IMAGE_URLS:
                 img_url = PREF_IMAGE_URLS[label]
             elif jp_label and jp_label in PREF_IMAGE_URLS:
                 img_url = PREF_IMAGE_URLS[jp_label]
 
-            # それ以外（現在地から近くなど）は飲食店の共通画像
             img_url = img_url or REQUEST_IMAGE_URLS.get("飲食店")
 
             return {
@@ -1336,7 +1334,8 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1347,9 +1346,8 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "aspectRatio": "16:9",
-                        "height": "200px",
-                        "aspectMode": "fit",  # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3",
                     },
                     {
                         "type": "box",
@@ -1360,7 +1358,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -1401,7 +1399,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -1417,8 +1415,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # --- 飲食店：食べたいジャンル（和食 / 洋食 / 中華 / ラーメン / カフェ・スイーツ / こだわらない） ---
-    # ※ _get_question_sequence では key は "cuisine" なのでここも "cuisine" に合わせる
+    # ===================== 飲食店：ジャンル選択（cuisine：2列画像ボタン） =====================
     if q["key"] == "cuisine":
 
         def genre_btn(num: int, label: str) -> dict:
@@ -1430,7 +1427,8 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "240px",
+                "paddingAll": "0px",
+                "height": "200px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1441,9 +1439,8 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": img_url,
                         "size": "full",
-                        "aspectRatio": "16:9",
-                        "height": "200px",
-                        "aspectMode": "fit",   # 見切れ防止
+                        "aspectMode": "cover",
+                        "aspectRatio": "4:3",
                     },
                     {
                         "type": "box",
@@ -1454,7 +1451,7 @@ def _render_question(idx: int, state: State):
                                 "type": "text",
                                 "text": label,
                                 "weight": "bold",
-                                "size": "14px",
+                                "size": "16px",
                                 "align": "center",
                                 "color": "#111111",
                                 "wrap": True,
@@ -1495,7 +1492,7 @@ def _render_question(idx: int, state: State):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "16px",
-                "paddingAll": "16px",
+                "paddingAll": "14px",
                 "contents": [
                     {
                         "type": "text",
@@ -1511,9 +1508,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-    # =========================
-    # それ以外の質問（従来のボタンUI）
-    # =========================
+    # ===================== それ以外：共通のテキストボタン UI =====================
     selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
     if q.get("multi"):
         if lang == "en":
@@ -1525,7 +1520,6 @@ def _render_question(idx: int, state: State):
 
     pairs, row = [], []
     for n, label in q.get("choices", {}).items():
-        # 表示ラベルはそのまま、押したときは番号を送る
         btn = _flex_choice_button(label, str(n))
         row.append(btn)
         if len(row) == 2:
@@ -2934,6 +2928,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
