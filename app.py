@@ -667,9 +667,9 @@ HOTEL_TYPE_IMAGE_URLS = {
 # MEAL_TIMES   = {1: "朝", 2: "昼", 3: "夜"}
 # MEAL_TIMES_EN= {1: "Breakfast", 2: "Lunch", 3: "Dinner"}
 MEAL_TIME_IMAGE_URLS = {
-    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/asa.png",   # 朝
-    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hiru.png",  # 昼
-    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/yoru.png",  # 夜
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/asa%20(2).png",   # 朝
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hiruu.png",       # 昼
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/yoruu.png",       # 夜
 }
 COMPANION_IMAGE_URLS = {
     # 1: 一人, 2: カップル, 3: 友達, 4: 家族
@@ -2385,6 +2385,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
