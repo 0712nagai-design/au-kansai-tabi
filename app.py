@@ -678,10 +678,10 @@ COMPANION_IMAGE_URLS = {
     4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kazoku.png",          # 家族
 }
 FOOD_GENRE_IMAGE_URLS = {
-    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wa.png",         # 和食
-    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/you.png",        # 洋食
-    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/blob/main/images/kahue.png",   # カフェ・スイーツ（kahue＝カフェ？）
-    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyu.png",         # 中華（tyu＝中）
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wa.png",          # 和食
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/you.png",         # 洋食
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kahue.png",       # カフェ・スイーツ
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyu.png",         # 中華
     5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ramen.png",       # ラーメン
     6: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kodawaranai.png", # こだわらない
 }
@@ -2384,6 +2384,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
