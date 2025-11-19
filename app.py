@@ -720,7 +720,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": display_label,
@@ -860,7 +860,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -952,7 +952,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1044,7 +1044,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1136,7 +1136,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1228,7 +1228,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1331,7 +1331,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -1424,7 +1424,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
-                "height": "160px",
+                "height": "240px",
                 "action": {
                     "type": "message",
                     "label": label,
@@ -2927,6 +2927,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
