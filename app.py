@@ -872,6 +872,7 @@ def _render_question(idx: int, state: State):
                         "url": img_url,
                         "size": "full",
                         "aspectRatio": "16:9",
+                        "height": "200px",
                         "aspectMode": "fit",   # 見切れ防止
                     },
                     {
@@ -963,6 +964,7 @@ def _render_question(idx: int, state: State):
                         "type": "image",
                         "url": img_url,
                         "size": "full",
+                        "height": "200px",
                         "aspectRatio": "16:9",
                         "aspectMode": "fit",   # 見切れ防止
                     },
@@ -1056,6 +1058,7 @@ def _render_question(idx: int, state: State):
                         "url": img_url,
                         "size": "full",
                         "aspectRatio": "16:9",
+                        "height": "200px",
                         "aspectMode": "fit",   # 見切れ防止
                     },
                     {
@@ -1148,6 +1151,7 @@ def _render_question(idx: int, state: State):
                         "url": img_url,
                         "size": "full",
                         "aspectRatio": "16:9",
+                        "height": "200px",
                         "aspectMode": "fit",   # 見切れ防止
                     },
                     {
@@ -1240,6 +1244,7 @@ def _render_question(idx: int, state: State):
                         "url": img_url,
                         "size": "full",
                         "aspectRatio": "16:9",
+                        "height": "200px",
                         "aspectMode": "fit",   # 見切れ防止
                     },
                     {
@@ -1343,6 +1348,7 @@ def _render_question(idx: int, state: State):
                         "url": img_url,
                         "size": "full",
                         "aspectRatio": "16:9",
+                        "height": "200px",
                         "aspectMode": "fit",  # 見切れ防止
                     },
                     {
@@ -1436,6 +1442,7 @@ def _render_question(idx: int, state: State):
                         "url": img_url,
                         "size": "full",
                         "aspectRatio": "16:9",
+                        "height": "200px",
                         "aspectMode": "fit",   # 見切れ防止
                     },
                     {
@@ -2927,6 +2934,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
