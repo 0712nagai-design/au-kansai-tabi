@@ -660,7 +660,7 @@ HOTEL_TYPE_IMAGE_URLS = {
     "コスパ": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kosupa.png",
     "和風旅館": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wahuu.png",
     # こだわらない → 汎用ホテル画像でOK（とりあえず全体用のホテル画像を使う）
-    "こだわらない": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/%E3%81%BB%E3%81%A6%E3%82%8B.png",
+    "こだわらない": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kodawaranai.png",
 }
 
 # ★ 食事タイミング別の画像（番号で紐づける）
@@ -672,26 +672,25 @@ MEAL_TIME_IMAGE_URLS = {
     3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/yoruu.png",       # 夜
 }
 COMPANION_IMAGE_URLS = {
-    # 1: 一人, 2: カップル, 3: 友達, 4: 家族
-    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hitori.png",
-    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/capple.png",
-    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tomodati.png",
-    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/family.png",
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hitori%20(1).png",   # ひとり
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tomodachi.png",       # 友だち
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/couple.png",          # カップル
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kazoku.png",          # 家族
 }
 FOOD_GENRE_IMAGE_URLS = {
-    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wasyoku.png",   # 和食
-    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/yousyoku.png",  # 洋食
-    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyuka.png",     # 中華
-    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ra-men.png",    # ラーメン
-    5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/coffee.png",    # カフェ・スイーツ
-    6: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wasyoku.png",   # こだわらない（仮）
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wa.png",         # 和食
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/you.png",        # 洋食
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/blob/main/images/kahue.png",   # カフェ・スイーツ（kahue＝カフェ？）
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/tyu.png",         # 中華（tyu＝中）
+    5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ramen.png",       # ラーメン
+    6: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kodawaranai.png", # こだわらない
 }
 EXP_GENRE_IMAGE_URLS = {
-    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/onnsenn.png",   # 温泉
-    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/sizenn.png",   # 自然体験
-    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/bunka.png",    # 文化体験
-    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/monozukuri.png",  # モノづくり体験
-    5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/syoku.png",    # グルメ・食体験
+    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/onsen.png",      # 温泉
+    2: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/shizen.png",     # 自然体験
+    3: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/bunka%20(2).png",# 文化体験
+    4: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/monoo.png",      # ものづくり体験
+    5: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/gurume.png",     # グルメ・食体験
 }
 PREF_IMAGE_URLS = {
     "京都": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kyoto.png",
@@ -2385,6 +2384,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
