@@ -2148,7 +2148,8 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         _send_finish_menu(uid, lang)
         return
 
-        if req in {"観光地", "Sightseeing"}:
+    # ←←← ここ！正しく左端に戻す
+    if req in {"観光地", "Sightseeing"}:
         pref = answers.get("pref")  # "京都" or "Kyoto"
         lang_code = _get_lang_code(answers)  # 'ja' or 'en'
 
@@ -2188,12 +2189,8 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             reply_token,
             _carousel_from_items(header_title, matched)
         )
-
         _send_finish_menu(uid, answers.get("lang", "日本語"))
         return
-
-    
-
 
     if req in {"日程表", "Itinerary"}:
         schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
@@ -2448,5 +2445,6 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
