@@ -44,9 +44,15 @@ SIGHTSEEING_MASTER = {}
 
 try:
     with open("data/sightseeing_master (3).json", "r", encoding="utf-8") as f:
-        SIGHTSEEING_MASTER = json.load(f)
+        data = json.load(f)
+
+        # ★ リスト形式 → 辞書形式に変換
+        if isinstance(data, list):
+            SIGHTSEEING_MASTER = {item["id"]: item for item in data}
+        else:
+            SIGHTSEEING_MASTER = data
+
 except FileNotFoundError:
-    # ファイルがまだない場合は、最低1件だけ手書きしておいてもOK
     SIGHTSEEING_MASTER = {
         "kifune_jinja": {
             "name": "貴船神社",
@@ -62,6 +68,7 @@ except FileNotFoundError:
             "images": []
         }
     }
+
 
 # ====================== Flask / LINE ======================
 app = Flask(__name__)
@@ -2445,6 +2452,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
