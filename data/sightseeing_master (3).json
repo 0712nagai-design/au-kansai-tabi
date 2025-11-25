@@ -1,0 +1,722 @@
+[
+  {
+    "id": "kifune_jinja",
+    "name": "貴船神社",
+    "name_en": "Kifune Shrine",
+    "pref": "京都府",
+    "area": "京都市左京区・貴船",
+    "address": "京都府京都市左京区鞍馬貴船町180",
+    "description": "京都の山あいにある水の神様を祀る古社。灯籠が並ぶ石段や川沿いの風景が四季を通じて人気。",
+    "description_en": "An ancient shrine in the mountains of Kyoto, dedicated to the deity of water. Famous for its lantern-lined stone steps and riverside scenery throughout the seasons.",
+    "official_url": "https://kifunejinja.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=貴船神社 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kifune%20Shrine%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "神社,歴史,自然,観光名所",
+    "open_hours": "6:00〜20:00（季節により変動）",
+    "price": "参拝無料"
+  },
+  {
+    "id": "chotokuji",
+    "name": "長徳寺",
+    "name_en": "Chotokuji Temple",
+    "pref": "京都府",
+    "area": "京都市左京区",
+    "address": "京都府京都市左京区田中下柳町34",
+    "description": "枝垂れ桜で知られる静かな寺院。春には境内いっぱいに桜が咲き誇る隠れた名所。",
+    "description_en": "A quiet temple famous for its weeping cherry blossoms, offering a serene atmosphere in spring.",
+    "official_url": "https://www.google.com/search?q=長徳寺+京都+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=長徳寺 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Chotokuji%20Temple%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "寺,歴史,桜,穴場",
+    "open_hours": "境内自由（行事により変動）",
+    "price": "無料（志納）"
+  },
+  {
+    "id": "arashiyama",
+    "name": "嵐山",
+    "name_en": "Arashiyama",
+    "pref": "京都府",
+    "area": "京都市右京区",
+    "address": "京都府京都市右京区嵯峨天龍寺芒ノ馬場町周辺",
+    "description": "渡月橋や竹林の小径で有名な京都屈指の観光エリア。春の桜や秋の紅葉が特に人気。",
+    "description_en": "One of Kyoto's most famous sightseeing areas, known for Togetsu-kyo Bridge and the bamboo grove, especially beautiful in cherry blossom and autumn foliage seasons.",
+    "official_url": "https://www.google.com/search?q=嵐山+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=嵐山 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Arashiyama%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "景勝地,自然,観光名所",
+    "open_hours": "エリア自由散策（店舗は各施設により異なる）",
+    "price": "散策無料（一部施設有料）"
+  },
+  {
+    "id": "gion_matsuri",
+    "name": "祇園祭",
+    "name_en": "Gion Matsuri Festival",
+    "pref": "京都府",
+    "area": "京都市中心部（四条烏丸〜四条河原町周辺）",
+    "address": "京都府京都市中京区・下京区周辺",
+    "description": "日本三大祭りの一つ。7月を通して様々な神事が行われ、山鉾巡行や宵山には多くの観光客が訪れる。",
+    "description_en": "One of Japan's three major festivals, held throughout July with various rituals. The grand yamahoko parade and evening festivities attract many visitors.",
+    "official_url": "https://www.google.com/search?q=祇園祭+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=祇園祭 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Gion%20Matsuri%20Festival%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "祭り,歴史,文化",
+    "open_hours": "主な行事は7月（詳細は公式情報を要確認）",
+    "price": "観覧無料（一部有料席あり）"
+  },
+  {
+    "id": "miyama_kayabuki",
+    "name": "美山の里（かやぶきの里）",
+    "name_en": "Miyama Kayabuki-no-Sato",
+    "pref": "京都府",
+    "area": "南丹市美山町",
+    "address": "京都府南丹市美山町北",
+    "description": "かやぶき屋根の古民家が残る日本の原風景のような集落。四季折々の田園風景が楽しめる。",
+    "description_en": "A traditional village with thatched-roof houses, offering nostalgic rural scenery throughout the year.",
+    "official_url": "https://www.google.com/search?q=美山+かやぶきの里+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=美山 かやぶきの里 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Miyama%20Kayabuki-no-Sato%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "景勝地,歴史,古民家,自然",
+    "open_hours": "散策自由（一部施設は営業時間あり）",
+    "price": "散策無料（一部施設有料）"
+  },
+  {
+    "id": "ine_town",
+    "name": "伊根町（伊根の舟屋）",
+    "name_en": "Ine Town (Funaya Houses)",
+    "pref": "京都府",
+    "area": "与謝郡伊根町",
+    "address": "京都府与謝郡伊根町字日出周辺",
+    "description": "海辺に舟屋と呼ばれる建物が並ぶ港町。海と家屋が一体となった独特の景観が魅力。",
+    "description_en": "A seaside town lined with 'funaya' boat houses along the water, creating a unique and picturesque coastal landscape.",
+    "official_url": "https://www.google.com/search?q=伊根町+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=伊根町 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Ine%20Town%20%28Funaya%20Houses%29%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "景勝地,港町,写真スポット",
+    "open_hours": "エリア自由散策",
+    "price": "散策無料（遊覧船などは別途料金）"
+  },
+  {
+    "id": "amanohashidate",
+    "name": "天橋立",
+    "name_en": "Amanohashidate",
+    "pref": "京都府",
+    "area": "宮津市",
+    "address": "京都府宮津市文珠周辺",
+    "description": "日本三景の一つに数えられる砂洲。股のぞきで有名な絶景スポットとして知られる。",
+    "description_en": "One of Japan's three most scenic views, a sandbar covered with pine trees, famous for its unique 'matanozoki' upside-down viewing style.",
+    "official_url": "https://www.google.com/search?q=天橋立+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=天橋立 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Amanohashidate%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "景勝地,自然,日本三景",
+    "open_hours": "エリア自由散策（リフト・ケーブルカーは別途営業時間あり）",
+    "price": "散策無料（展望施設等は有料）"
+  },
+  {
+    "id": "shogunzuka",
+    "name": "将軍塚青龍殿",
+    "name_en": "Shogunzuka Seiryuden",
+    "pref": "京都府",
+    "area": "京都市東山区",
+    "address": "京都府京都市東山区粟田口華頂町3",
+    "description": "京都市街を一望できる大舞台が有名な寺院。夜景スポットとしても人気。",
+    "description_en": "A temple known for its large wooden stage offering a panoramic view of Kyoto city, popular as a night view spot.",
+    "official_url": "https://www.google.com/search?q=将軍塚+青龍殿+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=将軍塚 青龍殿 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Shogunzuka%20Seiryuden%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "寺,夜景,展望,景勝地",
+    "open_hours": "9:00〜17:00（季節により変動・夜間拝観あり）",
+    "price": "拝観有料"
+  },
+  {
+    "id": "keage_incline",
+    "name": "蹴上インクライン",
+    "name_en": "Keage Incline",
+    "pref": "京都府",
+    "area": "京都市東山区",
+    "address": "京都府京都市東山区東小物座町周辺",
+    "description": "かつて船を運ぶために使われた鉄道跡。現在は桜の名所として人気の散策スポット。",
+    "description_en": "A former railway incline once used to transport boats, now a popular walking spot famous for its cherry blossoms.",
+    "official_url": "https://www.google.com/search?q=蹴上インクライン+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=蹴上インクライン 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Keage%20Incline%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "桜,散策,歴史,フォトスポット",
+    "open_hours": "終日開放",
+    "price": "無料"
+  },
+  {
+    "id": "kinkakuji",
+    "name": "金閣寺（鹿苑寺）",
+    "name_en": "Kinkakuji Temple",
+    "pref": "京都府",
+    "area": "京都市北区",
+    "address": "京都府京都市北区金閣寺町1",
+    "description": "世界遺産にも登録されている京都を代表する名所。池に映る金色の舎利殿が美しい。",
+    "description_en": "One of Kyoto's most iconic World Heritage sites, famous for its golden pavilion reflected in the surrounding pond.",
+    "official_url": "https://www.shokoku-ji.jp/kinkakuji/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=金閣寺 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kinkakuji%20Temple%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "寺,世界遺産,観光名所",
+    "open_hours": "9:00〜17:00",
+    "price": "拝観有料"
+  },
+  {
+    "id": "kyoto_station_tower",
+    "name": "京都駅／京都タワー",
+    "name_en": "Kyoto Station / Kyoto Tower",
+    "pref": "京都府",
+    "area": "京都市下京区",
+    "address": "京都府京都市下京区東塩小路町周辺",
+    "description": "京都の玄関口である京都駅と、その目の前にそびえる京都タワー。買い物やグルメ、夜景などが楽しめる。",
+    "description_en": "Kyoto's main transportation hub and the nearby Kyoto Tower, offering shopping, dining, and night views.",
+    "official_url": "https://www.kyoto-tower.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=京都タワー 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kyoto%20Station%20/%20Kyoto%20Tower%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "駅,タワー,夜景,都市",
+    "open_hours": "店舗・施設により異なる（タワー展望室は通常10:00〜22:00）",
+    "price": "タワー展望料金有料"
+  },
+  {
+    "id": "byodoin",
+    "name": "平等院鳳凰堂",
+    "name_en": "Byodoin Temple (Phoenix Hall)",
+    "pref": "京都府",
+    "area": "宇治市",
+    "address": "京都府宇治市宇治蓮華116",
+    "description": "10円玉の図柄でおなじみの世界遺産。阿弥陀堂である鳳凰堂と庭園が有名。",
+    "description_en": "A World Heritage temple featured on the 10-yen coin, known for its Phoenix Hall and beautiful garden.",
+    "official_url": "https://www.byodoin.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=平等院鳳凰堂 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Byodoin%20Temple%20%28Phoenix%20Hall%29%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "寺,世界遺産,歴史",
+    "open_hours": "8:30〜17:30（季節により変動）",
+    "price": "拝観有料"
+  },
+  {
+    "id": "tetsugaku_no_michi",
+    "name": "哲学の道",
+    "name_en": "Philosopher's Path",
+    "pref": "京都府",
+    "area": "京都市左京区",
+    "address": "京都府京都市左京区若王子町〜浄土寺石橋町周辺",
+    "description": "疏水沿いに続く遊歩道。桜の名所として知られ、ゆったり散歩を楽しめる人気スポット。",
+    "description_en": "A walking path along a canal, famous for cherry blossoms and a calm, contemplative atmosphere.",
+    "official_url": "https://www.google.com/search?q=哲学の道+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=哲学の道 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Philosopher%27s%20Path%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "散策,桜,フォトスポット",
+    "open_hours": "終日開放",
+    "price": "無料"
+  },
+  {
+    "id": "kiyomizudera",
+    "name": "清水寺",
+    "name_en": "Kiyomizu-dera Temple",
+    "pref": "京都府",
+    "area": "京都市東山区",
+    "address": "京都府京都市東山区清水1丁目294",
+    "description": "清水の舞台で有名な世界遺産。京都を一望できる人気観光スポット。",
+    "description_en": "A World Heritage temple famous for its wooden stage that offers panoramic views of Kyoto.",
+    "official_url": "https://www.kiyomizudera.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=清水寺 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kiyomizu-dera%20Temple%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "寺,世界遺産,観光名所",
+    "open_hours": "6:00〜18:00（季節により変動・夜間拝観あり）",
+    "price": "拝観有料"
+  },
+  {
+    "id": "fushimi_inari",
+    "name": "伏見稲荷大社",
+    "name_en": "Fushimi Inari Taisha",
+    "pref": "京都府",
+    "area": "京都市伏見区",
+    "address": "京都府京都市伏見区深草藪之内町68",
+    "description": "千本鳥居で有名な京都を代表する神社。稲荷山の頂上まで続く参道がある。",
+    "description_en": "One of Kyoto's most famous shrines, known for its thousands of red torii gates leading up Mt. Inari.",
+    "official_url": "https://inari.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=伏見稲荷大社 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Fushimi%20Inari%20Taisha%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "神社,観光名所,フォトスポット",
+    "open_hours": "終日開門",
+    "price": "参拝無料"
+  },
+  {
+    "id": "kyoto_national_museum",
+    "name": "京都国立博物館",
+    "name_en": "Kyoto National Museum",
+    "pref": "京都府",
+    "area": "京都市東山区",
+    "address": "京都府京都市東山区茶屋町527",
+    "description": "日本や東アジアの美術・文化財を中心に展示する国立博物館。特別展も人気。",
+    "description_en": "A national museum displaying Japanese and East Asian art and cultural properties, with popular special exhibitions.",
+    "official_url": "https://www.kyohaku.go.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=京都国立博物館 京都府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kyoto%20National%20Museum%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "博物館,芸術,歴史",
+    "open_hours": "9:30〜17:00（入館は16:30まで）",
+    "price": "観覧有料（展示により異なる）"
+  },
+  {
+    "id": "higashiosaka_cityhall",
+    "name": "東大阪市役所 展望ロビー",
+    "name_en": "Higashiosaka City Hall Observation Lobby",
+    "pref": "大阪府",
+    "area": "東大阪市",
+    "address": "大阪府東大阪市荒本北1丁目1-1",
+    "description": "高層庁舎の上層階にある展望ロビーからは、大阪平野を一望できる。無料で利用可能。",
+    "description_en": "An observation lobby in the upper floors of Higashiosaka City Hall, offering a panoramic view of the Osaka plain, free of charge.",
+    "official_url": "https://www.city.higashiosaka.lg.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=東大阪市役所 大阪府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Higashiosaka%20City%20Hall%20Observation%20Lobby%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "展望,無料スポット,都市景観",
+    "open_hours": "8:30〜21:00（変更の場合あり）",
+    "price": "無料"
+  },
+  {
+    "id": "umekita_hiroba",
+    "name": "うめきた広場",
+    "name_en": "Umekita Plaza",
+    "pref": "大阪府",
+    "area": "大阪市北区・梅田",
+    "address": "大阪府大阪市北区大深町周辺",
+    "description": "大阪駅北側に位置する開放的なイベント・憩いの広場。周囲には商業施設やオフィスが立ち並ぶ。",
+    "description_en": "An open plaza north of Osaka Station used for events and relaxation, surrounded by commercial facilities and offices.",
+    "official_url": "https://www.grandfront-osaka.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=うめきた広場 大阪府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Umekita%20Plaza%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "広場,都市,イベント",
+    "open_hours": "終日開放（イベントにより制限あり）",
+    "price": "無料"
+  },
+  {
+    "id": "banpaku_kinen_koen",
+    "name": "万博記念公園",
+    "name_en": "Expo ’70 Commemorative Park",
+    "pref": "大阪府",
+    "area": "吹田市",
+    "address": "大阪府吹田市千里万博公園1-1",
+    "description": "1970年大阪万博の跡地に整備された広大な公園。太陽の塔や日本庭園など見どころ多数。",
+    "description_en": "A large park built on the site of Expo ’70, featuring the Tower of the Sun, Japanese gardens, and many attractions.",
+    "official_url": "https://www.expo70-park.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=万博記念公園 大阪府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Expo%20%E2%80%9970%20Commemorative%20Park%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "公園,家族連れ,歴史",
+    "open_hours": "9:30〜17:00（季節により変動）",
+    "price": "入園有料（一部施設別料金）"
+  },
+  {
+    "id": "expocity",
+    "name": "EXPOCITY",
+    "name_en": "EXPOCITY",
+    "pref": "大阪府",
+    "area": "吹田市",
+    "address": "大阪府吹田市千里万博公園2-1",
+    "description": "万博記念公園に隣接する大型複合施設。ショッピングモールや水族館、観覧車などが集まる。",
+    "description_en": "A large complex next to Expo ’70 Park, with a shopping mall, aquarium, Ferris wheel, and more.",
+    "official_url": "https://www.expocity-mf.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=EXPOCITY 大阪府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?EXPOCITY%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "ショッピング,娯楽,家族連れ",
+    "open_hours": "施設により異なる（目安10:00〜21:00）",
+    "price": "入館無料（各施設利用は有料）"
+  },
+  {
+    "id": "osaka_castle",
+    "name": "大阪城",
+    "name_en": "Osaka Castle",
+    "pref": "大阪府",
+    "area": "大阪市中央区",
+    "address": "大阪府大阪市中央区大阪城1-1",
+    "description": "豊臣秀吉によって築かれた城跡に建つ天守閣。周囲は大阪城公園として整備され、市民の憩いの場となっている。",
+    "description_en": "A reconstructed castle tower built on the site of Toyotomi Hideyoshi’s former stronghold, surrounded by Osaka Castle Park.",
+    "official_url": "https://www.osakacastle.net/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=大阪城 大阪府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Osaka%20Castle%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "城,歴史,公園",
+    "open_hours": "9:00〜17:00（季節により延長あり）",
+    "price": "天守閣入館有料"
+  },
+  {
+    "id": "osaka_natural_history_museum",
+    "name": "大阪市立自然史博物館",
+    "name_en": "Osaka Museum of Natural History",
+    "pref": "大阪府",
+    "area": "大阪市東住吉区（長居公園内）",
+    "address": "大阪府大阪市東住吉区長居公園1-23",
+    "description": "長居公園内にある自然史博物館。恐竜の骨格標本や大阪の自然に関する展示が充実。",
+    "description_en": "A natural history museum in Nagai Park, featuring dinosaur skeletons and exhibits on Osaka's natural environment.",
+    "official_url": "https://www.mus-nh.city.osaka.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=大阪市立自然史博物館 大阪府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Osaka%20Museum%20of%20Natural%20History%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "博物館,家族連れ,学習",
+    "open_hours": "9:30〜17:00（入館は16:30まで）",
+    "price": "観覧有料"
+  },
+  {
+    "id": "tennoji_park",
+    "name": "天王寺公園",
+    "name_en": "Tennoji Park",
+    "pref": "大阪府",
+    "area": "大阪市天王寺区",
+    "address": "大阪府大阪市天王寺区茶臼山町1-108",
+    "description": "天王寺動物園や美術館がある都市公園。芝生広場や日本庭園も整備されている。",
+    "description_en": "An urban park that includes Tennoji Zoo and museums, with lawns and a Japanese garden for relaxation.",
+    "official_url": "https://www.tennoji-park.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=天王寺公園 大阪府",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Tennoji%20Park%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+    ],
+    "tags": "公園,家族連れ,動物園",
+    "open_hours": "公園は原則24時間開放（一部エリアは時間制限あり）",
+    "price": "公園無料（動物園・美術館は有料）"
+  },
+  {
+    "id": "kinosaki_onsen",
+    "name": "城崎温泉",
+    "name_en": "Kinosaki Onsen",
+    "pref": "兵庫県",
+    "area": "豊岡市城崎町",
+    "address": "兵庫県豊岡市城崎町湯島周辺",
+    "description": "7つの外湯めぐりで有名な温泉街。浴衣でそぞろ歩きを楽しめる情緒あるエリア。",
+    "description_en": "A historic hot spring town famous for its seven public baths, where visitors stroll in yukata.",
+    "official_url": "https://kinosaki-spa.gr.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=城崎温泉 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kinosaki%20Onsen%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "温泉街,外湯めぐり,観光名所",
+    "open_hours": "外湯は施設により営業時間が異なる",
+    "price": "入浴料各外湯有料"
+  },
+  {
+    "id": "ango_iwato_jinja",
+    "name": "安乎岩戸信龍神社（淡路島）",
+    "name_en": "Ango Iwato Shinryu Shrine (Awaji Island)",
+    "pref": "兵庫県",
+    "area": "淡路市",
+    "address": "兵庫県淡路市",
+    "description": "淡路島にある海辺の小さな神社。岩場と海の景観が印象的なパワースポット。",
+    "description_en": "A small seaside shrine on Awaji Island, known as a spiritual spot with striking rock and sea views.",
+    "official_url": "https://www.google.com/search?q=安乎岩戸信龍神社+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=安乎岩戸信龍神社 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Ango%20Iwato%20Shinryu%20Shrine%20%28Awaji%20Island%29%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "神社,景勝地,パワースポット",
+    "open_hours": "終日開放（状況により異なる場合あり）",
+    "price": "参拝無料"
+  },
+  {
+    "id": "kobe_ohashi",
+    "name": "神戸大橋",
+    "name_en": "Kobe Ohashi Bridge",
+    "pref": "兵庫県",
+    "area": "神戸市中央区",
+    "address": "兵庫県神戸市中央区港島周辺",
+    "description": "ポートアイランドと神戸の市街地を結ぶ赤い橋。夜景や港の景色が楽しめるドライブコース。",
+    "description_en": "A red bridge connecting Port Island and central Kobe, popular for drives with views of the port and night scenery.",
+    "official_url": "https://www.google.com/search?q=神戸大橋+夜景",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=神戸大橋 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kobe%20Ohashi%20Bridge%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "橋,夜景,ドライブ",
+    "open_hours": "通行自由",
+    "price": "無料"
+  },
+  {
+    "id": "kobe_city_museum",
+    "name": "神戸市立博物館",
+    "name_en": "Kobe City Museum",
+    "pref": "兵庫県",
+    "area": "神戸市中央区",
+    "address": "兵庫県神戸市中央区京町24",
+    "description": "神戸の歴史や文化、港町としての歩みを紹介する博物館。特別展も随時開催。",
+    "description_en": "A museum introducing the history and culture of Kobe as a port city, with periodic special exhibitions.",
+    "official_url": "https://www.kobecitymuseum.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=神戸市立博物館 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kobe%20City%20Museum%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "博物館,歴史,文化",
+    "open_hours": "9:30〜17:30（入館は閉館30分前まで）",
+    "price": "観覧有料（展示により異なる）"
+  },
+  {
+    "id": "rokkosan",
+    "name": "六甲山",
+    "name_en": "Mt. Rokko",
+    "pref": "兵庫県",
+    "area": "神戸市・芦屋市など",
+    "address": "兵庫県神戸市灘区六甲山町周辺",
+    "description": "神戸市街や大阪湾を一望できる山。夜景スポットとしても有名で、ハイキングやドライブにも人気。",
+    "description_en": "A mountain overlooking Kobe city and Osaka Bay, famous for its night views, hiking trails, and scenic drives.",
+    "official_url": "https://www.rokkosan.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=六甲山 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Mt.%20Rokko%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "山,夜景,ハイキング",
+    "open_hours": "エリアにより異なる（施設は営業時間あり）",
+    "price": "散策無料（一部施設有料）"
+  },
+  {
+    "id": "kitano_ijinkan",
+    "name": "北野異人館街",
+    "name_en": "Kobe Kitano Ijinkan District",
+    "pref": "兵庫県",
+    "area": "神戸市中央区北野町",
+    "address": "兵庫県神戸市中央区北野町周辺",
+    "description": "明治期の洋館が立ち並ぶレトロな観光エリア。各館の見学やカフェ巡りが楽しめる。",
+    "description_en": "A historic district with Western-style residences from the Meiji era, popular for touring the houses and visiting cafes.",
+    "official_url": "https://www.kobeijinkan.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=北野異人館 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kobe%20Kitano%20Ijinkan%20District%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "歴史的建築,観光名所,洋館",
+    "open_hours": "各施設により異なる",
+    "price": "入館有料（施設により異なる）"
+  },
+  {
+    "id": "port_island",
+    "name": "ポートアイランド",
+    "name_en": "Port Island",
+    "pref": "兵庫県",
+    "area": "神戸市中央区",
+    "address": "兵庫県神戸市中央区港島",
+    "description": "神戸港に浮かぶ人工島。展示場や大学、商業施設が集まり、夜景スポットとしても人気。",
+    "description_en": "An artificial island in Kobe Port with exhibition centers, universities, and commercial facilities, also known for night views.",
+    "official_url": "https://www.google.com/search?q=ポートアイランド+神戸+観光",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=ポートアイランド 神戸市",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Port%20Island%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "人工島,夜景,都市景観",
+    "open_hours": "エリア自由",
+    "price": "散策無料"
+  },
+  {
+    "id": "kobe_port_tower",
+    "name": "神戸ポートタワー",
+    "name_en": "Kobe Port Tower",
+    "pref": "兵庫県",
+    "area": "神戸市中央区・メリケンパーク",
+    "address": "兵庫県神戸市中央区波止場町5-5",
+    "description": "神戸港のシンボルとなっている展望タワー。港と市街地の景色を360度見渡せる。",
+    "description_en": "An iconic observation tower in Kobe Port offering 360-degree views of the harbor and city.",
+    "official_url": "https://kobe-port-tower.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=神戸ポートタワー 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kobe%20Port%20Tower%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "タワー,展望,夜景",
+    "open_hours": "通常9:00〜21:00（季節により変動）",
+    "price": "展望入場有料"
+  },
+  {
+    "id": "kobe_harborland",
+    "name": "神戸ハーバーランド",
+    "name_en": "Kobe Harborland",
+    "pref": "兵庫県",
+    "area": "神戸市中央区",
+    "address": "兵庫県神戸市中央区東川崎町1丁目周辺",
+    "description": "ショッピングモールやレストランが集まるウォーターフロントエリア。夜のイルミネーションが美しい。",
+    "description_en": "A waterfront district with shopping malls and restaurants, famous for its beautiful night illuminations.",
+    "official_url": "https://www.harborland.co.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=神戸ハーバーランド 兵庫県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kobe%20Harborland%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "ショッピング,夜景,デートスポット",
+    "open_hours": "施設により異なる",
+    "price": "エリア散策無料"
+  },
+  {
+    "id": "nankinmachi",
+    "name": "南京町",
+    "name_en": "Nankinmachi (Kobe Chinatown)",
+    "pref": "兵庫県",
+    "area": "神戸市中央区元町",
+    "address": "兵庫県神戸市中央区栄町通1〜2丁目周辺",
+    "description": "神戸の中華街として知られるグルメスポット。食べ歩きや中華料理店巡りが楽しめる。",
+    "description_en": "Kobe's Chinatown district, known for its many Chinese restaurants and street food stalls.",
+    "official_url": "https://www.nankinmachi.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=南京町 神戸市",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Nankinmachi%20%28Kobe%20Chinatown%29%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "中華街,グルメ,観光名所",
+    "open_hours": "店舗により異なる",
+    "price": "散策無料（飲食は有料）"
+  },
+  {
+    "id": "oishi_kogen",
+    "name": "生石高原",
+    "name_en": "Oishi Plateau",
+    "pref": "和歌山県",
+    "area": "海草郡紀美野町・有田郡有田川町",
+    "address": "和歌山県海草郡紀美野町中田周辺",
+    "description": "秋のすすきの大草原で有名な高原。山頂からは紀伊山地や海まで見渡せる絶景スポット。",
+    "description_en": "A plateau famous for its vast pampas grass fields in autumn, offering stunning views over the mountains and sea.",
+    "official_url": "https://www.google.com/search?q=生石高原+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=生石高原 和歌山県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Oishi%20Plateau%20%E5%92%8C%E6%AD%8C%E5%B1%B1%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "高原,自然,絶景",
+    "open_hours": "終日開放（冬季は要注意）",
+    "price": "無料"
+  },
+  {
+    "id": "aragijima",
+    "name": "あらぎ島",
+    "name_en": "Aragijima",
+    "pref": "和歌山県",
+    "area": "有田郡有田川町",
+    "address": "和歌山県有田郡有田川町清水周辺",
+    "description": "棚田が川に沿って弧を描くように広がる絶景スポット。四季折々の田園風景が楽しめる。",
+    "description_en": "A scenic area where terraced rice fields curve along the river, offering beautiful rural scenery in every season.",
+    "official_url": "https://www.google.com/search?q=あらぎ島+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=あらぎ島 和歌山県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Aragijima%20%E5%92%8C%E6%AD%8C%E5%B1%B1%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "棚田,景勝地,写真スポット",
+    "open_hours": "終日開放",
+    "price": "無料"
+  },
+  {
+    "id": "todaiji",
+    "name": "東大寺",
+    "name_en": "Todaiji Temple",
+    "pref": "奈良県",
+    "area": "奈良市",
+    "address": "奈良県奈良市雑司町406-1",
+    "description": "世界最大級の木造建築・大仏殿で知られる世界遺産。奈良を代表する古刹。",
+    "description_en": "A World Heritage temple famous for its Great Buddha Hall, one of the largest wooden structures in the world.",
+    "official_url": "https://www.todaiji.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=東大寺 奈良県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Todaiji%20Temple%20%E5%A5%88%E8%89%AF%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "寺,世界遺産,大仏",
+    "open_hours": "8:00〜17:00（季節により変動）",
+    "price": "拝観有料"
+  },
+  {
+    "id": "nara_park",
+    "name": "奈良公園",
+    "name_en": "Nara Park",
+    "pref": "奈良県",
+    "area": "奈良市",
+    "address": "奈良県奈良市春日野町・雑司町周辺",
+    "description": "鹿と共に過ごせる広大な公園。東大寺や春日大社など多くの名所が園内に点在する。",
+    "description_en": "A vast park where deer roam freely, home to many famous sites including Todaiji and Kasuga Taisha.",
+    "official_url": "https://www.narashikanko.or.jp/spot/nara_park/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=奈良公園 奈良県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Nara%20Park%20%E5%A5%88%E8%89%AF%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "公園,鹿,観光名所",
+    "open_hours": "終日開放",
+    "price": "無料（一部施設有料）"
+  },
+  {
+    "id": "kasuga_taisha",
+    "name": "春日大社",
+    "name_en": "Kasuga Taisha Shrine",
+    "pref": "奈良県",
+    "area": "奈良市",
+    "address": "奈良県奈良市春日野町160",
+    "description": "朱色の社殿と多数の石灯籠・釣灯籠が印象的な世界遺産の神社。奈良公園の奥に位置する。",
+    "description_en": "A World Heritage shrine known for its vermilion buildings and numerous stone and hanging lanterns, located within Nara Park.",
+    "official_url": "https://www.kasugataisha.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=春日大社 奈良県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Kasuga%20Taisha%20Shrine%20%E5%A5%88%E8%89%AF%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "神社,世界遺産,歴史",
+    "open_hours": "6:00〜18:00（季節により変動）",
+    "price": "本殿参拝有料"
+  },
+  {
+    "id": "shirahige_jinja",
+    "name": "白髭神社",
+    "name_en": "Shirahige Shrine",
+    "pref": "滋賀県",
+    "area": "高島市",
+    "address": "滋賀県高島市鵜川215",
+    "description": "琵琶湖に立つ鳥居で有名な湖畔の神社。日の出や夕景のフォトスポットとして人気。",
+    "description_en": "A lakeside shrine famous for its torii gate standing in Lake Biwa, popular for sunrise and sunset photography.",
+    "official_url": "https://shirahigejinja.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=白髭神社 滋賀県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Shirahige%20Shrine%20%E6%BB%8B%E8%B3%80%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "神社,湖,写真スポット",
+    "open_hours": "境内自由（社務所は時間制）",
+    "price": "参拝無料"
+  },
+  {
+    "id": "metasequoia_namiki",
+    "name": "メタセコイヤ並木",
+    "name_en": "Metasequoia Tree Lined Road",
+    "pref": "滋賀県",
+    "area": "高島市マキノ町",
+    "address": "滋賀県高島市マキノ町寺久保〜牧野周辺",
+    "description": "メタセコイヤの木が約2.4kmにわたり並ぶ並木道。新緑や紅葉、雪景色など四季折々の景観が楽しめる。",
+    "description_en": "A 2.4 km road lined with metasequoia trees, offering beautiful scenery in every season, from fresh green to autumn leaves and snow.",
+    "official_url": "https://www.google.com/search?q=メタセコイヤ並木+滋賀+観光",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=メタセコイヤ並木 滋賀県",
+    "images": [
+      "https://source.unsplash.com/1600x900/?Metasequoia%20Tree%20Lined%20Road%20%E6%BB%8B%E8%B3%80%E7%9C%8C%20landscape%20travel"
+    ],
+    "tags": "並木道,景勝地,ドライブ",
+    "open_hours": "終日通行可能",
+    "price": "無料"
+  }
+]
