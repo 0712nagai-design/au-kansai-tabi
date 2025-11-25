@@ -43,7 +43,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 SIGHTSEEING_MASTER = {}
 
 try:
-    with open("sightseeing_master.json", "r", encoding="utf-8") as f:
+    with open("sightseeing_master(3).json", "r", encoding="utf-8") as f:
         SIGHTSEEING_MASTER = json.load(f)
 except FileNotFoundError:
     # ファイルがまだない場合は、最低1件だけ手書きしておいてもOK
@@ -2445,6 +2445,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
