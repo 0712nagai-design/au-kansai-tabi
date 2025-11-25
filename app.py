@@ -39,6 +39,29 @@ if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY が未設定です")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+# ====================== マスターデータ（観光地）読込 ======================
+SIGHTSEEING_MASTER = {}
+
+try:
+    with open("sightseeing_master.json", "r", encoding="utf-8") as f:
+        SIGHTSEEING_MASTER = json.load(f)
+except FileNotFoundError:
+    # ファイルがまだない場合は、最低1件だけ手書きしておいてもOK
+    SIGHTSEEING_MASTER = {
+        "kifune_jinja": {
+            "name": "貴船神社",
+            "name_en": "Kifune Shrine",
+            "pref": "京都",
+            "pref_en": "Kyoto",
+            "area": "京都市左京区・貴船",
+            "description": "京都の山あいにある水の神様を祀る神社。四季の景色と川沿いの参道が人気。",
+            "description_en": "Shrine in the mountains of Kyoto, famous for water deity and scenic seasons.",
+            "official_url": "https://kifunejinja.jp/",
+            "map_url": "https://www.google.com/maps/place/貴船神社/",
+            "address": "京都府京都市左京区鞍馬貴船町180",
+            "images": []
+        }
+    }
 
 # ====================== Flask / LINE ======================
 app = Flask(__name__)
@@ -2125,11 +2148,52 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         _send_finish_menu(uid, lang)
         return
 
-    if req in {"観光地", "Sightseeing"}:
-        sight_text = _call_openai_text(build_sightseeing3_prompt(answers, lang), lang)
-        _send_sightseeing_three(uid, reply_token, sight_text, lang)
-        _send_finish_menu(uid, lang)
+        if req in {"観光地", "Sightseeing"}:
+        pref = answers.get("pref")  # "京都" or "Kyoto"
+        lang_code = _get_lang_code(answers)  # 'ja' or 'en'
+
+        matched = []
+        for spot in SIGHTSEEING_MASTER.values():
+            if lang_code == "ja":
+                if spot.get("pref") != pref:
+                    continue
+                title = spot.get("name", "")
+                subtitle = spot.get("description", "")
+            else:
+                if spot.get("pref_en") != pref:
+                    continue
+                title = spot.get("name_en") or spot.get("name", "")
+                subtitle = spot.get("description_en") or spot.get("description", "")
+
+            matched.append({
+                "title": title,
+                "subtitle": subtitle[:60] if subtitle else " ",
+                "official": spot.get("official_url", ""),
+                "map": spot.get("map_url", ""),
+                "image": (spot.get("images") or [REQUEST_IMAGE_URLS.get("観光地")])[0]
+            })
+
+        if not matched:
+            msg = (
+                f"{pref}の観光地マスターデータがまだ登録されていません。"
+                if lang_code == "ja"
+                else f"No sightseeing master data registered for {pref} yet."
+            )
+            line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+            _send_finish_menu(uid, answers.get("lang", "日本語"))
+            return
+
+        header_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing spots (from master)"
+        line_bot_api.reply_message(
+            reply_token,
+            _carousel_from_items(header_title, matched)
+        )
+
+        _send_finish_menu(uid, answers.get("lang", "日本語"))
         return
+
+    
+
 
     if req in {"日程表", "Itinerary"}:
         schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
@@ -2384,52 +2448,5 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
