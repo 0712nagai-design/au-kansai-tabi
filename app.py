@@ -2157,63 +2157,118 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # 言語を取得＆保存
     lang = answers.get("lang", LAST_LANG.get(uid, "日本語"))
     LAST_LANG[uid] = lang
+    is_en = str(lang).lower().startswith("e")
 
     req = answers.get("request")
 
+    # ----------------------------------
+    # ホテル 3件
+    # ----------------------------------
     if req in {"ホテル", "Hotels"}:
         hotels_text = _call_openai_text(build_hotel3_prompt(answers, lang), lang)
         _send_hotels_three(uid, reply_token, hotels_text, lang)
         _send_finish_menu(uid, lang)
         return
 
+    # ----------------------------------
+    # 飲食店 3件
+    # ----------------------------------
     if req in {"飲食店", "Restaurants"}:
         foods_text = _call_openai_text(build_food3_prompt(answers, lang), lang)
         _send_food_three(uid, reply_token, foods_text, lang)
         _send_finish_menu(uid, lang)
         return
 
+    # ----------------------------------
+    # 体験スポット 3件
+    # ----------------------------------
     if req in {"体験スポット", "Experiences"}:
         exp_text = _call_openai_text(build_experience3_prompt(answers, lang), lang)
         _send_experiences_three(uid, reply_token, exp_text, lang)
         _send_finish_menu(uid, lang)
         return
 
-    # ←←← ここ！正しく左端に戻す
+    # ----------------------------------
+    # 観光地（マスターデータから取得）
+    # ----------------------------------
     if req in {"観光地", "Sightseeing"}:
-    pref = answers.get("pref")  # "京都" or "Kyoto"
-    lang_code = _get_lang_code(answers)  # 'ja' or 'en'
+        # pref: 日本語なら「京都」、英語なら "Kyoto"
+        pref_answer = answers.get("pref")
+        lang_code = _get_lang_code(answers)  # 'ja' or 'en'
 
-    matched = []
-    for spot in SIGHTSEEING_MASTER.values():
-        if lang_code == "ja":
-            if spot.get("pref") != pref:
+        # 「京都府」「奈良県」などを「京都」「奈良」にそろえるための簡易関数
+        def _norm_pref(s: Any) -> str:
+            if not isinstance(s, str):
+                return ""
+            s = s.strip()
+            for suf in ("府", "県"):
+                if s.endswith(suf):
+                    s = s[:-1]
+            return s
+
+        matched = []
+        for spot in SIGHTSEEING_MASTER.values():
+            if not isinstance(spot, dict):
                 continue
-            title = spot.get("name", "")
-            subtitle = spot.get("description", "")
-        else:
-            if spot.get("pref_en") != pref:
-                continue
-            title = spot.get("name_en") or spot.get("name", "")
-            subtitle = spot.get("description_en") or spot.get("description", "")
-        ...
 
+            if lang_code == "ja":
+                # JSON 側が「京都府」でも回答が「京都」でもマッチするようにする
+                spot_pref = _norm_pref(spot.get("pref", ""))
+                if spot_pref != _norm_pref(pref_answer):
+                    continue
+                title = spot.get("name", "")
+                subtitle = spot.get("description", "")
+            else:
+                # 英語はそのまま "Kyoto" / "Osaka" などで比較
+                spot_pref_en = spot.get("pref_en") or spot.get("pref")
+                if not spot_pref_en or spot_pref_en != pref_answer:
+                    continue
+                title = spot.get("name_en") or spot.get("name", "")
+                subtitle = spot.get("description_en") or spot.get("description", "")
 
+            images = spot.get("images") or []
+            image_url = images[0] if images else REQUEST_IMAGE_URLS.get("観光地")
+
+            matched.append({
+                "title": title,
+                "subtitle": subtitle[:60] if subtitle else " ",
+                "official": spot.get("official_url", ""),
+                "map": spot.get("map_url", ""),
+                "image": image_url,
+            })
+
+        # ヒットしなかった場合
+        if not matched:
+            if lang_code == "ja":
+                msg = f"{pref_answer}の観光地マスターデータがまだ登録されていません。"
+            else:
+                msg = f"No sightseeing master data registered for {pref_answer} yet."
+            line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+            _send_finish_menu(uid, lang)
+            return
+
+        # カルーセルで返す
         header_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing spots (from master)"
         line_bot_api.reply_message(
             reply_token,
             _carousel_from_items(header_title, matched)
         )
-        _send_finish_menu(uid, answers.get("lang", "日本語"))
+        _send_finish_menu(uid, lang)
         return
 
+    # ----------------------------------
+    # 日程表
+    # ----------------------------------
     if req in {"日程表", "Itinerary"}:
         schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
         _send_itinerary(uid, reply_token, schedule, lang)
         _send_finish_menu(uid, lang)
         return
 
+    # ----------------------------------
     # 想定外
-    msg = "未対応のリクエストです。" if not str(lang).lower().startswith("e") else "This request is not supported yet."
+    # ----------------------------------
+    msg = "未対応のリクエストです。" if not is_en else "This request is not supported yet."
     line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
 
 
@@ -2459,6 +2514,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
