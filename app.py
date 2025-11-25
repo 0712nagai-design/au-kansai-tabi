@@ -42,15 +42,38 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ====================== マスターデータ（観光地）読込 ======================
 SIGHTSEEING_MASTER = {}
 
+def _normalize_pref_name(name: str) -> str:
+    """京都府 / 大阪府 / 奈良県 みたいなのを 京都 / 大阪 / 奈良 にそろえる"""
+    if not isinstance(name, str):
+        return ""
+    name = name.strip()
+    for suf in ("府", "県"):
+        if name.endswith(suf):
+            name = name[:-1]
+    return name
+
 try:
     with open("data/sightseeing_master (3).json", "r", encoding="utf-8") as f:
-        data = json.load(f)
+        raw = json.load(f)
 
-        # ★ リスト形式 → 辞書形式に変換
-        if isinstance(data, list):
-            SIGHTSEEING_MASTER = {item["id"]: item for item in data}
+        # もし [ {...}, {...} ] みたいなリスト形式なら id をキーにして dict に変換
+        if isinstance(raw, list):
+            conv = {}
+            for row in raw:
+                if not isinstance(row, dict):
+                    continue
+                sid = row.get("id")
+                if not sid:
+                    continue
+                conv[sid] = row
+            SIGHTSEEING_MASTER = conv
+
+        # すでに {"kifune_jinja": {...}} 形式ならそのまま
+        elif isinstance(raw, dict):
+            SIGHTSEEING_MASTER = raw
+
         else:
-            SIGHTSEEING_MASTER = data
+            SIGHTSEEING_MASTER = {}
 
 except FileNotFoundError:
     SIGHTSEEING_MASTER = {
@@ -2157,39 +2180,23 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
 
     # ←←← ここ！正しく左端に戻す
     if req in {"観光地", "Sightseeing"}:
-        pref = answers.get("pref")  # "京都" or "Kyoto"
-        lang_code = _get_lang_code(answers)  # 'ja' or 'en'
+    pref = answers.get("pref")  # "京都" or "Kyoto"
+    lang_code = _get_lang_code(answers)  # 'ja' or 'en'
 
-        matched = []
-        for spot in SIGHTSEEING_MASTER.values():
-            if lang_code == "ja":
-                if spot.get("pref") != pref:
-                    continue
-                title = spot.get("name", "")
-                subtitle = spot.get("description", "")
-            else:
-                if spot.get("pref_en") != pref:
-                    continue
-                title = spot.get("name_en") or spot.get("name", "")
-                subtitle = spot.get("description_en") or spot.get("description", "")
+    matched = []
+    for spot in SIGHTSEEING_MASTER.values():
+        if lang_code == "ja":
+            if spot.get("pref") != pref:
+                continue
+            title = spot.get("name", "")
+            subtitle = spot.get("description", "")
+        else:
+            if spot.get("pref_en") != pref:
+                continue
+            title = spot.get("name_en") or spot.get("name", "")
+            subtitle = spot.get("description_en") or spot.get("description", "")
+        ...
 
-            matched.append({
-                "title": title,
-                "subtitle": subtitle[:60] if subtitle else " ",
-                "official": spot.get("official_url", ""),
-                "map": spot.get("map_url", ""),
-                "image": (spot.get("images") or [REQUEST_IMAGE_URLS.get("観光地")])[0]
-            })
-
-        if not matched:
-            msg = (
-                f"{pref}の観光地マスターデータがまだ登録されていません。"
-                if lang_code == "ja"
-                else f"No sightseeing master data registered for {pref} yet."
-            )
-            line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
-            _send_finish_menu(uid, answers.get("lang", "日本語"))
-            return
 
         header_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing spots (from master)"
         line_bot_api.reply_message(
@@ -2452,6 +2459,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
