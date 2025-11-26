@@ -1301,6 +1301,156 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
         alt_text=header_title,
         template=CarouselTemplate(columns=columns)
     )
+# ====================== AI観光モード 用ヘルパー ======================
+
+def build_ai_kanko_prompt(user_query: str, lang: str) -> str:
+    """
+    ユーザーが自由入力した「行きたいところ・やりたいこと」をもとに、
+    ホテル / 飲食店 / 体験 / 観光地 をミックスして最大3件提案させるためのプロンプト。
+    画像URLは出させない & URLは必ず生URLで。
+    """
+    is_en = str(lang).lower().startswith("e")
+
+    if is_en:
+        return f"""
+You are a Kansai travel concierge.
+
+User's request:
+"{user_query}"
+
+Based on this request, suggest up to **3 places** in Kansai
+(hotels, restaurants, experience spots, or sightseeing spots).
+
+Important rules:
+- Do NOT invent place names.
+- Only suggest real places that actually exist and can be found on Google Maps.
+- For every place, ALWAYS output:
+  - "Category:" ...   (one of: Hotel / Restaurant / Experience / Sightseeing)
+  - "Official:" URL   (official site or major info page)
+  - "Google Maps:" URL
+- Do NOT output any image URLs.
+- If you cannot find 3 suitable places, it's OK to output only 1 or 2.
+
+Output exactly in the following format, separated by blank lines (no extra text):
+
+① [Category] Place name (area)
+Short comment: 1-line summary (who it's for / what's good)
+💰 Price guide: ...
+Category: Hotel / Restaurant / Experience / Sightseeing
+🔗 Official: https://...
+📍 Google Maps: https://...
+
+② [Category] Place name (area)
+Short comment: ...
+💰 Price guide: ...
+Category: ...
+🔗 Official: https://...
+📍 Google Maps: https://...
+
+③ [Category] Place name (area)
+Short comment: ...
+💰 Price guide: ...
+Category: ...
+🔗 Official: https://...
+📍 Google Maps: https://...
+""".strip()
+    else:
+        return f"""
+あなたは関西旅行のコンシェルジュです。
+
+ユーザーの要望：
+「{user_query}」
+
+この内容に合う **最大3件** の候補を、
+ホテル / 飲食店 / 体験スポット / 観光地 の区別なくミックスで提案してください。
+
+ルール：
+- 架空の施設名・店舗名を作らないこと。
+- 必ず実在し、Googleマップで検索できる場所のみを出すこと。
+- 各候補ごとに必ず
+  - 「Category: 」… Hotel / Restaurant / Experience / Sightseeing のどれか
+  - 「Official: 」公式サイト or 信頼できる紹介ページのURL
+  - 「Google Maps: 」GoogleマップURL
+  を含めること。
+- 画像URLは出さないこと。
+- 条件に合う場所が1〜2件しかなくても、その件数だけ出してOK。
+
+出力は **以下のフォーマットだけ** にしてください（解説文・前後の文章は不要）。
+候補同士は「空行」で区切ること（罫線は使わない）：
+
+① [カテゴリ] 名称（エリア）
+短評：誰向けか／何が良いか など1行
+💰 目安：...
+Category: Hotel / Restaurant / Experience / Sightseeing
+🔗 Official: https://...
+📍 Google Maps: https://...
+
+② [カテゴリ] 名称（エリア）
+短評：...
+💰 目安：...
+Category: ...
+🔗 Official: https://...
+📍 Google Maps: https://...
+
+③ [カテゴリ] 名称（エリア）
+短評：...
+💰 目安：...
+Category: ...
+🔗 Official: https://...
+📍 Google Maps: https://...
+""".strip()
+
+
+def parse_ai_kanko_result(text: str) -> List[Dict[str, str]]:
+    """
+    build_ai_kanko_prompt の出力テキストをパースして、
+    _carousel_from_items に渡せる items リストに変換する。
+    """
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()]
+    results = []
+
+    for block in blocks[:3]:
+        lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+        if not lines:
+            continue
+
+        # 1行目: ① [カテゴリ] 名称（エリア）
+        raw_title = re.sub(r"^[①-⑳\d\.\)\s🏨🍽🎯🏯]*", "", lines[0])
+        title = raw_title or "スポット"
+
+        # 短評
+        mshort = re.search(r"^(?:短評|Short comment)[:：]\s*(.+)$", block, re.M)
+        short = mshort.group(1).strip() if mshort else ""
+
+        # URL類
+        moff = OFFICIAL_URL_RE.search(block)
+        mmap = MAP_URL_RE.search(block)
+
+        official = moff.group(1).strip() if moff else ""
+        map_url = mmap.group(1).strip() if mmap else ""
+
+        # カテゴリ（画像出し分け用：とりあえずざっくり）
+        mcat = re.search(r"^Category[:：]\s*(.+)$", block, re.M | re.I)
+        category = (mcat.group(1).strip().lower() if mcat else "")
+
+        if "hotel" in category:
+            img = REQUEST_IMAGE_URLS.get("ホテル")
+        elif "restaurant" in category:
+            img = REQUEST_IMAGE_URLS.get("飲食店")
+        elif "experience" in category:
+            img = REQUEST_IMAGE_URLS.get("体験スポット")
+        else:
+            img = REQUEST_IMAGE_URLS.get("観光地")
+
+        results.append({
+            "title": title[:40],
+            "subtitle": (short or " ")[:60],
+            "official": official,
+            "map": map_url,
+            "image": img,
+        })
+
+    return results
 
 # ====================== ホテル：3件提案 ======================
 def build_hotel3_prompt(answers: Dict[str, Any], lang: str) -> str:
@@ -2391,29 +2541,14 @@ def on_message(event: MessageEvent):
     uid = event.source.user_id
     text = (event.message.text or "").strip()
 
-    # --- 他のプランメニューからのダイレクト分岐 ---
-    if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
-        lang = LAST_LANG.get(uid, "日本語")
-        users[uid] = {
-            # lang と request は既に決まっているので、次の質問はインデックス2から
-            "step": 2,
-            "answers": {"lang": lang, "request": text},
-            "hist": deque(maxlen=MAX_TURNS),
-            "multi_temp": {}
-        }
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(2, users[uid])
-        )
-        return
-
-    # 初期化
+    # ---------- 共通：リスタート ----------
     if text in RESTART or text.lower() in RESTART:
         users[uid] = {
             "step": 0,
             "answers": {},
             "hist": deque(maxlen=MAX_TURNS),
-            "multi_temp": {}
+            "multi_temp": {},
+            "mode": "wizard",      # 通常フロー
         }
         line_bot_api.reply_message(
             event.reply_token,
@@ -2421,13 +2556,58 @@ def on_message(event: MessageEvent):
         )
         return
 
-    # セッション未作成 → 作成
+    # ---------- AI観光モード起動 ----------
+    # ※ ボタンからでもテキスト入力でも、「AI観光モード」「AI観光」「AIプラン」で発火
+    if text in {"AI観光モード", "AI観光", "AIプラン"}:
+        # 直近で使っていた言語を流用（なければ日本語）
+        lang = LAST_LANG.get(uid, "日本語")
+        lang_code = _get_lang_code({"lang": lang})
+
+        # セッション初期化（AI観光モード専用）
+        users[uid] = {
+            "mode": "ai_travel",
+            "ai_stage": "waiting_query",  # 今は「条件を待っている」状態
+            "lang": lang,
+            "step": 0,
+            "answers": {},
+            "hist": deque(maxlen=MAX_TURNS),
+            "multi_temp": {},
+        }
+
+        # 説明メッセージ + 入力促し
+        if lang_code == "ja":
+            msg1 = (
+                "🧠 AI観光モードを開始します！\n\n"
+                "・「ホテル」「飲食店」「体験スポット」「観光地」をまとめてAIが横断検索します。\n"
+                "・行きたいエリア、シーン（デート・家族・一人旅など）、\n"
+                "　やりたいこと（夜景・温泉・インスタ映え・食べ歩き など）を自由に書いてください。\n"
+                "・AIが条件に合いそうなスポットを最大3つまでご提案します。"
+            )
+            msg2 = "例）「京都で夜景がきれいなデート向きのスポットとご飯」「大阪で雨の日でも楽しめる場所」など、自由に入力してください👇"
+        else:
+            msg1 = (
+                "🧠 Starting AI Travel Mode!\n\n"
+                "- The AI will search across hotels, restaurants, activities, and sightseeing spots.\n"
+                "- Tell me your preferred area, mood (date, family, solo, etc.),\n"
+                "  and what you want to do (night view, onsen, Instagrammable, food tour, etc.).\n"
+                "- I will suggest up to 3 spots that match your request."
+            )
+            msg2 = "For example: \"Romantic night-view spots and dinner in Kyoto\" or \"Rainy-day activities in Osaka\". Please type your request 👇"
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            [TextSendMessage(text=msg1), TextSendMessage(text=msg2)]
+        )
+        return
+
+    # ---------- セッション未作成なら通常フロー開始 ----------
     if uid not in users or not users[uid]:
         users[uid] = {
             "step": 0,
             "answers": {},
             "hist": deque(maxlen=MAX_TURNS),
-            "multi_temp": {}
+            "multi_temp": {},
+            "mode": "wizard",
         }
         line_bot_api.reply_message(
             event.reply_token,
@@ -2436,6 +2616,98 @@ def on_message(event: MessageEvent):
         return
 
     state = users[uid]
+    mode = state.get("mode", "wizard")
+
+    # =====================================================
+    # ① AI観光モード中の入力処理
+    # =====================================================
+    if mode == "ai_travel":
+        lang = state.get("lang", "日本語")
+        lang_code = _get_lang_code({"lang": lang})
+
+        # ここで受け取る text は「AI観光モードの説明を読んだあとにユーザーが打つ条件文」
+        user_query = text
+
+        try:
+            # 1) プロンプト作成 & OpenAI 呼び出し
+            prompt = build_ai_kanko_prompt(user_query, lang)
+            ai_text = _call_openai_text(prompt, lang)
+
+            # 2) テキストをパースして items に変換（最大3件）
+            items = parse_ai_kanko_result(ai_text)
+
+            if not items:
+                if lang_code == "ja":
+                    msg = (
+                        "ごめんなさい…条件に合いそうなスポットが見つかりませんでした。\n"
+                        "キーワードやエリアを少し変えて、もう一度入力してみてください。"
+                    )
+                else:
+                    msg = (
+                        "Sorry, I couldn't find any suitable spots.\n"
+                        "Please try again with slightly different keywords or area."
+                    )
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+            else:
+                # 説明テキスト
+                if lang_code == "ja":
+                    head = "🧠 AI観光モードの候補はこちらです👇（最大3件）"
+                else:
+                    head = "🧠 Here are the AI travel suggestions 👇 (up to 3 spots)"
+
+                # カルーセル生成
+                header_title = "AI観光モードの候補" if lang_code == "ja" else "AI Travel Mode suggestions"
+                carousel = _carousel_from_items(header_title, items)
+
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    [TextSendMessage(text=head), carousel]
+                )
+
+            # AI観光モードはここで一旦終了
+            users.pop(uid, None)
+
+        except Exception as e:
+            app.logger.exception("AI観光モードでエラー発生")
+            if lang_code == "ja":
+                msg = (
+                    "サーバ側で一時的なエラーが発生しました。\n"
+                    "少し時間をおいてから、もう一度「AI観光モード」と送ってみてください。\n"
+                    f"(debug: {type(e).__name__})"
+                )
+            else:
+                msg = (
+                    "A temporary server error occurred.\n"
+                    "Please try sending \"AI観光モード\" again later.\n"
+                    f"(debug: {type(e).__name__})"
+                )
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+            users.pop(uid, None)
+
+        return  # AI観光モードの処理おしまい
+
+    # =====================================================
+    # ② ここからは従来の質問フロー（wizard）モード
+    # =====================================================
+
+    # 他のプランメニューからのショートカット
+    # （ホテル / 日程表 / 飲食店 / 体験スポット / 観光地 をタップした場合）
+    if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
+        lang = LAST_LANG.get(uid, "日本語")
+        users[uid] = {
+            "step": 2,  # lang, request が決まっている前提で次の質問インデックス
+            "answers": {"lang": lang, "request": text},
+            "hist": deque(maxlen=MAX_TURNS),
+            "multi_temp": {},
+            "mode": "wizard",
+        }
+        line_bot_api.reply_message(
+            event.reply_token,
+            _render_question(2, users[uid])
+        )
+        return
+
+    # ここからは通常フローの続き
     step = state.get("step", 0)
 
     # 入力の検証＆保存
@@ -2447,7 +2719,7 @@ def on_message(event: MessageEvent):
         )
         return
 
-    # 複数選択：『完了』を待つ。ただし「1,3,5」の一括指定は自動確定で次へ
+    # 複数選択質問 → 『完了』を待つ
     seq_now = _get_question_sequence(state.get("answers", {}))
     q_now = seq_now[step]
     if q_now.get("multi") and text not in {"完了", "Done"} and not state.pop("_autodone", False):
@@ -2467,6 +2739,8 @@ def on_message(event: MessageEvent):
     # 次の質問へ
     state["step"] = step + 1
     seq = _get_question_sequence(state.get("answers", {}))
+
+    # まだ質問が残っている場合 → 次の質問を出す
     if state["step"] < len(seq):
         line_bot_api.reply_message(
             event.reply_token,
@@ -2474,75 +2748,12 @@ def on_message(event: MessageEvent):
         )
         return
 
-    # すべて回答済み → 提案
+    # すべて回答済み → プラン生成
     answers = state["answers"].copy()
     try:
         send_plan_parts(event.reply_token, uid, answers)
     except Exception as e:
-        app.logger.exception("OpenAI API error")
-        lang = answers.get("lang", "日本語")
-        is_en = str(lang).lower().startswith("e")
-        if not is_en:
-            chunks = "サーバ側で一時的なエラーが発生しました。\n(debug: {0})".format(type(e).__name__)
-        else:
-            chunks = "A temporary server error occurred.\n(debug: {0})".format(type(e).__name__)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=chunks))
-        return
-
-    users.pop(uid, None)
-
-
-@handler.add(MessageEvent, message=LocationMessage)
-def on_location(event: MessageEvent):
-    uid = event.source.user_id
-
-    # セッションがない場合（いきなり位置情報だけ送られたとき）
-    if uid not in users or not users[uid]:
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="はじめに「スタート」と送って、プラン作成を始めてください。")
-        )
-        return
-
-    state = users[uid]
-
-    # 位置情報を保存（answers にも入れるのがポイント）
-    geo = {
-        "lat": event.message.latitude,
-        "lng": event.message.longitude,
-        "address": event.message.address,
-    }
-    state["geo"] = geo
-    state.setdefault("answers", {})["geo"] = geo
-    state.pop("need_location", None)  # フラグ解除
-
-    # 飲食店以外なら、とりあえず受領メッセージだけ返して終了
-    if state["answers"].get("request") != "飲食店":
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="位置情報を受け取りました。")
-        )
-        return
-
-    # ここから「エリア=現在地から近く」を選んだ続きに進める
-    step = state.get("step", 0)
-    state["step"] = step + 1  # 次の質問へ
-
-    seq = _get_question_sequence(state.get("answers", {}))
-    if state["step"] < len(seq):
-        # まだ質問が残っている → 次の質問を出す（人数/同行者/ジャンル/予算など）
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(state["step"], state)
-        )
-        return
-
-    # すべて回答済み → プラン生成（飲食店3件）
-    answers = state["answers"].copy()
-    try:
-        send_plan_parts(event.reply_token, uid, answers)
-    except Exception as e:
-        app.logger.exception("OpenAI API error (location flow)")
+        app.logger.exception("OpenAI API error (wizard flow)")
         lang = answers.get("lang", "日本語")
         is_en = str(lang).lower().startswith("e")
         if not is_en:
@@ -2552,14 +2763,17 @@ def on_location(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
         return
 
-    # セッション終了
+    # セッション終了（通常フロー）
     users.pop(uid, None)
+
+
 
 # ====================== ローカル実行 ======================
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
