@@ -11,7 +11,7 @@
     "official_url": "https://kifunejinja.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=貴船神社 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kifune%20Shrine%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/貴船神社.webp"
     ],
     "tags": "神社,歴史,自然,観光名所",
     "open_hours": "6:00〜20:00（季節により変動）",
@@ -47,7 +47,7 @@
     "official_url": "https://www.google.com/search?q=嵐山+観光+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=嵐山 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Arashiyama%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/嵐山.webp"
     ],
     "tags": "景勝地,自然,観光名所",
     "open_hours": "エリア自由散策（店舗は各施設により異なる）",
@@ -65,7 +65,7 @@
     "official_url": "https://www.google.com/search?q=祇園祭+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=祇園祭 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Gion%20Matsuri%20Festival%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/祇園祭.webp"
     ],
     "tags": "祭り,歴史,文化",
     "open_hours": "主な行事は7月（詳細は公式情報を要確認）",
@@ -83,7 +83,7 @@
     "official_url": "https://www.google.com/search?q=美山+かやぶきの里+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=美山 かやぶきの里 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Miyama%20Kayabuki-no-Sato%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/美山の里.webp"
     ],
     "tags": "景勝地,歴史,古民家,自然",
     "open_hours": "散策自由（一部施設は営業時間あり）",
@@ -101,7 +101,7 @@
     "official_url": "https://www.google.com/search?q=伊根町+観光+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=伊根町 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Ine%20Town%20%28Funaya%20Houses%29%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/伊根町.webp"
     ],
     "tags": "景勝地,港町,写真スポット",
     "open_hours": "エリア自由散策",
@@ -137,7 +137,7 @@
     "official_url": "https://www.google.com/search?q=将軍塚+青龍殿+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=将軍塚 青龍殿 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Shogunzuka%20Seiryuden%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/将軍塚.webp"
     ],
     "tags": "寺,夜景,展望,景勝地",
     "open_hours": "9:00〜17:00（季節により変動・夜間拝観あり）",
@@ -155,7 +155,7 @@
     "official_url": "https://www.google.com/search?q=蹴上インクライン+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=蹴上インクライン 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Keage%20Incline%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/蹴上インクライン.webp"
     ],
     "tags": "桜,散策,歴史,フォトスポット",
     "open_hours": "終日開放",
@@ -173,7 +173,7 @@
     "official_url": "https://www.shokoku-ji.jp/kinkakuji/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=金閣寺 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kinkakuji%20Temple%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/金閣寺.webp"
     ],
     "tags": "寺,世界遺産,観光名所",
     "open_hours": "9:00〜17:00",
@@ -191,7 +191,7 @@
     "official_url": "https://www.kyoto-tower.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=京都タワー 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kyoto%20Station%20/%20Kyoto%20Tower%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/京都駅　京都タワー.webp"
     ],
     "tags": "駅,タワー,夜景,都市",
     "open_hours": "店舗・施設により異なる（タワー展望室は通常10:00〜22:00）",
@@ -209,7 +209,7 @@
     "official_url": "https://www.byodoin.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=平等院鳳凰堂 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Byodoin%20Temple%20%28Phoenix%20Hall%29%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/平等院鳳凰堂.webp"
     ],
     "tags": "寺,世界遺産,歴史",
     "open_hours": "8:30〜17:30（季節により変動）",
@@ -245,7 +245,7 @@
     "official_url": "https://www.kiyomizudera.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=清水寺 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kiyomizu-dera%20Temple%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/清水寺.webp"
     ],
     "tags": "寺,世界遺産,観光名所",
     "open_hours": "6:00〜18:00（季節により変動・夜間拝観あり）",
@@ -263,7 +263,7 @@
     "official_url": "https://inari.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=伏見稲荷大社 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Fushimi%20Inari%20Taisha%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/伏見稲荷大社.webp"
     ],
     "tags": "神社,観光名所,フォトスポット",
     "open_hours": "終日開門",
@@ -281,7 +281,7 @@
     "official_url": "https://www.kyohaku.go.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=京都国立博物館 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kyoto%20National%20Museum%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/京都国立博物館.webp"
     ],
     "tags": "博物館,芸術,歴史",
     "open_hours": "9:30〜17:00（入館は16:30まで）",
@@ -317,7 +317,7 @@
     "official_url": "https://www.grandfront-osaka.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=うめきた広場 大阪府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Umekita%20Plaza%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/うめきた広場.webp"
     ],
     "tags": "広場,都市,イベント",
     "open_hours": "終日開放（イベントにより制限あり）",
@@ -335,7 +335,7 @@
     "official_url": "https://www.expo70-park.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=万博記念公園 大阪府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Expo%20%E2%80%9970%20Commemorative%20Park%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/万博記念公園.webp"
     ],
     "tags": "公園,家族連れ,歴史",
     "open_hours": "9:30〜17:00（季節により変動）",
@@ -353,7 +353,7 @@
     "official_url": "https://www.expocity-mf.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=EXPOCITY 大阪府",
     "images": [
-      "https://source.unsplash.com/1600x900/?EXPOCITY%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/EXPOCITY.webp"
     ],
     "tags": "ショッピング,娯楽,家族連れ",
     "open_hours": "施設により異なる（目安10:00〜21:00）",
@@ -371,7 +371,7 @@
     "official_url": "https://www.osakacastle.net/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=大阪城 大阪府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Osaka%20Castle%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大阪城.webp"
     ],
     "tags": "城,歴史,公園",
     "open_hours": "9:00〜17:00（季節により延長あり）",
@@ -389,7 +389,7 @@
     "official_url": "https://www.mus-nh.city.osaka.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=大阪市立自然史博物館 大阪府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Osaka%20Museum%20of%20Natural%20History%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大阪市立自然史博物館.webp"
     ],
     "tags": "博物館,家族連れ,学習",
     "open_hours": "9:30〜17:00（入館は16:30まで）",
@@ -425,7 +425,7 @@
     "official_url": "https://kinosaki-spa.gr.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=城崎温泉 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kinosaki%20Onsen%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/城崎温泉.webp"
     ],
     "tags": "温泉街,外湯めぐり,観光名所",
     "open_hours": "外湯は施設により営業時間が異なる",
@@ -461,7 +461,7 @@
     "official_url": "https://www.google.com/search?q=神戸大橋+夜景",
     "map_url": "https://www.google.com/maps/search/?api=1&query=神戸大橋 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kobe%20Ohashi%20Bridge%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/神戸大橋.webp"
     ],
     "tags": "橋,夜景,ドライブ",
     "open_hours": "通行自由",
@@ -479,7 +479,7 @@
     "official_url": "https://www.kobecitymuseum.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=神戸市立博物館 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kobe%20City%20Museum%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/神戸市立博物館.webp"
     ],
     "tags": "博物館,歴史,文化",
     "open_hours": "9:30〜17:30（入館は閉館30分前まで）",
@@ -515,7 +515,7 @@
     "official_url": "https://www.kobeijinkan.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=北野異人館 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kobe%20Kitano%20Ijinkan%20District%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/北野異人館.webp"
     ],
     "tags": "歴史的建築,観光名所,洋館",
     "open_hours": "各施設により異なる",
@@ -533,7 +533,7 @@
     "official_url": "https://www.google.com/search?q=ポートアイランド+神戸+観光",
     "map_url": "https://www.google.com/maps/search/?api=1&query=ポートアイランド 神戸市",
     "images": [
-      "https://source.unsplash.com/1600x900/?Port%20Island%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ポートアイランド.webp"
     ],
     "tags": "人工島,夜景,都市景観",
     "open_hours": "エリア自由",
@@ -551,7 +551,7 @@
     "official_url": "https://kobe-port-tower.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=神戸ポートタワー 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kobe%20Port%20Tower%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/神戸タワー.webp"
     ],
     "tags": "タワー,展望,夜景",
     "open_hours": "通常9:00〜21:00（季節により変動）",
@@ -569,7 +569,7 @@
     "official_url": "https://www.harborland.co.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=神戸ハーバーランド 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kobe%20Harborland%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/神戸ハーバーランド.webp"
     ],
     "tags": "ショッピング,夜景,デートスポット",
     "open_hours": "施設により異なる",
@@ -605,7 +605,7 @@
     "official_url": "https://www.google.com/search?q=生石高原+観光+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=生石高原 和歌山県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Oishi%20Plateau%20%E5%92%8C%E6%AD%8C%E5%B1%B1%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/生石高原.webp"
     ],
     "tags": "高原,自然,絶景",
     "open_hours": "終日開放（冬季は要注意）",
@@ -623,7 +623,7 @@
     "official_url": "https://www.google.com/search?q=あらぎ島+観光+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=あらぎ島 和歌山県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Aragijima%20%E5%92%8C%E6%AD%8C%E5%B1%B1%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/あらぎ島.webp"
     ],
     "tags": "棚田,景勝地,写真スポット",
     "open_hours": "終日開放",
@@ -677,7 +677,7 @@
     "official_url": "https://www.kasugataisha.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=春日大社 奈良県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Kasuga%20Taisha%20Shrine%20%E5%A5%88%E8%89%AF%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/春日大社.webp"
     ],
     "tags": "神社,世界遺産,歴史",
     "open_hours": "6:00〜18:00（季節により変動）",
@@ -695,7 +695,7 @@
     "official_url": "https://shirahigejinja.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=白髭神社 滋賀県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Shirahige%20Shrine%20%E6%BB%8B%E8%B3%80%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/白髭神社.webp"
     ],
     "tags": "神社,湖,写真スポット",
     "open_hours": "境内自由（社務所は時間制）",
@@ -713,7 +713,7 @@
     "official_url": "https://www.google.com/search?q=メタセコイヤ並木+滋賀+観光",
     "map_url": "https://www.google.com/maps/search/?api=1&query=メタセコイヤ並木 滋賀県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Metasequoia%20Tree%20Lined%20Road%20%E6%BB%8B%E8%B3%80%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/メタセコイヤ並木.webp"
     ],
     "tags": "並木道,景勝地,ドライブ",
     "open_hours": "終日通行可能",
