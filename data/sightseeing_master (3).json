@@ -29,7 +29,7 @@
     "official_url": "https://www.google.com/search?q=長徳寺+京都+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=長徳寺 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Chotokuji%20Temple%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/長徳寺_.webp"
     ],
     "tags": "寺,歴史,桜,穴場",
     "open_hours": "境内自由（行事により変動）",
@@ -119,7 +119,7 @@
     "official_url": "https://www.google.com/search?q=天橋立+観光+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=天橋立 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Amanohashidate%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/天橋立.webp"
     ],
     "tags": "景勝地,自然,日本三景",
     "open_hours": "エリア自由散策（リフト・ケーブルカーは別途営業時間あり）",
@@ -227,7 +227,7 @@
     "official_url": "https://www.google.com/search?q=哲学の道+観光+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=哲学の道 京都府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Philosopher%27s%20Path%20%E4%BA%AC%E9%83%BD%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/哲学の道.webp"
     ],
     "tags": "散策,桜,フォトスポット",
     "open_hours": "終日開放",
@@ -299,7 +299,7 @@
     "official_url": "https://www.city.higashiosaka.lg.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=東大阪市役所 大阪府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Higashiosaka%20City%20Hall%20Observation%20Lobby%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/東大阪市役所.webp"
     ],
     "tags": "展望,無料スポット,都市景観",
     "open_hours": "8:30〜21:00（変更の場合あり）",
@@ -407,7 +407,7 @@
     "official_url": "https://www.tennoji-park.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=天王寺公園 大阪府",
     "images": [
-      "https://source.unsplash.com/1600x900/?Tennoji%20Park%20%E5%A4%A7%E9%98%AA%E5%BA%9C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/天王寺公園.webp"
     ],
     "tags": "公園,家族連れ,動物園",
     "open_hours": "公園は原則24時間開放（一部エリアは時間制限あり）",
@@ -443,7 +443,7 @@
     "official_url": "https://www.google.com/search?q=安乎岩戸信龍神社+公式サイト",
     "map_url": "https://www.google.com/maps/search/?api=1&query=安乎岩戸信龍神社 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Ango%20Iwato%20Shinryu%20Shrine%20%28Awaji%20Island%29%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/淡路島　安乎岩戸信龍神社.webp"
     ],
     "tags": "神社,景勝地,パワースポット",
     "open_hours": "終日開放（状況により異なる場合あり）",
@@ -497,7 +497,7 @@
     "official_url": "https://www.rokkosan.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=六甲山 兵庫県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Mt.%20Rokko%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/六甲山.webp"
     ],
     "tags": "山,夜景,ハイキング",
     "open_hours": "エリアにより異なる（施設は営業時間あり）",
@@ -587,7 +587,7 @@
     "official_url": "https://www.nankinmachi.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=南京町 神戸市",
     "images": [
-      "https://source.unsplash.com/1600x900/?Nankinmachi%20%28Kobe%20Chinatown%29%20%E5%85%B5%E5%BA%AB%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/南京町.webp"
     ],
     "tags": "中華街,グルメ,観光名所",
     "open_hours": "店舗により異なる",
@@ -641,7 +641,7 @@
     "official_url": "https://www.todaiji.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=東大寺 奈良県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Todaiji%20Temple%20%E5%A5%88%E8%89%AF%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/東大寺.webp"
     ],
     "tags": "寺,世界遺産,大仏",
     "open_hours": "8:00〜17:00（季節により変動）",
@@ -659,7 +659,7 @@
     "official_url": "https://www.narashikanko.or.jp/spot/nara_park/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=奈良公園 奈良県",
     "images": [
-      "https://source.unsplash.com/1600x900/?Nara%20Park%20%E5%A5%88%E8%89%AF%E7%9C%8C%20landscape%20travel"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/奈良公園.webp"
     ],
     "tags": "公園,鹿,観光名所",
     "open_hours": "終日開放",
