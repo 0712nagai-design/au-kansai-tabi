@@ -244,7 +244,6 @@ ACT_TITLE_RE    = re.compile(r"^[^\n：:]*[：:]\s*(?P<title>[^\n（(]+)", re.M)
 
 # ====================== 分岐質問 定義 ======================
 REQUESTS = {1: "ホテル", 2: "日程表", 3: "飲食店", 4: "体験スポット", 5: "観光地"}
-LANG_CHOICES = {1: "日本語", 2: "English"}
 
 def _get_lang_code(answers: Dict[str, Any]) -> str:
     """
@@ -447,30 +446,18 @@ TRANSPORT_ITI_EN = {
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    ユーザーの回答(answers)から、今有効な質問シーケンスを返す。
-    - 最初は lang (日本語 / English)
-    - 次に request (ホテル / 飲食店 / 体験スポット / 観光地 / 日程表)
-    - request によって後続の質問が変わる
-    - lang は 'ja' / 'en' に正規化して使う
+    ★ 言語選択を廃止して、日本語固定にしたバージョン
+    - いきなり「何を提案しますか？」から始まる
+    - 英語用の分岐は一旦なくして、日本語だけ
     """
-    lang = _get_lang_code(answers)  # 'ja' or 'en'
+
+    # ここで日本語固定
+    lang = "ja"
 
     seq: List[Dict[str, Any]] = []
 
-    # 0問目：言語選択
-    seq.append({
-        "key": "lang",
-        "title": "言語を選んでください / Choose your language",
-        "choices": LANG_CHOICES,   # {1: "日本語", 2: "English"}
-        "multi": False,
-    })
-
-    # 1問目：何を提案しますか？
-    if lang == "en":
-        req_title = "What would you like me to suggest?"
-    else:
-        req_title = "何を提案しますか？"
-
+    # 0問目：何を提案しますか？
+    req_title = "何を提案しますか？"
     seq.append({
         "key": "request",
         "title": req_title,
@@ -482,16 +469,16 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     req = answers.get("request")
 
     # ===================== ホテル =====================
-    if req in {"ホテル", "Hotels"}:
-        prefs_choices   = PREFS_KANSAI_EN      if lang == "en" else PREFS_KANSAI
-        stay_choices    = STAY_PLAN_HOTEL_EN   if lang == "en" else STAY_PLAN_HOTEL
-        people_choices  = PEOPLE_HOTEL_EN      if lang == "en" else PEOPLE_HOTEL
-        hotel_choices   = HOTELS               # 中身は日本語だが表示は _render 側で行うならこのままでもOK
+    if req == "ホテル":
+        prefs_choices   = PREFS_KANSAI
+        stay_choices    = STAY_PLAN_HOTEL
+        people_choices  = PEOPLE_HOTEL
+        hotel_choices   = HOTELS
 
-        title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
-        title_stay   = "How many days & nights?"     if lang == "en" else "何泊何日ですか？"
-        title_people = "How many people?"            if lang == "en" else "人数を選んでください。"
-        title_hotel  = "What type of hotel?"         if lang == "en" else "ホテルタイプを選んでください。"
+        title_pref   = "関西の都道府県を1つ選んでください。"
+        title_stay   = "何泊何日ですか？"
+        title_people = "人数を選んでください。"
+        title_hotel  = "ホテルタイプを選んでください。"
 
         seq += [
             {"key": "pref",      "title": title_pref,   "choices": prefs_choices,   "multi": False},
@@ -502,20 +489,20 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 飲食店 =====================
-    if req in {"飲食店", "Restaurants"}:
-        meal_choices   = MEAL_TIMES_EN        if lang == "en" else MEAL_TIMES
-        area_choices   = AREAS_FOOD_EN        if lang == "en" else AREAS_FOOD
-        people_choices = PEOPLE_FOOD_EN       if lang == "en" else PEOPLE_FOOD
-        comp_choices   = COMPANION_FOOD_EN    if lang == "en" else COMPANION_FOOD
-        cui_choices    = CUISINES_EN          if lang == "en" else CUISINES
-        budget_choices = BUDGET_FOOD_EN       if lang == "en" else BUDGET_FOOD
+    if req == "飲食店":
+        meal_choices   = MEAL_TIMES
+        area_choices   = AREAS_FOOD
+        people_choices = PEOPLE_FOOD
+        comp_choices   = COMPANION_FOOD
+        cui_choices    = CUISINES
+        budget_choices = BUDGET_FOOD
 
-        title_meal   = "Which meal?"                if lang == "en" else "食事のタイミングを選んでください。"
-        title_area   = "Which area?"                if lang == "en" else "エリアを選んでください。"
-        title_people = "How many people?"           if lang == "en" else "人数を選んでください。"
-        title_comp   = "Who are you with?"          if lang == "en" else "同行者を選んでください。"
-        title_cui    = "What kind of food?"         if lang == "en" else "食べたいジャンルを選んでください。"
-        title_budget = "What is your budget?"       if lang == "en" else "ご予算を選んでください。"
+        title_meal   = "食事のタイミングを選んでください。"
+        title_area   = "エリアを選んでください。"
+        title_people = "人数を選んでください。"
+        title_comp   = "同行者を選んでください。"
+        title_cui    = "食べたいジャンルを選んでください。"
+        title_budget = "ご予算を選んでください。"
 
         seq += [
             {"key": "meal_time", "title": title_meal,   "choices": meal_choices,   "multi": False},
@@ -528,16 +515,16 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 体験スポット =====================
-    if req in {"体験スポット", "Experiences"}:   
-        pref_choices   = AREAS_EXP_EN        if lang == "en" else AREAS_EXP
-        people_choices = PEOPLE_EXP_EN       if lang == "en" else PEOPLE_EXP
-        comp_choices   = COMPANION_EXP_EN    if lang == "en" else COMPANION_EXP
-        genre_choices  = EXP_GENRES_EN       if lang == "en" else EXP_GENRES
+    if req == "体験スポット":
+        pref_choices   = AREAS_EXP
+        people_choices = PEOPLE_EXP
+        comp_choices   = COMPANION_EXP
+        genre_choices  = EXP_GENRES
 
-        title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
-        title_genre  = "What type of experience?"    if lang == "en" else "体験ジャンルを選んでください。"
-        title_people = "How many people?"            if lang == "en" else "人数を選んでください。"
-        title_comp   = "Who are you with?"           if lang == "en" else "同行者を選んでください。"
+        title_pref   = "関西の都道府県を1つ選んでください。"
+        title_genre  = "体験ジャンルを選んでください。"
+        title_people = "人数を選んでください。"
+        title_comp   = "同行者を選んでください。"
 
         seq += [
             {"key": "pref",      "title": title_pref,   "choices": pref_choices,   "multi": False},
@@ -548,9 +535,9 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 観光地 =====================
-    if req in {"観光地", "Sightseeing"}:
-        pref_choices = AREAS_SIGHT_EN if lang == "en" else AREAS_SIGHT
-        title_pref   = "Which prefecture in Kansai?" if lang == "en" else "関西の都道府県を1つ選んでください。"
+    if req == "観光地":
+        pref_choices = AREAS_SIGHT
+        title_pref   = "関西の都道府県を1つ選んでください。"
 
         seq += [
             {"key": "pref", "title": title_pref, "choices": pref_choices, "multi": False},
@@ -558,33 +545,23 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         return seq
 
     # ===================== 日程表 =====================
-    if req in {"日程表", "Itinerary"}:
-        prefs_choices   = PREFS_KANSAI_EN     if lang == "en" else PREFS_MULTI
-        stay_choices    = STAY_PLAN_ITI_EN    if lang == "en" else STAY_PLAN_ITI
-        themes_choices  = THEMES_MULTI_EN     if lang == "en" else THEMES_MULTI
-        trans_choices   = TRANSPORT_ITI_EN    if lang == "en" else TRANSPORT_ITI
-        comp_choices    = COMPANION_ITI_EN    if lang == "en" else COMPANION_ITI
-        dept_choices    = DEPT_CHOICES_EN     if lang == "en" else DEPT_CHOICES
-        arrv_choices    = ARRV_CHOICES_EN     if lang == "en" else ARRV_CHOICES
+    if req == "日程表":
+        prefs_choices   = PREFS_MULTI
+        stay_choices    = STAY_PLAN_ITI
+        themes_choices  = THEMES_MULTI
+        trans_choices   = TRANSPORT_ITI
+        comp_choices    = COMPANION_ITI
+        dept_choices    = DEPT_CHOICES
+        arrv_choices    = ARRV_CHOICES
 
-        if lang == "en":
-            t_prefs = "Select prefectures to visit (multiple OK, e.g. 1,3,6)."
-            t_date  = "Enter your departure date (e.g. 2025-03-20)."
-            t_stay  = "How many days & nights?"
-            t_themes= "Select travel themes (multiple OK)."
-            t_trans = "Main transportation?"
-            t_comp  = "Who are you traveling with?"
-            t_dept  = "When will you depart?"
-            t_arrv  = "When will you return?"
-        else:
-            t_prefs = "訪問する都道府県を選んでください（複数選択可：例 1,3,6。タップの場合は『完了』）"
-            t_date  = "出発日を入力してください（例: 2025-03-20）"
-            t_stay  = "何泊何日ですか？"
-            t_themes= "旅行のテーマを選んでください（複数選択可：例 1,4,5。タップの場合は『完了』）"
-            t_trans = "主な交通手段を選んでください。"
-            t_comp  = "同行者を選んでください。"
-            t_dept  = "出発時間帯を選んでください。"
-            t_arrv  = "帰着時間帯を選んでください。"
+        t_prefs = "訪問する都道府県を選んでください（複数選択可：例 1,3,6。タップの場合は『完了』）"
+        t_date  = "出発日を入力してください（例: 2025-03-20）"
+        t_stay  = "何泊何日ですか？"
+        t_themes= "旅行のテーマを選んでください（複数選択可：例 1,4,5。タップの場合は『完了』）"
+        t_trans = "主な交通手段を選んでください。"
+        t_comp  = "同行者を選んでください。"
+        t_dept  = "出発時間帯を選んでください。"
+        t_arrv  = "帰着時間帯を選んでください。"
 
         seq += [
             {"key": "prefs",    "title": t_prefs,  "choices": prefs_choices,  "multi": True},
@@ -598,7 +575,7 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         ]
         return seq
 
-    # request 未選択時は lang / request だけ返す
+    # request 未選択時は request だけ返す
     return seq
 
 
@@ -2695,7 +2672,7 @@ def on_message(event: MessageEvent):
     if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
         lang = LAST_LANG.get(uid, "日本語")
         users[uid] = {
-            "step": 2,  # lang, request が決まっている前提で次の質問インデックス
+            "step": 1,  # lang, request が決まっている前提で次の質問インデックス
             "answers": {"lang": lang, "request": text},
             "hist": deque(maxlen=MAX_TURNS),
             "multi_temp": {},
@@ -2703,7 +2680,7 @@ def on_message(event: MessageEvent):
         }
         line_bot_api.reply_message(
             event.reply_token,
-            _render_question(2, users[uid])
+            _render_question(1, users[uid])
         )
         return
 
@@ -2773,6 +2750,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
