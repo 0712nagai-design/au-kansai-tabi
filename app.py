@@ -1381,12 +1381,19 @@ Category: ...
 def parse_ai_kanko_result(text: str) -> List[Dict[str, str]]:
     """
     build_ai_kanko_prompt の出力テキストをパースして、
-    _carousel_from_items に渡せる items リストに変換する。
+    カテゴリ情報付きの items リストに変換する。
+    戻り値の各 dict は:
+      - title
+      - subtitle
+      - official
+      - map
+      - image
+      - category  (hotel / restaurant / experience / sightseeing / other)
     """
     blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()]
     results = []
 
-    for block in blocks[:3]:
+    for block in blocks[:10]:  # 念のため多めに見ておく（あとでカテゴリごとに3件に絞る）
         lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
         if not lines:
             continue
@@ -1404,19 +1411,26 @@ def parse_ai_kanko_result(text: str) -> List[Dict[str, str]]:
         mmap = MAP_URL_RE.search(block)
 
         official = moff.group(1).strip() if moff else ""
-        map_url = mmap.group(1).strip() if mmap else ""
+        map_url  = mmap.group(1).strip() if mmap else ""
 
-        # カテゴリ（画像出し分け用：とりあえずざっくり）
+        # カテゴリ判定
         mcat = re.search(r"^Category[:：]\s*(.+)$", block, re.M | re.I)
-        category = (mcat.group(1).strip().lower() if mcat else "")
+        category_raw = (mcat.group(1).strip().lower() if mcat else "")
 
-        if "hotel" in category:
+        if "hotel" in category_raw:
+            cat = "hotel"
             img = REQUEST_IMAGE_URLS.get("ホテル")
-        elif "restaurant" in category:
+        elif "restaurant" in category_raw:
+            cat = "restaurant"
             img = REQUEST_IMAGE_URLS.get("飲食店")
-        elif "experience" in category:
+        elif "experience" in category_raw:
+            cat = "experience"
             img = REQUEST_IMAGE_URLS.get("体験スポット")
+        elif "sightseeing" in category_raw:
+            cat = "sightseeing"
+            img = REQUEST_IMAGE_URLS.get("観光地")
         else:
+            cat = "other"
             img = REQUEST_IMAGE_URLS.get("観光地")
 
         results.append({
@@ -1425,6 +1439,7 @@ def parse_ai_kanko_result(text: str) -> List[Dict[str, str]]:
             "official": official,
             "map": map_url,
             "image": img,
+            "category": cat,
         })
 
     return results
@@ -2515,69 +2530,83 @@ def send_welcome_message(event):
 # ====================== メインハンドラ ======================
 @handler.add(MessageEvent, message=TextMessage)
 def on_message(event: MessageEvent):
-    uid = event.source.user_id
+    uid  = event.source.user_id
     text = (event.message.text or "").strip()
 
-    # ---------- 共通：リスタート ----------
+    # =====================================================
+    # 🔁 リスタート（最優先）
+    # =====================================================
     if text in RESTART or text.lower() in RESTART:
         users[uid] = {
             "step": 0,
             "answers": {},
             "hist": deque(maxlen=MAX_TURNS),
             "multi_temp": {},
-            "mode": "wizard",      # 通常フロー
+            "mode": "wizard",
         }
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(0, users[uid])
-        )
+        line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
-    # ---------- AI観光モード起動 ----------
-    # ※ ボタンからでもテキスト入力でも、「AI観光モード」「AI観光」「AIプラン」で発火
+    # =====================================================
+    # 🤖 AI観光モード起動
+    # =====================================================
     if text in {"AI観光モード", "AI観光", "AIプラン"}:
-        # 直近で使っていた言語を流用（なければ日本語）
         lang = LAST_LANG.get(uid, "日本語")
-        lang_code = _get_lang_code({"lang": lang})
 
-        # セッション初期化（AI観光モード専用）
+        # セッション初期化
         users[uid] = {
             "mode": "ai_travel",
-            "ai_stage": "waiting_query",  # 今は「条件を待っている」状態
+            "ai_stage": "waiting_query",
             "lang": lang,
             "step": 0,
             "answers": {},
             "hist": deque(maxlen=MAX_TURNS),
-            "multi_temp": {},
+            "multi_temp": {}
         }
 
-        # 説明メッセージ + 入力促し
-        if lang_code == "ja":
-            msg1 = (
+        # 説明メッセージ
+        if lang == "日本語":
+            m1 = (
                 "🧠 AI観光モードを開始します！\n\n"
-                "・「ホテル」「飲食店」「体験スポット」「観光地」をまとめてAIが横断検索します。\n"
-                "・行きたいエリア、シーン（デート・家族・一人旅など）、\n"
-                "　やりたいこと（夜景・温泉・インスタ映え・食べ歩き など）を自由に書いてください。\n"
-                "・AIが条件に合いそうなスポットを最大3つまでご提案します。"
+                "エリア・目的・雰囲気などを自由に入力してください。\n"
+                "ホテル / 飲食店 / 体験 / 観光地を横断検索してご提案します。"
             )
-            msg2 = "例）「京都で夜景がきれいなデート向きのスポットとご飯」「大阪で雨の日でも楽しめる場所」など、自由に入力してください👇"
+            m2 = "例）「京都で夜景がきれいなデート向きの場所」など、自由に入力してください👇"
         else:
-            msg1 = (
-                "🧠 Starting AI Travel Mode!\n\n"
-                "- The AI will search across hotels, restaurants, activities, and sightseeing spots.\n"
-                "- Tell me your preferred area, mood (date, family, solo, etc.),\n"
-                "  and what you want to do (night view, onsen, Instagrammable, food tour, etc.).\n"
-                "- I will suggest up to 3 spots that match your request."
+            m1 = (
+                "🧠 Starting AI Travel Mode!\n"
+                "Tell me any conditions you like.\n"
             )
-            msg2 = "For example: \"Romantic night-view spots and dinner in Kyoto\" or \"Rainy-day activities in Osaka\". Please type your request 👇"
+            m2 = "Example: 'Romantic night-view spots in Kyoto'."
 
+        line_bot_api.reply_message(event.reply_token, [TextSendMessage(text=m1), TextSendMessage(text=m2)])
+        return
+
+    # =====================================================
+    # 🟦 ショートカットボタン（ホテル / 観光地 / 飲食店 / 体験 / 日程表）
+    # =====================================================
+    if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
+
+        lang = LAST_LANG.get(uid, "日本語")
+
+        users[uid] = {
+            "step": 1,   # ← ここが重要！ 「何を提案しますか？」をスキップ
+            "answers": {"lang": lang, "request": text},
+            "hist": deque(maxlen=MAX_TURNS),
+            "multi_temp": {},
+            "mode": "wizard",
+        }
+
+        # 2問目（エリアなど）から開始
         line_bot_api.reply_message(
             event.reply_token,
-            [TextSendMessage(text=msg1), TextSendMessage(text=msg2)]
+            _render_question(1, users[uid])
         )
         return
 
-    # ---------- セッション未作成なら通常フロー開始 ----------
+    # =====================================================
+    # 🟦 セッション未作成なら通常フロー(step=0)開始
+    # =====================================================
     if uid not in users or not users[uid]:
         users[uid] = {
             "step": 0,
@@ -2586,161 +2615,118 @@ def on_message(event: MessageEvent):
             "multi_temp": {},
             "mode": "wizard",
         }
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(0, users[uid])
-        )
+        line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
+    # =====================================================
+    # ここからモード分岐
+    # =====================================================
     state = users[uid]
-    mode = state.get("mode", "wizard")
 
     # =====================================================
-    # ① AI観光モード中の入力処理
+    # 🤖 AI観光モード（カテゴリ別3件！）
     # =====================================================
-    if mode == "ai_travel":
+    if state.get("mode") == "ai_travel":
         lang = state.get("lang", "日本語")
         lang_code = _get_lang_code({"lang": lang})
 
-        # ここで受け取る text は「AI観光モードの説明を読んだあとにユーザーが打つ条件文」
         user_query = text
 
         try:
-            # 1) プロンプト作成 & OpenAI 呼び出し
+            # OpenAI 呼び出し
             prompt = build_ai_kanko_prompt(user_query, lang)
             ai_text = _call_openai_text(prompt, lang)
 
-            # 2) テキストをパースして items に変換（最大3件）
+            # カテゴリ付きで抽出
             items = parse_ai_kanko_result(ai_text)
 
             if not items:
-                if lang_code == "ja":
-                    msg = (
-                        "ごめんなさい…条件に合いそうなスポットが見つかりませんでした。\n"
-                        "キーワードやエリアを少し変えて、もう一度入力してみてください。"
-                    )
-                else:
-                    msg = (
-                        "Sorry, I couldn't find any suitable spots.\n"
-                        "Please try again with slightly different keywords or area."
-                    )
+                msg = "条件に合いそうなスポットが見つかりませんでした。" if lang == "日本語" else "No matching spots found."
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
-            else:
-                # 説明テキスト
-                if lang_code == "ja":
-                    head = "🧠 AI観光モードの候補はこちらです👇（最大3件）"
+                users.pop(uid, None)
+                return
+
+            # ---- カテゴリ別に3件に統一 ----
+            from collections import defaultdict
+            by_cat = defaultdict(list)
+            for it in items:
+                by_cat[it["category"]].append(it)
+
+            order = [
+                ("hotel",       "ホテル",     "Hotels",       "🏨"),
+                ("restaurant",  "飲食店",     "Restaurants",  "🍽"),
+                ("experience",  "体験スポット","Experiences", "🎯"),
+                ("sightseeing", "観光地",     "Sightseeing",  "🏯"),
+                ("other",       "その他",     "Other",        "📍"),
+            ]
+
+            messages = []
+
+            for key, label_ja, label_en, icon in order:
+                spots = by_cat.get(key)
+                if not spots:
+                    continue
+                spots = spots[:3]   # ← ★ 最大3件に統一！
+
+                if lang == "日本語":
+                    header = f"{icon} {label_ja}（{len(spots)}件）"
+                    alt    = f"{label_ja}候補"
                 else:
-                    head = "🧠 Here are the AI travel suggestions 👇 (up to 3 spots)"
+                    header = f"{icon} {label_en} ({len(spots)} spots)"
+                    alt    = header
 
-                # カルーセル生成
-                header_title = "AI観光モードの候補" if lang_code == "ja" else "AI Travel Mode suggestions"
-                carousel = _carousel_from_items(header_title, items)
+                messages.append(TextSendMessage(text=header))
+                messages.append(_carousel_from_items(alt, spots))
 
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    [TextSendMessage(text=head), carousel]
-                )
+            # reply最大5件 → それ以上は push
+            first = messages[:5]
+            rest  = messages[5:]
 
-            # AI観光モードはここで一旦終了
+            line_bot_api.reply_message(event.reply_token, first)
+            if rest:
+                _push_messages_in_chunks(uid, rest, size=5)
+
             users.pop(uid, None)
-
-        except Exception as e:
-            app.logger.exception("AI観光モードでエラー発生")
-            if lang_code == "ja":
-                msg = (
-                    "サーバ側で一時的なエラーが発生しました。\n"
-                    "少し時間をおいてから、もう一度「AI観光モード」と送ってみてください。\n"
-                    f"(debug: {type(e).__name__})"
-                )
-            else:
-                msg = (
-                    "A temporary server error occurred.\n"
-                    "Please try sending \"AI観光モード\" again later.\n"
-                    f"(debug: {type(e).__name__})"
-                )
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
-            users.pop(uid, None)
-
-        return  # AI観光モードの処理おしまい
-
-    # =====================================================
-    # ② ここからは従来の質問フロー（wizard）モード
-    # =====================================================
-
-    # 他のプランメニューからのショートカット
-    # （ホテル / 日程表 / 飲食店 / 体験スポット / 観光地 をタップした場合）
-    if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
-        lang = LAST_LANG.get(uid, "日本語")
-        users[uid] = {
-            "step": 1,  # lang, request が決まっている前提で次の質問インデックス
-            "answers": {"lang": lang, "request": text},
-            "hist": deque(maxlen=MAX_TURNS),
-            "multi_temp": {},
-            "mode": "wizard",
-        }
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(1, users[uid])
-        )
-        return
-
-    # ここからは通常フローの続き
-    step = state.get("step", 0)
-
-    # 入力の検証＆保存
-    ok = _validate_and_store(uid, step, text)
-    if not ok:
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(step, state)
-        )
-        return
-
-    # 複数選択質問 → 『完了』を待つ
-    seq_now = _get_question_sequence(state.get("answers", {}))
-    q_now = seq_now[step]
-    if q_now.get("multi") and text not in {"完了", "Done"} and not state.pop("_autodone", False):
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(step, state)
-        )
-        return
-
-    # 飲食店：エリア=現在地 → 位置情報が未取得なら要求
-    if state["answers"].get("request") == "飲食店" and q_now["key"] == "area":
-        if state.get("need_location") and not state.get("geo"):
-            lang = state["answers"].get("lang", "日本語")
-            _ask_location(event.reply_token, lang)
             return
 
-    # 次の質問へ
-    state["step"] = step + 1
-    seq = _get_question_sequence(state.get("answers", {}))
+        except Exception as e:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="AI観光モードでエラーが発生しました。"))
+            users.pop(uid, None)
+            return
 
-    # まだ質問が残っている場合 → 次の質問を出す
-    if state["step"] < len(seq):
-        line_bot_api.reply_message(
-            event.reply_token,
-            _render_question(state["step"], state)
-        )
+    # =====================================================
+    # 🧩 通常の質問フロー（wizard モード）
+    # =====================================================
+    step = state.get("step", 0)
+
+    ok = _validate_and_store(uid, step, text)
+    if not ok:
+        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # すべて回答済み → プラン生成
-    answers = state["answers"].copy()
+    seq = _get_question_sequence(state["answers"])
+
+    # multi 質問で「完了」待ち
+    qnow = seq[step]
+    if qnow.get("multi") and text not in {"完了", "Done"} and not state.pop("_autodone", False):
+        line_bot_api.reply_message(event.reply_token, _render_question(step, state))
+        return
+
+    # 次へ
+    state["step"] = step + 1
+
+    if state["step"] < len(seq):
+        line_bot_api.reply_message(event.reply_token, _render_question(state["step"], state))
+        return
+
+    # ---- 全回答完了 → プラン生成 ----
+    answers = state["answers"]
     try:
         send_plan_parts(event.reply_token, uid, answers)
-    except Exception as e:
-        app.logger.exception("OpenAI API error (wizard flow)")
-        lang = answers.get("lang", "日本語")
-        is_en = str(lang).lower().startswith("e")
-        if not is_en:
-            msg = "サーバ側で一時的なエラーが発生しました。\n(debug: {0})".format(type(e).__name__)
-        else:
-            msg = "A temporary server error occurred.\n(debug: {0})".format(type(e).__name__)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+    except:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="プラン生成でエラーが発生しました。"))
         return
 
-    # セッション終了（通常フロー）
     users.pop(uid, None)
 
 
@@ -2750,6 +2736,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
