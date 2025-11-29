@@ -702,24 +702,6 @@
     "price": "有料"
   },
   {
-    "id": "sumiyoshi_taisha",
-    "name": "住吉大社",
-    "name_en": "Sumiyoshi Taisha",
-    "pref": "大阪府",
-    "area": "大阪市住吉区",
-    "address": "大阪府大阪市住吉区住吉2-9-89",
-    "description": "全国の住吉神社の総本社。反橋（太鼓橋）が有名で、初詣には多くの参拝者が訪れる。",
-    "description_en": "The head shrine of all Sumiyoshi shrines in Japan, known for its iconic arched bridge.",
-    "official_url": "https://www.sumiyoshitaisha.net/",
-    "map_url": "https://www.google.com/maps/search/?api=1&query=住吉大社",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/住吉大社.webp"
-    ],
-    "tags": "神社,歴史,重要文化財",
-    "open_hours": "6:30〜17:00頃",
-    "price": "参拝無料"
-  },
-  {
     "id": "expo_comemmoration_stadium",
     "name": "パナソニックスタジアム吹田",
     "name_en": "Panasonic Stadium Suita",
@@ -771,6 +753,132 @@
     ],
     "tags": "神社,歴史,文化",
     "open_hours": "6:00〜17:00",
+    "price": "参拝無料"
+  },
+  {
+    "id": "abeno_harukas",
+    "name": "あべのハルカス（ハルカス300展望台）",
+    "name_en": "Abeno Harukas (HARUKAS 300 Observatory)",
+    "pref": "大阪府",
+    "area": "大阪市阿倍野区・天王寺",
+    "address": "大阪府大阪市阿倍野区阿倍野筋1-1-43",
+    "description": "日本有数の高さを誇る超高層ビル。最上階の「ハルカス300」からは大阪平野を一望できる。",
+    "description_en": "One of Japan's tallest skyscrapers, featuring an observatory with sweeping views over the Osaka plain.",
+    "official_url": "https://www.abenoharukas-300.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=あべのハルカス 大阪",
+    "images": [
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/あべのハルカス.webp"
+    ],
+    "tags": "展望台,ショッピング,ランドマーク",
+    "open_hours": "9:00〜22:00（季節・イベントにより変動）",
+    "price": "展望台入場有料"
+  },
+  {
+    "id": "usj",
+    "name": "ユニバーサル・スタジオ・ジャパン（USJ）",
+    "name_en": "Universal Studios Japan",
+    "pref": "大阪府",
+    "area": "大阪市此花区・桜島",
+    "address": "大阪府大阪市此花区桜島2-1-33",
+    "description": "映画の世界観を体験できる日本を代表するテーマパーク。アトラクションやショーが充実。",
+    "description_en": "A major theme park where guests can enjoy attractions and shows based on popular movies and characters.",
+    "official_url": "https://www.usj.co.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=ユニバーサルスタジオジャパン",
+    "images": [
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/USJ.webp"
+    ],
+    "tags": "テーマパーク,アトラクション,家族連れ",
+    "open_hours": "日によって異なる（公式サイト要確認）",
+    "price": "スタジオ・パス有料"
+  },
+  {
+    "id": "amerika_mura",
+    "name": "アメリカ村（心斎橋周辺）",
+    "name_en": "Amerikamura (America Village)",
+    "pref": "大阪府",
+    "area": "大阪市中央区・心斎橋",
+    "address": "大阪府大阪市中央区西心斎橋周辺",
+    "description": "ストリートファッションや個性的なショップが集まる若者文化の発信地。フォトスポットも多い。",
+    "description_en": "A youth culture hub filled with street fashion, unique shops, and trendy spots near Shinsaibashi.",
+    "official_url": "https://www.osaka-info.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=アメリカ村 大阪",
+    "images": [
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/アメリカ村.webp"
+    ],
+    "tags": "ショッピング,若者文化,街歩き",
+    "open_hours": "店舗により異なる",
+    "price": "散策無料（買い物・飲食は有料）"
+  },
+  {
+    "id": "namba_grand_kagetsu",
+    "name": "なんばグランド花月",
+    "name_en": "Namba Grand Kagetsu Theater",
+    "pref": "大阪府",
+    "area": "大阪市中央区・なんば",
+    "address": "大阪府大阪市中央区難波千日前11-6",
+    "description": "吉本新喜劇や漫才ライブが行われるお笑いの聖地。生の笑いを体験できる劇場。",
+    "description_en": "The home of Yoshimoto comedy, hosting manzai and slapstick shows for an authentic Osaka laughter experience.",
+    "official_url": "https://ngk.yoshimoto.co.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=なんばグランド花月",
+    "images": [
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/なんばグランド花月.webp"
+    ],
+    "tags": "劇場,お笑い,エンタメ",
+    "open_hours": "公演スケジュールにより異なる",
+    "price": "公演チケット有料"
+  },
+  {
+    "id": "nakanoshima_park",
+    "name": "中之島公園",
+    "name_en": "Nakanoshima Park",
+    "pref": "大阪府",
+    "area": "大阪市北区・中央区",
+    "address": "大阪府大阪市北区中之島1丁目周辺",
+    "description": "堂島川と土佐堀川にはさまれた中州にある都市公園。バラ園やレトロ建築が魅力。",
+    "description_en": "An urban park on a river island, known for its rose garden and historic Western-style buildings.",
+    "official_url": "https://www.osakapark.osgf.or.jp/nakanoshima/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=中之島公園 大阪",
+    "images": [
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/中之島公園.webp"
+    ],
+    "tags": "公園,バラ園,都市景観",
+    "open_hours": "常時開放（一部施設は時間制限あり）",
+    "price": "公園無料（一部施設有料）"
+  },
+  {
+    "id": "osaka_tenmangu",
+    "name": "大阪天満宮",
+    "name_en": "Osaka Tenmangu Shrine",
+    "pref": "大阪府",
+    "area": "大阪市北区・天満",
+    "address": "大阪府大阪市北区天神橋2-1-8",
+    "description": "学問の神様・菅原道真公を祀る神社。天神祭で知られる大阪を代表する古社。",
+    "description_en": "A historic shrine dedicated to Sugawara no Michizane, famous for the Tenjin Matsuri festival.",
+    "official_url": "https://osakatemmangu.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=大阪天満宮 大阪",
+    "images": [
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大阪天満宮.webp"
+    ],
+    "tags": "神社,祭り,歴史",
+    "open_hours": "9:00〜17:00（季節により変動）",
+    "price": "参拝無料"
+  },
+  {
+    "id": "sumiyoshi_taisha",
+    "name": "住吉大社",
+    "name_en": "Sumiyoshi Taisha Shrine",
+    "pref": "大阪府",
+    "area": "大阪市住吉区",
+    "address": "大阪府大阪市住吉区住吉2-9-89",
+    "description": "全国の住吉神社の総本社。太鼓橋や住吉造の社殿が美しく、初詣でも賑わう。",
+    "description_en": "The head shrine of all Sumiyoshi shrines, known for its iconic arched bridge and unique architectural style.",
+    "official_url": "https://www.sumiyoshitaisha.net/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=住吉大社 大阪",
+    "images": [
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/住吉大社.webp"
+    ],
+    "tags": "神社,歴史,初詣",
+    "open_hours": "6:00〜17:00（季節により変動）",
     "price": "参拝無料"
   },
   {
