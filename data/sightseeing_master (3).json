@@ -2223,9 +2223,9 @@
     "description": "たねやグループが運営する自然と調和したスイーツ村。バームクーヘンが有名。",
     "description_en": "A nature-integrated sweets village operated by Taneya, famous for its Baumkuchen.",
     "official_url": "https://taneya.jp/la-collina/",
-    "map_url": "https://www.google.com/maps/search/?api=1&query=ラ コリーナ近江八幡",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=ラ　コリーナ近江八幡",
     "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ラコリーナ.webp"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ラコリーナ近江八幡.webp"
     ],
     "tags": "スイーツ,話題スポット,自然",
     "open_hours": "9:00〜18:00",
@@ -2279,7 +2279,7 @@
     "official_url": "https://www.ryuyukan.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=海洋堂 フィギュアミュージアム",
     "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/海洋堂ミュージアム.webp"
+      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/海洋堂フィギュアミュージアム.webp"
     ],
     "tags": "ミュージアム,フィギュア,家族連れ",
     "open_hours": "10:00〜17:00",
