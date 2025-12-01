@@ -1589,14 +1589,16 @@ def build_food3_prompt(answers: Dict[str, Any], lang: str) -> str:
     near_hint_ja = ""
     near_hint_en = ""
     if answers.get("geo"):
-        near_hint_ja = """
-現在地の緯度経度から**半径1km以内**にある飲食店のみを候補にしてください。
+        lat = answers["geo"].get("lat")
+        lng = answers["geo"].get("lng")
+        near_hint_ja = f"""
+現在地の緯度経度（lat={lat}, lng={lng}）から**半径1km以内**にある飲食店のみを候補にしてください。
 - 1kmを超える店舗は候補に含めないでください。
 - 距離が近い順に3件までを提案してください。
 - 1km以内に条件に合う店が3件見つからない場合、無理に店名を作らず、「条件に合う実在の飲食店が見つかりませんでした」と書いてください。
 """.strip()
-        near_hint_en = """
-Only suggest restaurants **within 1 km radius** of the current coordinates.
+        near_hint_en = f"""
+Only suggest restaurants **within 1 km radius** of the current coordinates (lat={lat}, lng={lng}).
 - Do not include restaurants farther than 1 km.
 - Suggest up to 3 places ordered by distance.
 - If there are not 3 places within 1 km, do NOT invent names; simply say
@@ -1651,6 +1653,7 @@ Short comment: 1-line summary (signature dishes / atmosphere / seating / reserva
 🔗 公式：https://...
 📍 Googleマップ：https://...
 """.strip()
+
 
 
 def _parse_food_block(block: str) -> Dict[str, Optional[str]]:
@@ -2548,7 +2551,7 @@ def on_message(event: MessageEvent):
         return
 
     # =====================================================
-    # 🤖 AI観光モード起動
+    # 🤖 AI観光モード起動（キーワード）
     # =====================================================
     if text in {"AI観光モード", "AI観光", "AIプラン"}:
         lang = LAST_LANG.get(uid, "日本語")
@@ -2590,7 +2593,7 @@ def on_message(event: MessageEvent):
         lang = LAST_LANG.get(uid, "日本語")
 
         users[uid] = {
-            "step": 1,   # ← ここが重要！ 「何を提案しますか？」をスキップ
+            "step": 1,   # 「何を提案しますか？」をスキップして2問目から
             "answers": {"lang": lang, "request": text},
             "hist": deque(maxlen=MAX_TURNS),
             "multi_temp": {},
@@ -2618,18 +2621,15 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
-    # =====================================================
-    # ここからモード分岐
-    # =====================================================
+    # ここから既存セッションを前提に処理
     state = users[uid]
 
     # =====================================================
-    # 🤖 AI観光モード（カテゴリ別3件！）
+    # 🤖 AI観光モード（フリーテキスト → カテゴリ別3件カルーセル）
     # =====================================================
     if state.get("mode") == "ai_travel":
         lang = state.get("lang", "日本語")
         lang_code = _get_lang_code({"lang": lang})
-
         user_query = text
 
         try:
@@ -2646,7 +2646,6 @@ def on_message(event: MessageEvent):
                 users.pop(uid, None)
                 return
 
-            # ---- カテゴリ別に3件に統一 ----
             from collections import defaultdict
             by_cat = defaultdict(list)
             for it in items:
@@ -2666,7 +2665,7 @@ def on_message(event: MessageEvent):
                 spots = by_cat.get(key)
                 if not spots:
                     continue
-                spots = spots[:3]   # ← ★ 最大3件に統一！
+                spots = spots[:3]   # カテゴリごとに最大3件
 
                 if lang == "日本語":
                     header = f"{icon} {label_ja}（{len(spots)}件）"
@@ -2678,7 +2677,7 @@ def on_message(event: MessageEvent):
                 messages.append(TextSendMessage(text=header))
                 messages.append(_carousel_from_items(alt, spots))
 
-            # reply最大5件 → それ以上は push
+            # reply 最大5件 → それ以降は push
             first = messages[:5]
             rest  = messages[5:]
 
@@ -2689,7 +2688,7 @@ def on_message(event: MessageEvent):
             users.pop(uid, None)
             return
 
-        except Exception as e:
+        except Exception:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="AI観光モードでエラーが発生しました。"))
             users.pop(uid, None)
             return
@@ -2701,8 +2700,20 @@ def on_message(event: MessageEvent):
 
     ok = _validate_and_store(uid, step, text)
     if not ok:
+        # 入力不正 → 同じ質問を再表示
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
+
+    # ★★★ ここから：現在地フロー（飲食店 × 「現在地から近く」）★★★
+    # _validate_and_store 内で、該当ケースなら state["need_location"] = True になっている前提。
+    if state.get("need_location"):
+        # 言語を取得（未設定なら最後に使った言語 or 日本語）
+        lang = state.get("answers", {}).get("lang", LAST_LANG.get(uid, "日本語"))
+        # 位置情報送信を促す QuickReply
+        _ask_location(event.reply_token, lang)
+        # LocationMessage が来るまで step は進めない
+        return
+    # ★★★ 現在地フローここまで ★★★
 
     seq = _get_question_sequence(state["answers"])
 
@@ -2712,9 +2723,10 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # 次へ
+    # 次のステップへ
     state["step"] = step + 1
 
+    # まだ質問が残っている場合 → 次の質問を表示
     if state["step"] < len(seq):
         line_bot_api.reply_message(event.reply_token, _render_question(state["step"], state))
         return
@@ -2723,11 +2735,74 @@ def on_message(event: MessageEvent):
     answers = state["answers"]
     try:
         send_plan_parts(event.reply_token, uid, answers)
-    except:
+    except Exception:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="プラン生成でエラーが発生しました。"))
         return
 
+    # セッション終了
     users.pop(uid, None)
+
+@handler.add(MessageEvent, message=LocationMessage)
+def on_location(event: MessageEvent):
+    """ユーザーが位置情報を送ってきたときの処理"""
+    uid = event.source.user_id
+    state = users.get(uid)
+
+    # セッションがない / 何も進行していない場合は何もしない（お好みで案内メッセージでもOK）
+    if not state:
+        return
+
+    # wizard 以外のモード（ai_travel など）は今は特に使わない
+    if state.get("mode") != "wizard":
+        return
+
+    # 位置情報を answers に保存
+    loc = event.message
+    state.setdefault("answers", {})
+    state["answers"]["geo"] = {
+        "lat": loc.latitude,
+        "lng": loc.longitude,
+        "address": loc.address,
+        "title": loc.title,
+    }
+
+    # need_location フラグを落とす（この位置情報で条件は満たした）
+    need_loc = state.get("need_location", False)
+    state["need_location"] = False
+
+    # 「たまたま位置情報送っただけ」のケースもあるので、
+    # step を進めるのは need_location が立っていたときだけにする
+    if not need_loc:
+        # 軽く受領メッセージを返すだけ（不要なら return だけでもOK）
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="位置情報を受け取りました。")
+        )
+        return
+
+    # ---- ここから正常フロー：「エリア=現在地から近く」の続き ----
+    step = state.get("step", 0)
+    step += 1
+    state["step"] = step
+
+    seq = _get_question_sequence(state["answers"])
+
+    if step < len(seq):
+        # まだ質問が残っている → 次の質問へ
+        next_question = _render_question(step, state)
+        line_bot_api.reply_message(event.reply_token, next_question)
+    else:
+        # すべての条件が揃っている → そのままプラン生成へ
+        answers = state["answers"]
+        try:
+            send_plan_parts(event.reply_token, uid, answers)
+        except Exception:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="プラン生成でエラーが発生しました。")
+            )
+        # セッションを破棄
+        users.pop(uid, None)
 
 
 
@@ -2736,6 +2811,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
