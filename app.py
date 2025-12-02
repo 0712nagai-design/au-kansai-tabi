@@ -2588,7 +2588,9 @@ def on_message(event: MessageEvent):
             "step": 0,
             "answers": {},
             "hist": deque(maxlen=MAX_TURNS),
-            "multi_temp": {}
+            "multi_temp": {},
+            # AI観光モードでも現在地を保存したいので geo も持たせておく
+            "geo": None,
         }
 
         # 説明メッセージ
@@ -2598,15 +2600,25 @@ def on_message(event: MessageEvent):
                 "エリア・目的・雰囲気などを自由に入力してください。\n"
                 "ホテル / 飲食店 / 体験 / 観光地を横断検索してご提案します。"
             )
-            m2 = "例）「京都で夜景がきれいなデート向きの場所」など、自由に入力してください👇"
+            m2 = (
+                "※ 先に現在地を送っておくと、その周辺スポットを優先して探します。\n"
+                "例）「京都で夜景がきれいなデート向きの場所」など、自由に入力してください👇"
+            )
         else:
             m1 = (
                 "🧠 Starting AI Travel Mode!\n"
                 "Tell me any conditions you like.\n"
+                "I will suggest hotels, restaurants, experiences and sightseeing spots."
             )
-            m2 = "Example: 'Romantic night-view spots in Kyoto'."
+            m2 = (
+                "Tip: If you send your location first, I'll prioritize places near you.\n"
+                "Example: 'Romantic night-view spots in Kyoto'."
+            )
 
-        line_bot_api.reply_message(event.reply_token, [TextSendMessage(text=m1), TextSendMessage(text=m2)])
+        line_bot_api.reply_message(
+            event.reply_token,
+            [TextSendMessage(text=m1), TextSendMessage(text=m2)]
+        )
         return
 
     # =====================================================
@@ -2645,7 +2657,7 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(0, users[uid]))
         return
 
-    # ここから既存セッションを前提に処理
+    # ここから既存セッション前提
     state = users[uid]
 
     # =====================================================
@@ -2653,20 +2665,25 @@ def on_message(event: MessageEvent):
     # =====================================================
     if state.get("mode") == "ai_travel":
         lang = state.get("lang", "日本語")
-        lang_code = _get_lang_code({"lang": lang})
         user_query = text
 
         try:
-    　　　　 geo = state.get("geo")
+            # 現在地（あれば）を取得してプロンプトに渡す
+            geo = state.get("geo")
+
             # OpenAI 呼び出し
-            prompt = build_ai_kanko_prompt(user_query, lang)
+            prompt = build_ai_kanko_prompt(user_query, lang, geo=geo)
             ai_text = _call_openai_text(prompt, lang)
 
             # カテゴリ付きで抽出
             items = parse_ai_kanko_result(ai_text)
 
             if not items:
-                msg = "条件に合いそうなスポットが見つかりませんでした。" if lang == "日本語" else "No matching spots found."
+                msg = (
+                    "条件に合いそうなスポットが見つかりませんでした。"
+                    if lang == "日本語"
+                    else "No matching spots found."
+                )
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
                 users.pop(uid, None)
                 return
@@ -2674,6 +2691,9 @@ def on_message(event: MessageEvent):
             from collections import defaultdict
             by_cat = defaultdict(list)
             for it in items:
+                # official / map が一切無いものはカルーセルで扱いづらいのでスキップ
+                if not it.get("official") and not it.get("map"):
+                    continue
                 by_cat[it["category"]].append(it)
 
             order = [
@@ -2702,6 +2722,16 @@ def on_message(event: MessageEvent):
                 messages.append(TextSendMessage(text=header))
                 messages.append(_carousel_from_items(alt, spots))
 
+            if not messages:
+                msg = (
+                    "URL付きで提案できるスポットが見つかりませんでした。"
+                    if lang == "日本語"
+                    else "No spots with valid URLs were found."
+                )
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+                users.pop(uid, None)
+                return
+
             # reply 最大5件 → それ以降は push
             first = messages[:5]
             rest  = messages[5:]
@@ -2714,7 +2744,10 @@ def on_message(event: MessageEvent):
             return
 
         except Exception:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="AI観光モードでエラーが発生しました。"))
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="AI観光モードでエラーが発生しました。")
+            )
             users.pop(uid, None)
             return
 
@@ -2761,11 +2794,15 @@ def on_message(event: MessageEvent):
     try:
         send_plan_parts(event.reply_token, uid, answers)
     except Exception:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="プラン生成でエラーが発生しました。"))
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="プラン生成でエラーが発生しました。")
+        )
         return
 
     # セッション終了
     users.pop(uid, None)
+
 
 @handler.add(MessageEvent, message=LocationMessage)
 def on_location(event: MessageEvent):
@@ -2874,6 +2911,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
