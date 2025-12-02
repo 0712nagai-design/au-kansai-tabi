@@ -2580,7 +2580,7 @@ def on_message(event: MessageEvent):
     if text in {"AI観光モード", "AI観光", "AIプラン"}:
         lang = LAST_LANG.get(uid, "日本語")
 
-        # セッション初期化
+        # セッション初期化（AI観光モード用）
         users[uid] = {
             "mode": "ai_travel",
             "ai_stage": "waiting_query",
@@ -2589,43 +2589,53 @@ def on_message(event: MessageEvent):
             "answers": {},
             "hist": deque(maxlen=MAX_TURNS),
             "multi_temp": {},
-            # AI観光モードでも現在地を保存したいので geo も持たせておく
-            "geo": None,
+            "geo": None,   # 位置情報をここに保存
         }
 
-        # 説明メッセージ
+        # 説明メッセージ + 現在地送信用 QuickReply
         if lang == "日本語":
-            m1 = (
+            m1_text = (
                 "🧠 AI観光モードを開始します！\n\n"
                 "エリア・目的・雰囲気などを自由に入力してください。\n"
                 "ホテル / 飲食店 / 体験 / 観光地を横断検索してご提案します。"
             )
-            m2 = (
-                "※ 先に現在地を送っておくと、その周辺スポットを優先して探します。\n"
-                "例）「京都で夜景がきれいなデート向きの場所」など、自由に入力してください👇"
+            m2_text = (
+                "まず現在地を送ると、その周辺スポットを優先して探します。\n"
+                "そのあとで「京都で夜景がきれいなデート向き」など、行きたいイメージを送ってください👇"
             )
+            loc_label = "現在地を送る"
         else:
-            m1 = (
-                "🧠 Starting AI Travel Mode!\n"
+            m1_text = (
+                "🧠 Starting AI Travel Mode!\n\n"
                 "Tell me any conditions you like.\n"
                 "I will suggest hotels, restaurants, experiences and sightseeing spots."
             )
-            m2 = (
-                "Tip: If you send your location first, I'll prioritize places near you.\n"
-                "Example: 'Romantic night-view spots in Kyoto'."
+            m2_text = (
+                "If you send your current location first, I'll prioritize places around you.\n"
+                "Then send a request like 'Romantic night-view spots in Kyoto'."
             )
+            loc_label = "Send location"
 
-        line_bot_api.reply_message(
-            event.reply_token,
-            [TextSendMessage(text=m1), TextSendMessage(text=m2)]
+        m1 = TextSendMessage(text=m1_text)
+        m2 = TextSendMessage(
+            text=m2_text,
+            quick_reply=QuickReply(
+                items=[
+                    QuickReplyButton(
+                        action=LocationAction(label=loc_label)
+                    )
+                ]
+            )
         )
+
+        # 説明 + 位置情報ボタンをまとめて返信
+        line_bot_api.reply_message(event.reply_token, [m1, m2])
         return
 
     # =====================================================
     # 🟦 ショートカットボタン（ホテル / 観光地 / 飲食店 / 体験 / 日程表）
     # =====================================================
     if text in {"ホテル", "日程表", "飲食店", "体験スポット", "観光地"}:
-
         lang = LAST_LANG.get(uid, "日本語")
 
         users[uid] = {
@@ -2661,21 +2671,19 @@ def on_message(event: MessageEvent):
     state = users[uid]
 
     # =====================================================
-    # 🤖 AI観光モード（フリーテキスト → カテゴリ別3件カルーセル）
+    # 🤖 AI観光モード（フリーテキスト → カテゴリ別カルーセル）
     # =====================================================
     if state.get("mode") == "ai_travel":
         lang = state.get("lang", "日本語")
         user_query = text
 
         try:
-            # 現在地（あれば）を取得してプロンプトに渡す
+            # 現在地（あれば）をプロンプトに渡す
             geo = state.get("geo")
 
-            # OpenAI 呼び出し
             prompt = build_ai_kanko_prompt(user_query, lang, geo=geo)
             ai_text = _call_openai_text(prompt, lang)
 
-            # カテゴリ付きで抽出
             items = parse_ai_kanko_result(ai_text)
 
             if not items:
@@ -2691,17 +2699,17 @@ def on_message(event: MessageEvent):
             from collections import defaultdict
             by_cat = defaultdict(list)
             for it in items:
-                # official / map が一切無いものはカルーセルで扱いづらいのでスキップ
+                # official / map がどちらも無いものはカルーセルで扱いにくいのでスキップ
                 if not it.get("official") and not it.get("map"):
                     continue
                 by_cat[it["category"]].append(it)
 
             order = [
-                ("hotel",       "ホテル",     "Hotels",       "🏨"),
-                ("restaurant",  "飲食店",     "Restaurants",  "🍽"),
-                ("experience",  "体験スポット","Experiences", "🎯"),
-                ("sightseeing", "観光地",     "Sightseeing",  "🏯"),
-                ("other",       "その他",     "Other",        "📍"),
+                ("hotel",       "ホテル",      "Hotels",       "🏨"),
+                ("restaurant",  "飲食店",      "Restaurants",  "🍽"),
+                ("experience",  "体験スポット", "Experiences",  "🎯"),
+                ("sightseeing", "観光地",      "Sightseeing",  "🏯"),
+                ("other",       "その他",      "Other",        "📍"),
             ]
 
             messages = []
@@ -2762,16 +2770,15 @@ def on_message(event: MessageEvent):
         line_bot_api.reply_message(event.reply_token, _render_question(step, state))
         return
 
-    # ★★★ ここから：現在地フロー（飲食店 × 「現在地から近く」）★★★
+    # ★ 現在地フロー（飲食店 × 「現在地から近く」）
     # _validate_and_store 内で、該当ケースなら state["need_location"] = True になっている前提。
     if state.get("need_location"):
         # 言語を取得（未設定なら最後に使った言語 or 日本語）
         lang = state.get("answers", {}).get("lang", LAST_LANG.get(uid, "日本語"))
-        # 位置情報送信を促す QuickReply
+        # 位置情報送信を促す QuickReply（共通ヘルパー）
         _ask_location(event.reply_token, lang)
         # LocationMessage が来るまで step は進めない
         return
-    # ★★★ 現在地フローここまで ★★★
 
     seq = _get_question_sequence(state["answers"])
 
@@ -2802,6 +2809,7 @@ def on_message(event: MessageEvent):
 
     # セッション終了
     users.pop(uid, None)
+
 
 
 @handler.add(MessageEvent, message=LocationMessage)
@@ -2911,6 +2919,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
