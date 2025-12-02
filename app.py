@@ -1280,13 +1280,32 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
     )
 # ====================== AI観光モード 用ヘルパー ======================
 
-def build_ai_kanko_prompt(user_query: str, lang: str) -> str:
+def build_ai_kanko_prompt(user_query: str, lang: str, geo: Optional[Dict[str, Any]] = None) -> str:
     """
     ユーザーが自由入力した「行きたいところ・やりたいこと」をもとに、
     ホテル / 飲食店 / 体験 / 観光地 をミックスして最大3件提案させるためのプロンプト。
     画像URLは出させない & URLは必ず生URLで。
+    geo があれば現在地付近優先の指示を追加。
     """
     is_en = str(lang).lower().startswith("e")
+
+    # 現在地ヒント（あれば）
+    near_hint_ja = ""
+    near_hint_en = ""
+    if geo:
+        lat = geo.get("lat")
+        lng = geo.get("lng")
+        near_hint_ja = f"""
+なお、ユーザーは現在位置（lat={lat}, lng={lng}）の近くを希望しています。
+可能な範囲で、この座標からおおよそ半径2km圏内のスポットを優先して選んでください。
+座標が直接使えない場合は、「現在地周辺」「最寄り駅周辺」など、現在地付近のエリアで探してください。
+""".strip()
+
+        near_hint_en = f"""
+The user prefers places **near their current location** (lat={lat}, lng={lng}).
+As much as possible, prioritize spots within roughly a 2 km radius of these coordinates.
+If you cannot use coordinates directly, search around the nearest station / area to this location.
+""".strip()
 
     if is_en:
         return f"""
@@ -1294,6 +1313,8 @@ You are a Kansai travel concierge.
 
 User's request:
 "{user_query}"
+
+{near_hint_en}
 
 Based on this request, suggest up to **3 places** in Kansai
 (hotels, restaurants, experience spots, or sightseeing spots).
@@ -1338,6 +1359,8 @@ Category: ...
 ユーザーの要望：
 「{user_query}」
 
+{near_hint_ja}
+
 この内容に合う **最大3件** の候補を、
 ホテル / 飲食店 / 体験スポット / 観光地 の区別なくミックスで提案してください。
 
@@ -1376,6 +1399,7 @@ Category: ...
 🔗 Official: https://...
 📍 Google Maps: https://...
 """.strip()
+
 
 
 def parse_ai_kanko_result(text: str) -> List[Dict[str, str]]:
@@ -2633,6 +2657,7 @@ def on_message(event: MessageEvent):
         user_query = text
 
         try:
+    　　　　 geo = state.get("geo")
             # OpenAI 呼び出し
             prompt = build_ai_kanko_prompt(user_query, lang)
             ai_text = _call_openai_text(prompt, lang)
@@ -2748,61 +2773,99 @@ def on_location(event: MessageEvent):
     uid = event.source.user_id
     state = users.get(uid)
 
-    # セッションがない / 何も進行していない場合は何もしない（お好みで案内メッセージでもOK）
     if not state:
+        # セッションが何もなければとりあえず受領だけ（お好み）
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="位置情報を受け取りました。もう一度メニューからやり直してください。")
+        )
         return
 
-    # wizard 以外のモード（ai_travel など）は今は特に使わない
-    if state.get("mode") != "wizard":
-        return
-
-    # 位置情報を answers に保存
+    mode = state.get("mode", "wizard")
     loc = event.message
-    state.setdefault("answers", {})
-    state["answers"]["geo"] = {
+
+    # 共通の geo データ
+    geo_data = {
         "lat": loc.latitude,
         "lng": loc.longitude,
         "address": loc.address,
         "title": loc.title,
     }
 
-    # need_location フラグを落とす（この位置情報で条件は満たした）
-    need_loc = state.get("need_location", False)
-    state["need_location"] = False
+    # =====================================================
+    # ① AI観光モード中の現在地
+    # =====================================================
+    if mode == "ai_travel":
+        # AI観光モード用の現在地として保存
+        state["geo"] = geo_data
 
-    # 「たまたま位置情報送っただけ」のケースもあるので、
-    # step を進めるのは need_location が立っていたときだけにする
-    if not need_loc:
-        # 軽く受領メッセージを返すだけ（不要なら return だけでもOK）
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="位置情報を受け取りました。")
-        )
+        lang = state.get("lang", "日本語")
+        if lang == "日本語":
+            msg = (
+                "📍 現在地を受け取りました！\n"
+                "この周辺で行きたいイメージや条件を、自由に入力してください。\n"
+                "例）「夜景がきれいなデート向き」「ひとりで入れるラーメン」など"
+            )
+        else:
+            msg = (
+                "📍 Got your location!\n"
+                "Now tell me what you are looking for around here.\n"
+                "e.g. 'Romantic night view', 'Solo-friendly ramen shop', etc."
+            )
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
         return
 
-    # ---- ここから正常フロー：「エリア=現在地から近く」の続き ----
-    step = state.get("step", 0)
-    step += 1
-    state["step"] = step
+    # =====================================================
+    # ② 通常の wizard モード（飲食店：現在地から近く）
+    # =====================================================
+    if mode == "wizard":
+        state.setdefault("answers", {})
+        state["answers"]["geo"] = geo_data
 
-    seq = _get_question_sequence(state["answers"])
+        # need_location フラグを落とす
+        need_loc = state.get("need_location", False)
+        state["need_location"] = False
 
-    if step < len(seq):
-        # まだ質問が残っている → 次の質問へ
-        next_question = _render_question(step, state)
-        line_bot_api.reply_message(event.reply_token, next_question)
-    else:
-        # すべての条件が揃っている → そのままプラン生成へ
-        answers = state["answers"]
-        try:
-            send_plan_parts(event.reply_token, uid, answers)
-        except Exception:
+        # 「たまたま位置情報送っただけ」の場合
+        if not need_loc:
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="プラン生成でエラーが発生しました。")
+                TextSendMessage(text="位置情報を受け取りました。")
             )
-        # セッションを破棄
-        users.pop(uid, None)
+            return
+
+        # ---- ここから正常フロー：「エリア=現在地から近く」の続き ----
+        step = state.get("step", 0)
+        step += 1
+        state["step"] = step
+
+        seq = _get_question_sequence(state["answers"])
+
+        if step < len(seq):
+            # まだ質問が残っている → 次の質問へ
+            next_question = _render_question(step, state)
+            line_bot_api.reply_message(event.reply_token, next_question)
+        else:
+            # すべての条件が揃っている → そのままプラン生成へ
+            answers = state["answers"]
+            try:
+                send_plan_parts(event.reply_token, uid, answers)
+            except Exception:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="プラン生成でエラーが発生しました。")
+                )
+            users.pop(uid, None)
+        return
+
+    # =====================================================
+    # ③ それ以外のモード（今は特に何もしない）
+    # =====================================================
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text="位置情報を受け取りました。")
+    )
 
 
 
@@ -2811,6 +2874,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
