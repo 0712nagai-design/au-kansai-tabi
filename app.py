@@ -2333,21 +2333,21 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     if req in {"ホテル", "Hotels"}:
         hotels_text = _call_openai_text(build_hotel3_prompt(answers, lang), lang)
         _send_hotels_three(uid, reply_token, hotels_text, lang)
-        _send_finish_menu(uid, lang)
+        # ★ 他のプランメニューを出さない
         return
 
     # ------------- 飲食店 -------------
     if req in {"飲食店", "Restaurants"}:
         foods_text = _call_openai_text(build_food3_prompt(answers, lang), lang)
         _send_food_three(uid, reply_token, foods_text, lang)
-        _send_finish_menu(uid, lang)
+        # ★ 他のプランメニューを出さない
         return
 
     # ------------- 体験スポット -------------
     if req in {"体験スポット", "Experiences"}:
         exp_text = _call_openai_text(build_experience3_prompt(answers, lang), lang)
         _send_experiences_three(uid, reply_token, exp_text, lang)
-        _send_finish_menu(uid, lang)
+        # ★ 他のプランメニューを出さない
         return
 
     # ------------- 観光地（マスターデータ＋テキスト＋カルーセル） -------------
@@ -2399,7 +2399,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 else f"No sightseeing master data registered for {pref_answer} yet."
             )
             line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
-            _send_finish_menu(uid, lang)
+            # ★ 他のプランメニューを出さない
             return
 
         # ---- 候補の中からランダムで最大3件 ----
@@ -2466,24 +2466,22 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         carousel_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing spots (from master)"
         messages.append(_carousel_from_items(carousel_title, items_for_carousel))
 
-        # reply_message は最大5件まで → 今は
-        # 1(ヘッダ) + 最大3(説明) + 1(カルーセル) = 5件でちょうどOK
+        # reply_message は最大5件まで
         line_bot_api.reply_message(reply_token, messages)
-
-        # メニュー案内
-        _send_finish_menu(uid, lang)
+        # ★ 他のプランメニューを出さない
         return
 
     # ------------- 日程表 -------------
     if req in {"日程表", "Itinerary"}:
         schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
         _send_itinerary(uid, reply_token, schedule, lang)
-        _send_finish_menu(uid, lang)
+        # ★ 他のプランメニューを出さない
         return
 
     # ------------- 想定外 -------------
     msg = "未対応のリクエストです。" if not is_en else "This request is not supported yet."
     line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+
 
 
 
@@ -2919,6 +2917,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
