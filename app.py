@@ -1580,6 +1580,7 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
     )
     line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
 
+    # OpenAIの出力をブロックごとに3件まで
     blocks = [b.strip() for b in re.split(r"\n\s*\n", hotels_text.strip()) if b.strip()][:3]
     if not blocks:
         msg = "ホテル候補が見つかりませんでした。" if not is_en else "No matching hotels were found."
@@ -1587,9 +1588,11 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
         return
 
     items = []
+
     for block in blocks:
         info = _parse_hotel_block(block)
 
+        # ---- テキストメッセージ ----
         if not is_en:
             lines = [f"🏨 {info['name']}"]
             if info["desc"]:
@@ -1599,26 +1602,27 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
         else:
             lines = [f"🏨 {info['name']}"]
             if info["desc"]:
-                lines.append(info["desc"])  # OpenAI側が英語で返してくれる想定
+                lines.append(info["desc"])
             if info["price"]:
                 lines.append(f"💰 Price range: {info['price']}")
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
+        # ---- カルーセル用データ ----
         items.append({
-    "title": info["name"],
-    "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
-    "official": info.get("official") or "",
-    "map": info.get("map") or "",
-    "image": REQUEST_IMAGE_URLS.get("ホテル"),
-    "spot_type": "hotel",      # ★ ホテル
-    "affiliate_url": "",       # ★ とりあえず空欄でOK
-})
-
+            "title": info["name"],
+            "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            "image": REQUEST_IMAGE_URLS.get("ホテル"),
+            "spot_type": "hotel",   # ★ ホテル
+            "affiliate_url": "",    # ★ 予約アフィ用プレースホルダ（今は空）
+        })
 
     list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
     if items:
         line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 
 # ====================== 飲食店：3件提案 ======================
@@ -1728,9 +1732,11 @@ def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
     line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
 
     items = []
+
     for block in blocks:
         info = _parse_food_block(block)
 
+        # ---- テキストメッセージ ----
         if not is_en:
             lines = [f"🍽 {info['name']}"]
             if info["short"]:
@@ -1750,20 +1756,21 @@ def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-       items.append({
-    "title": info["name"],
-    "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
-    "official": info.get("official") or "",
-    "map": info.get("map") or "",
-    "image": REQUEST_IMAGE_URLS.get("飲食店"),
-    "spot_type": "food",       # ★ 飲食店
-    "affiliate_url": "",       # ★ ここも空欄でOK
-})
-
+        # ---- カルーセル用データ ----
+        items.append({
+            "title": info["name"],
+            "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            "image": REQUEST_IMAGE_URLS.get("飲食店"),
+            "spot_type": "food",    # ★ 飲食店
+            "affiliate_url": "",    # ★ 予約アフィ用プレースホルダ
+        })
 
     list_title = "🍽 お店候補（3件）" if not is_en else "🍽 Restaurant options (3)"
     if items:
         line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 
 # ====================== 体験スポット：3件提案 ======================
@@ -1875,9 +1882,11 @@ def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
     line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
 
     items = []
+
     for block in blocks:
         info = _parse_experience_block(block)
 
+        # ---- テキストメッセージ ----
         if not is_en:
             lines = [f"🎯 {info['name']}"]
             if info["short"]:
@@ -1901,22 +1910,23 @@ def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
+        # ---- サブタイトル候補 ----
         sub = (
             info.get("short")
             or (f"Duration: {info.get('dura','')}" if info.get("dura") else info.get("hours"))
             or " "
         )
 
+        # ---- カルーセル用データ ----
         items.append({
-    "title": info["name"],
-    "subtitle": sub[:60],
-    "official": info.get("official") or "",
-    "map": info.get("map") or "",
-    "image": REQUEST_IMAGE_URLS.get("体験スポット"),
-    "spot_type": "experience",  # ★ 体験スポット
-    "affiliate_url": "",        # ★ 空欄
-})
-
+            "title": info["name"],
+            "subtitle": sub[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            "image": REQUEST_IMAGE_URLS.get("体験スポット"),
+            "spot_type": "experience",  # ★ 体験スポット
+            "affiliate_url": "",        # ★ 予約アフィ用プレースホルダ
+        })
 
     list_title = "🎯 体験スポット（3件）" if not is_en else "🎯 Experiences (3)"
     if items:
@@ -2027,9 +2037,11 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
     line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
 
     items = []
+
     for block in blocks:
         info = _parse_sightseeing_block(block)
 
+        # ---- テキストメッセージ ----
         if not is_en:
             lines = [f"🏯 {info['name']}"]
             if info["short"]:
@@ -2049,22 +2061,23 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
+        # ---- サブタイトル候補 ----
         sub = (
             info.get("short")
             or (f"Hours: {info.get('hours','')}" if info.get("hours") else info.get("price"))
             or " "
         )
 
-        items_for_carousel.append({
-    "title": title,
-    "subtitle": subtitle[:60] if subtitle else " ",
-    "official": sp.get("official_url", ""),
-    "map": sp.get("map_url", ""),
-    "image": _get_spot_image(sp),
-    "spot_type": "sightseeing",  # ★ 観光地
-    "affiliate_url": "",         # 入ってても条件から外れるので予約ボタンは出ない
-})
-
+        # ---- カルーセル用データ ----
+        items.append({
+            "title": info["name"],
+            "subtitle": sub[:60],
+            "official": info.get("official") or "",
+            "map": info.get("map") or "",
+            "image": REQUEST_IMAGE_URLS.get("観光地"),
+            "spot_type": "sightseeing",  # ★ 観光地
+            "affiliate_url": "",         # ★ あっても _carousel_from_items 側で予約ボタンを出さない
+        })
 
     list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
     if items:
@@ -2939,6 +2952,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
