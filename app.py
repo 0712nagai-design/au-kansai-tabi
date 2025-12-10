@@ -1213,9 +1213,11 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
     items: {
       "title": str,
       "subtitle": str,
-      "official": str,  # 公式サイトURL or 予約サイトURL
-      "map": str,       # GoogleマップURL or 緯度経度 or 検索ワード
-      "image": str,     # サムネイル画像URL（任意）
+      "official": str,      # 公式サイトURL or 予約サイトURL
+      "map": str,           # GoogleマップURL or 緯度経度 or 検索ワード
+      "image": str,         # サムネイル画像URL（任意）
+      "spot_type": str,     # "hotel" / "food" / "experience" / "sightseeing" など
+      "affiliate_url": str, # アフィリエイト(予約)リンク ※今は空欄でもOK
     } の配列を想定
     """
     columns = []
@@ -1226,9 +1228,7 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
 
         # ---------- 画像 ----------
         img = it.get("image") or ""
-        # URLっぽくなければデフォ画像に差し替え
         if not img or not img.startswith("http"):
-            # 共通のプレースホルダー（お好みで差し替えOK）
             img = "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png"
 
         # ---------- ボタン ----------
@@ -1256,7 +1256,20 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
                     )
                 )
 
-        # どちらも無いときは検索にフォールバック
+        # ★ 予約(アフィリエイト)ボタン：ホテル/飲食店/体験スポットだけ付ける
+        spot_type = it.get("spot_type", "")
+        aff_url = it.get("affiliate_url", "")
+        if spot_type in ("hotel", "food", "experience") and aff_url:
+            aff_url = _clean_url(aff_url)
+            if aff_url.startswith("http"):
+                actions.append(
+                    URITemplateAction(
+                        label="予約・詳細はこちら",
+                        uri=aff_url,
+                    )
+                )
+
+        # どのURLも無いときは検索にフォールバック
         if not actions:
             actions.append(
                 URITemplateAction(
@@ -1278,6 +1291,7 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
         alt_text=header_title,
         template=CarouselTemplate(columns=columns)
     )
+
 # ====================== AI観光モード 用ヘルパー ======================
 
 def build_ai_kanko_prompt(user_query: str, lang: str, geo: Optional[Dict[str, Any]] = None) -> str:
@@ -1592,13 +1606,15 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
         items.append({
-            "title": info["name"],
-            "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or "",
-            # ★ ホテル用の画像
-            "image": REQUEST_IMAGE_URLS.get("ホテル")
-        })
+    "title": info["name"],
+    "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
+    "official": info.get("official") or "",
+    "map": info.get("map") or "",
+    "image": REQUEST_IMAGE_URLS.get("ホテル"),
+    "spot_type": "hotel",      # ★ ホテル
+    "affiliate_url": "",       # ★ とりあえず空欄でOK
+})
+
 
     list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
     if items:
@@ -1734,14 +1750,16 @@ def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-        items.append({
-            "title": info["name"],
-            "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or "",
-            # ★ 飲食店用の画像
-            "image": REQUEST_IMAGE_URLS.get("飲食店")
-        })
+       items.append({
+    "title": info["name"],
+    "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
+    "official": info.get("official") or "",
+    "map": info.get("map") or "",
+    "image": REQUEST_IMAGE_URLS.get("飲食店"),
+    "spot_type": "food",       # ★ 飲食店
+    "affiliate_url": "",       # ★ ここも空欄でOK
+})
+
 
     list_title = "🍽 お店候補（3件）" if not is_en else "🍽 Restaurant options (3)"
     if items:
@@ -1890,13 +1908,15 @@ def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
         )
 
         items.append({
-            "title": info["name"],
-            "subtitle": sub[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or "",
-            # ★ 体験スポット用の画像
-            "image": REQUEST_IMAGE_URLS.get("体験スポット")
-        })
+    "title": info["name"],
+    "subtitle": sub[:60],
+    "official": info.get("official") or "",
+    "map": info.get("map") or "",
+    "image": REQUEST_IMAGE_URLS.get("体験スポット"),
+    "spot_type": "experience",  # ★ 体験スポット
+    "affiliate_url": "",        # ★ 空欄
+})
+
 
     list_title = "🎯 体験スポット（3件）" if not is_en else "🎯 Experiences (3)"
     if items:
@@ -2035,14 +2055,16 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
             or " "
         )
 
-        items.append({
-            "title": info["name"],
-            "subtitle": sub[:60],
-            "official": info.get("official") or "",
-            "map": info.get("map") or "",
-            # ★ 観光地用の画像
-            "image": REQUEST_IMAGE_URLS.get("観光地")
-        })
+        items_for_carousel.append({
+    "title": title,
+    "subtitle": subtitle[:60] if subtitle else " ",
+    "official": sp.get("official_url", ""),
+    "map": sp.get("map_url", ""),
+    "image": _get_spot_image(sp),
+    "spot_type": "sightseeing",  # ★ 観光地
+    "affiliate_url": "",         # 入ってても条件から外れるので予約ボタンは出ない
+})
+
 
     list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
     if items:
@@ -2917,6 +2939,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
