@@ -729,10 +729,12 @@ PREF_IMAGE_URLS = {
     "大阪": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/osaka.png",
     "和歌山": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/wakayama.png",
     "滋賀": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/siga.png",
-}　
+}
+
 FOOD_AREA_IMAGE_URLS = {
     1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/gennzaiti.png",
 }
+
 
 def _render_question(idx: int, state: State):
     answers = state.get("answers", {})
@@ -2991,6 +2993,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
