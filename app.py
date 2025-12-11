@@ -1073,6 +1073,10 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
                 if state["answers"].get("request") == "飲食店" and key == "area":
                     if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
                         state["need_location"] = True
+
+                if state["answers"].get("request") == "体験スポット" and key == "pref":
+                　　 if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
+                    　　state["need_location"] = True
                 return True
 
     # マルチ選択の確定（「完了」/「Done」）
@@ -1778,6 +1782,28 @@ def build_experience3_prompt(answers: Dict[str, Any], lang: str) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2)
     is_en = str(lang).lower().startswith("e")
 
+    near_hint_ja = ""
+    near_hint_en = ""
+    geo = answers.get("geo")
+    if geo:
+        lat = geo.get("lat")
+        lng = geo.get("lng")
+        near_hint_ja = f"""
+現在地の緯度経度（lat={lat}, lng={lng}）から**半径2km以内**にある体験スポットを優先して候補にしてください。
+- 2kmを大きく超える施設は、よほど条件に合う場合を除き避けてください。
+- 距離が近い順 or 現実的に移動しやすい順に最大3件までを提案してください。
+- 条件に合う実在の施設が見つからない場合は、無理に名前を作らず、
+  「条件に合う実在の体験スポットが見つかりませんでした」と書いてください。
+""".strip()
+
+        near_hint_en = f"""
+Prioritize experience spots **within about 2 km** of the current coordinates (lat={lat}, lng={lng}).
+- Avoid facilities far beyond 2 km unless they are exceptionally suitable.
+- Suggest up to 3 places ordered by distance / realistic travel order.
+- If no real facilities match the conditions, do NOT invent names; say
+  "No real experience spot matching the conditions was found."
+""".strip()
+
     if is_en:
         return f"""
 You are a Kansai travel experience concierge.
@@ -1794,6 +1820,8 @@ Important:
   do not use that facility as a candidate.
 - If you cannot find 3 valid experience spots, for the missing ones just write:
   "No real experience spot matching the conditions was found."
+
+{near_hint_en}
 
 Each option MUST contain: "Official: URL" and "Google Maps: URL".
 Do NOT output any image URLs.
@@ -1823,6 +1851,8 @@ Short comment: 1-line summary (contents / for whom / any cautions)
 - 公式サイトURLや予約ページURL、GoogleマップURLがない施設は候補から外してください。
 - 3件そろわない場合は、足りない分について「条件に合う実在の体験スポットが見つかりませんでした」とだけ書いてください。
 
+{near_hint_ja}
+
 各候補は必ず「公式：URL」「Googleマップ：URL」を含め、画像URLは出力しないこと。
 各候補は空行で区切る（罫線禁止）。誇張なしの短評を1行入れること。
 
@@ -1838,6 +1868,7 @@ Short comment: 1-line summary (contents / for whom / any cautions)
 🔗 公式：https://...
 📍 Googleマップ：https://...
 """.strip()
+
 
 
 def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
@@ -2952,6 +2983,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
