@@ -1038,6 +1038,7 @@ def _label_to_num(choices: Dict[int, str], text: str) -> Optional[int]:
             return n
     return None
 
+
 def _validate_and_store(uid: str, step: int, text: str) -> bool:
     state = users[uid]
 
@@ -1079,9 +1080,11 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
                     if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
                         state["need_location"] = True
 
+                # 体験スポットでも「現在地から近く」を選んだら位置情報フラグ
                 if state["answers"].get("request") == "体験スポット" and key == "pref":
-                　　 if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
-                    　　state["need_location"] = True
+                    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
+                        state["need_location"] = True
+
                 return True
 
     # マルチ選択の確定（「完了」/「Done」）
@@ -2988,6 +2991,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
