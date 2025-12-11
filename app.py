@@ -270,7 +270,7 @@ CUISINES     = {1: "和食", 2: "洋食", 3: "中華", 4: "ラーメン", 5: "�
 BUDGET_FOOD  = {1: "～1000円", 2: "1000～2000円", 3: "2000～5000円", 4: "5000円以上"}
 
 # --- 体験スポット ---
-AREAS_EXP    = PREFS_KANSAI.copy()
+AREAS_EXP    = AREAS_FOOD.copy()
 PEOPLE_EXP   = {1: "1人", 2: "2人", 3: "3人", 4: "4人", 5: "5人", 6: "6人以上"}
 COMPANION_EXP= COMPANION_FOOD.copy()
 EXP_GENRES   = {1: "温泉", 2: "自然体験", 3: "文化体験", 4: "モノづくり体験", 5: "グルメ・食体験"}
@@ -282,7 +282,7 @@ AREAS_SIGHT  = PREFS_KANSAI.copy()
 PREFS_MULTI  = PREFS_KANSAI.copy()   # 複数選択
 STAY_PLAN_ITI= {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊4日", 5: "4泊5日", 6: "5泊6日"}
 THEMES_MULTI = {1:"グルメ",2:"歴史文化",3:"自然癒し",4:"夜景",5:"温泉",6:"家族",7:"ショッピング",8:"体験メイン",9:"その他"}  # 複数選択
-COMPANION_ITI= {1:"ひとり",2:"カップル",3:"友人",4:"家族",5:"外国人友人",6:"その他"}
+COMPANION_ITI= COMPANION_FOOD.copy()
 DEPT_CHOICES = {1:"6–8時",2:"9–11時",3:"12–14時",4:"15–17時",5:"18時以降"}
 ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"未定"}
 TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}
@@ -2952,6 +2952,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
