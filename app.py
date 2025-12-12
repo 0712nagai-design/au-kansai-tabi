@@ -286,163 +286,7 @@ COMPANION_ITI= COMPANION_FOOD.copy()
 DEPT_CHOICES = {1:"6–8時",2:"9–11時",3:"12–14時",4:"15–17時",5:"18時以降"}
 ARRV_CHOICES = {1:"14–17時",2:"17–19時",3:"19–21時",4:"21時以降",5:"未定"}
 TRANSPORT_ITI= {1:"公共交通",2:"車",3:"徒歩中心"}
-# ====== English labels for choices ======
-PREFS_KANSAI_EN = {
-    1: "Kyoto",
-    2: "Osaka",
-    3: "Nara",
-    4: "Hyogo",
-    5: "Shiga",
-    6: "Wakayama",
-}
 
-STAY_PLAN_HOTEL_EN = {
-    1: "Day trip",
-    2: "1 night 2 days",
-    3: "2 nights 3 days",
-    4: "3 nights 4 days",
-    5: "4 nights 5 days",
-    6: "5 nights 6 days",
-}
-
-PEOPLE_HOTEL_EN = {
-    1: "1 guest",
-    2: "2 guests",
-    3: "3 guests",
-    4: "4 guests",
-    5: "5 guests",
-    6: "6+ guests",
-}
-
-MEAL_TIMES_EN = {
-    1: "Breakfast",
-    2: "Lunch",
-    3: "Dinner",
-}
-
-AREAS_FOOD_EN = {
-    1: "Near current location",
-    2: "Kyoto",
-    3: "Osaka",
-    4: "Nara",
-    5: "Hyogo",
-    6: "Shiga",
-    7: "Wakayama",
-}
-
-PEOPLE_FOOD_EN = {
-    1: "1 guest",
-    2: "2 guests",
-    3: "3 guests",
-    4: "4 guests",
-    5: "5 guests",
-    6: "6+ guests",
-}
-
-COMPANION_FOOD_EN = {
-    1: "Solo",
-    2: "Couple",
-    3: "Friends",
-    4: "Family",
-}
-
-CUISINES_EN = {
-    1: "Japanese",
-    2: "Western",
-    3: "Chinese",
-    4: "Ramen",
-    5: "Cafe / Sweets",
-    6: "No preference",
-}
-
-BUDGET_FOOD_EN = {
-    1: "Up to ¥1,000",
-    2: "¥1,000–2,000",
-    3: "¥2,000–5,000",
-    4: "¥5,000+",
-}
-
-AREAS_EXP_EN = PREFS_KANSAI_EN.copy()
-
-PEOPLE_EXP_EN = {
-    1: "1 guest",
-    2: "2 guests",
-    3: "3 guests",
-    4: "4 guests",
-    5: "5 guests",
-    6: "6+ guests",
-}
-
-COMPANION_EXP_EN = {
-    1: "Solo",
-    2: "Couple",
-    3: "Friends",
-    4: "Family",
-}
-
-EXP_GENRES_EN = {
-    1: "Onsen (hot springs)",
-    2: "Nature experiences",
-    3: "Cultural experiences",
-    4: "Craft workshops",
-    5: "Food experiences",
-}
-
-AREAS_SIGHT_EN = PREFS_KANSAI_EN.copy()
-
-PREFS_MULTI_EN = PREFS_KANSAI_EN.copy()
-
-STAY_PLAN_ITI_EN = {
-    1: "Day trip",
-    2: "1 night 2 days",
-    3: "2 nights 3 days",
-    4: "3 nights 4 days",
-    5: "4 nights 5 days",
-    6: "5 nights 6 days",
-}
-
-THEMES_MULTI_EN = {
-    1: "Gourmet",
-    2: "History & culture",
-    3: "Nature & relaxation",
-    4: "Night views",
-    5: "Onsen",
-    6: "Family",
-    7: "Shopping",
-    8: "Activities focused",
-    9: "Others",
-}
-
-COMPANION_ITI_EN = {
-    1: "Solo",
-    2: "Couple",
-    3: "Friends",
-    4: "Family",
-    5: "Foreign friends",
-    6: "Others",
-}
-
-DEPT_CHOICES_EN = {
-    1: "6–8 am",
-    2: "9–11 am",
-    3: "12–2 pm",
-    4: "3–5 pm",
-    5: "After 6 pm",
-}
-
-ARRV_CHOICES_EN = {
-    1: "2–5 pm",
-    2: "5–7 pm",
-    3: "7–9 pm",
-    4: "After 9 pm",
-    5: "Not decided",
-}
-
-TRANSPORT_ITI_EN = {
-    1: "Public transport",
-    2: "Car",
-    3: "Mostly on foot",
-}
 
 def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
@@ -1701,6 +1545,7 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
     list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
     if items:
         line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 
 
@@ -3058,6 +2903,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
