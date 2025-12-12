@@ -576,8 +576,9 @@ PREF_IMAGE_URLS = {
 }
 
 FOOD_AREA_IMAGE_URLS = {
-    1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/gennzaiti.png",
+    "現在地から近く": "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/gennzaiti.png",
 }
+
 CAROUSEL_IMAGES = {
     "hotel": [
         "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hotel1.png",
@@ -595,6 +596,20 @@ CAROUSEL_IMAGES = {
         "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/exp3.png",
     ],
 }
+def _pick_carousel_image(kind: str, idx: int, fallback: str = "") -> str:
+    """
+    kind: "hotel" / "food" / "experience" など
+    idx: 0,1,2...
+    """
+    try:
+        arr = CAROUSEL_IMAGES.get(kind, [])
+        if arr and 0 <= idx < len(arr):
+            return arr[idx]
+        if arr:
+            return arr[idx % len(arr)]
+    except Exception:
+        pass
+    return fallback or "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/kannku.png"
 
 
 def _render_question(idx: int, state: State):
@@ -879,13 +894,14 @@ def _render_question(idx: int, state: State):
         return FlexSendMessage(alt_text=title, contents=bubble)
 
     # ===================== その他の画像ボタン (companion / area / cuisine / exp_genre) =====================
-    mapping_sets = {
+   mapping_sets = {
     "companion": COMPANION_IMAGE_URLS,
-    "area": PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
-    "pref": PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,  # ★これ追加
+    "area": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS),   # 飲食店のareaだけ現在地を混ぜる
     "cuisine": FOOD_GENRE_IMAGE_URLS,
     "exp_genre": EXP_GENRE_IMAGE_URLS,
+    # "pref": PREF_IMAGE_URLS  ← pref は都道府県だけ
 }
+
 
 
     if q["key"] in mapping_sets:
@@ -1495,56 +1511,66 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
 
     header = (
         "🏨 条件に合うホテル候補を3件ご提案します👇"
-        if not is_en
-        else "🏨 Here are 3 hotel options for you 👇"
+        if not is_en else "🏨 Here are 3 hotel options for you 👇"
     )
+
+    # まずヘッダーを reply（reply_token は1回だけ）
     line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
 
-    # OpenAIの出力をブロックごとに3件まで
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", hotels_text.strip()) if b.strip()][:3]
-    if not blocks:
-        msg = "ホテル候補が見つかりませんでした。" if not is_en else "No matching hotels were found."
-        line_bot_api.push_message(uid, TextSendMessage(text=msg))
-        return
+    # OpenAI出力をブロック分割して3件まで
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", (hotels_text or "").strip()) if b.strip()][:3]
+
+    # 3ブロック未満でも「見つかりませんでした」を埋めて3件にする（UIを崩さない）
+    while len(blocks) < 3:
+        blocks.append("条件に合う実在のホテルが見つかりませんでした")
 
     items = []
 
-    for block in blocks:
+    for i, block in enumerate(blocks):
+        # 「見つかりませんでした」系
+        if "見つかりません" in block or "No real hotel" in block:
+            title = "条件に合うホテルが見つかりませんでした" if not is_en else "No matching hotel found"
+            line_bot_api.push_message(uid, TextSendMessage(text=f"🏨 {title}"))
+            items.append({
+                "title": title[:40],
+                "subtitle": "条件を変えて再検索してみてください。" if not is_en else "Try changing conditions.",
+                "official": "",
+                "map": "",
+                "image": _pick_carousel_image("hotel", i, REQUEST_IMAGE_URLS.get("ホテル")),
+                "spot_type": "hotel",
+                "affiliate_url": "",
+            })
+            continue
+
         info = _parse_hotel_block(block)
 
-        # ---- テキストメッセージ（1件ずつ push）----
+        # 1件ずつテキストも push
         if not is_en:
             lines = [f"🏨 {info['name']}"]
-            if info.get("desc"):
-                lines.append(info["desc"])
-            if info.get("price"):
-                lines.append(f"💰 価格目安：{info['price']}")
+            if info.get("desc"):  lines.append(info["desc"])
+            if info.get("price"): lines.append(f"💰 価格目安：{info['price']}")
         else:
             lines = [f"🏨 {info['name']}"]
-            if info.get("desc"):
-                lines.append(info["desc"])
-            if info.get("price"):
-                lines.append(f"💰 Price guide: {info['price']}")
+            if info.get("desc"):  lines.append(info["desc"])
+            if info.get("price"): lines.append(f"💰 Price guide: {info['price']}")
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-        # ---- カルーセル用データ ----
-        idx = len(items)  # 0,1,2...
+        # カルーセル用
         items.append({
-            "title": info.get("name") or "Hotel",
+            "title": (info.get("name") or "Hotel")[:40],
             "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
             "official": info.get("official") or "",
             "map": info.get("map") or "",
-            # ★ ここが「3枚を順番に割り当てる」ポイント
-            "image": _pick_carousel_image("hotel", idx, REQUEST_IMAGE_URLS.get("ホテル")),
+            "image": _pick_carousel_image("hotel", i, REQUEST_IMAGE_URLS.get("ホテル")),
             "spot_type": "hotel",
-            "affiliate_url": "",  # 今は空でOK
+            "affiliate_url": "",
         })
 
-    # ---- カルーセル送信 ----
+    # 最後にカルーセル
     list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
-    if items:
-        line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+    line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 
 
@@ -2903,6 +2929,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
