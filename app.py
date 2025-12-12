@@ -894,7 +894,6 @@ def _render_question(idx: int, state: State):
         return FlexSendMessage(alt_text=title, contents=bubble)
 
     # ===================== その他の画像ボタン (companion / area / cuisine / exp_genre) =====================
-　　    # ===================== その他の画像ボタン (companion / area / cuisine / exp_genre) =====================
     mapping_sets = {
         "companion": COMPANION_IMAGE_URLS,
         "area": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS),
@@ -2928,6 +2927,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
