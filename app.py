@@ -1668,43 +1668,36 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
     for block in blocks:
         info = _parse_hotel_block(block)
 
-        # ---- テキストメッセージ ----
+        # ---- テキストメッセージ（1件ずつ push）----
         if not is_en:
             lines = [f"🏨 {info['name']}"]
-            if info["desc"]:
+            if info.get("desc"):
                 lines.append(info["desc"])
-            if info["price"]:
+            if info.get("price"):
                 lines.append(f"💰 価格目安：{info['price']}")
         else:
             lines = [f"🏨 {info['name']}"]
-            if info["desc"]:
+            if info.get("desc"):
                 lines.append(info["desc"])
-            if info["price"]:
-                lines.append(f"💰 Price range: {info['price']}")
+            if info.get("price"):
+                lines.append(f"💰 Price guide: {info['price']}")
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
         # ---- カルーセル用データ ----
+        idx = len(items)  # 0,1,2...
         items.append({
-            "title": info["name"],
+            "title": info.get("name") or "Hotel",
             "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
             "official": info.get("official") or "",
             "map": info.get("map") or "",
-            idx = len(items)  # 0,1,2...
-items.append({
-    "title": info["name"],
-    "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
-    "official": info.get("official") or "",
-    "map": info.get("map") or "",
-    "image": _pick_carousel_image("hotel", idx, REQUEST_IMAGE_URLS.get("ホテル")),
-    "spot_type": "hotel",
-    "affiliate_url": "",
-})
-
-            "spot_type": "hotel",   # ★ ホテル
-            "affiliate_url": "",    # ★ 予約アフィ用プレースホルダ（今は空）
+            # ★ ここが「3枚を順番に割り当てる」ポイント
+            "image": _pick_carousel_image("hotel", idx, REQUEST_IMAGE_URLS.get("ホテル")),
+            "spot_type": "hotel",
+            "affiliate_url": "",  # 今は空でOK
         })
 
+    # ---- カルーセル送信 ----
     list_title = "🏨 ホテル候補（3件）" if not is_en else "🏨 Hotel options (3)"
     if items:
         line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
@@ -3065,6 +3058,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
