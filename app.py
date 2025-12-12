@@ -894,6 +894,51 @@ def _render_question(idx: int, state: State):
             row.append({"type": "filler"})
             rows.append({"type": "box", "layout": "horizontal", "spacing": "10px", "contents": row})
         return rows
+            # ===================== その他の画像ボタン (companion / area / cuisine / exp_genre / pref) =====================
+    mapping_sets = {
+        "companion": COMPANION_IMAGE_URLS,
+
+        # 飲食店のエリア（1:現在地から近く を画像にしたい）
+        "area": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS)
+                if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
+
+        # 体験スポットのエリア（あなたの設計では key="pref" で出してるのでここも同じにする）
+        "pref": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS)
+                if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
+
+        "cuisine": FOOD_GENRE_IMAGE_URLS,
+        "exp_genre": EXP_GENRE_IMAGE_URLS,
+    }
+
+    # q["key"] が上のどれかなら、画像付き2列ボタンで質問を描画して return する
+    if q["key"] in mapping_sets:
+        image_map = mapping_sets[q["key"]]
+        btns = []
+        for num, label in q["choices"].items():
+            img = (image_map.get(num)               # 例: 1 → 現在地アイコン
+                   or image_map.get(label)          # 例: "京都" → kyoto.png
+                   or REQUEST_IMAGE_URLS.get("観光地"))
+            btns.append(vbtn(img, label, num))
+
+        rows = make_2col_rows(btns)
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "14px",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
+                    {"type": "separator"},
+                    *rows
+                ],
+            },
+        }
+        return FlexSendMessage(alt_text=title, contents=bubble)
+
 
     # ===================== 都道府県 =====================
     if q["key"] == "pref":
@@ -2993,6 +3038,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
