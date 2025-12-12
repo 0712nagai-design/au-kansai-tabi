@@ -734,6 +734,23 @@ PREF_IMAGE_URLS = {
 FOOD_AREA_IMAGE_URLS = {
     1: "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/gennzaiti.png",
 }
+CAROUSEL_IMAGES = {
+    "hotel": [
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hotel1.png",
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hotel2.png",
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/hotel3.png",
+    ],
+    "food": [
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/food1.png",
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/food2.png",
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/food3.png",
+    ],
+    "experience": [
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/exp1.png",
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/exp2.png",
+        "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/exp3.png",
+    ],
+}
 
 
 def _render_question(idx: int, state: State):
@@ -1673,7 +1690,17 @@ def _send_hotels_three(uid: str, reply_token: str, hotels_text: str, lang: str):
             "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
             "official": info.get("official") or "",
             "map": info.get("map") or "",
-            "image": REQUEST_IMAGE_URLS.get("ホテル"),
+            idx = len(items)  # 0,1,2...
+items.append({
+    "title": info["name"],
+    "subtitle": (info.get("desc") or info.get("price") or " ")[:60],
+    "official": info.get("official") or "",
+    "map": info.get("map") or "",
+    "image": _pick_carousel_image("hotel", idx, REQUEST_IMAGE_URLS.get("ホテル")),
+    "spot_type": "hotel",
+    "affiliate_url": "",
+})
+
             "spot_type": "hotel",   # ★ ホテル
             "affiliate_url": "",    # ★ 予約アフィ用プレースホルダ（今は空）
         })
@@ -3038,6 +3065,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
