@@ -1667,57 +1667,76 @@ def _parse_food_block(block: str) -> Dict[str, Optional[str]]:
     return {"name": name or "飲食店", "short": short, "price": price, "hours": hours, "official": off, "map": mp}
 
 
-def _send_food_three(uid: str, reply_token: str, text: str, lang: str):
+def _send_food_three(uid: str, reply_token: str, foods_text: str, lang: str):
     is_en = str(lang).lower().startswith("e")
 
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
-    if not blocks:
-        msg = "条件に合う飲食店が見つかりませんでした。" if not is_en else "No matching restaurants were found."
-        line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
-        return
+    header = (
+        "🍽 条件に合うお店を3件ご提案します👇"
+        if not is_en else "🍽 Here are 3 restaurant suggestions 👇"
+    )
 
-    header = "🍽 条件に合うお店を3件ご提案します👇" if not is_en else "🍽 Here are 3 restaurant suggestions 👇"
+    # まずヘッダーを reply（reply_token は1回だけ）
     line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
+
+    # OpenAI出力をブロック分割して3件まで
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", (foods_text or "").strip()) if b.strip()][:3]
+
+    # 3ブロック未満でも埋めて3件にする（UI崩れ防止）
+    while len(blocks) < 3:
+        blocks.append("条件に合う実在の飲食店が見つかりませんでした")
 
     items = []
 
-    for block in blocks:
-        info = _parse_food_block(block)
+    for i, block in enumerate(blocks):
+        # 「見つかりませんでした」系
+        if ("見つかりません" in block) or ("No real restaurant" in block) or ("No matching" in block):
+            title = "条件に合う飲食店が見つかりませんでした" if not is_en else "No matching restaurant found"
+            line_bot_api.push_message(uid, TextSendMessage(text=f"🍽 {title}"))
 
-        # ---- テキストメッセージ ----
+            items.append({
+                "title": title[:40],
+                "subtitle": "条件を変えて再検索してみてください。" if not is_en else "Try changing conditions.",
+                "official": "",
+                "map": "",
+                "image": _pick_carousel_image("food", i, REQUEST_IMAGE_URLS.get("飲食店")),
+                "spot_type": "food",
+                "affiliate_url": "",
+            })
+            continue
+
+        info = _parse_food_block(block)  # 既にあなたのコードにある想定
+
+        # 1件ずつテキストも push
         if not is_en:
-            lines = [f"🍽 {info['name']}"]
-            if info["short"]:
-                lines.append(info["short"])
-            if info["price"]:
-                lines.append(f"💰 価格帯：{info['price']}")
-            if info["hours"]:
-                lines.append(f"🕰 営業：{info['hours']}")
+            lines = [f"🍽 {info.get('name','飲食店')}"]
+            if info.get("short"): lines.append(info["short"])
+            if info.get("price"): lines.append(f"💰 価格帯：{info['price']}")
+            if info.get("hours"): lines.append(f"🕰 営業：{info['hours']}")
         else:
-            lines = [f"🍽 {info['name']}"]
-            if info["short"]:
-                lines.append(info["short"])
-            if info["price"]:
-                lines.append(f"💰 Price range: {info['price']}")
-            if info["hours"]:
-                lines.append(f"🕰 Hours: {info['hours']}")
+            lines = [f"🍽 {info.get('name','Restaurant')}"]
+            if info.get("short"): lines.append(info["short"])
+            if info.get("price"): lines.append(f"💰 Price range: {info['price']}")
+            if info.get("hours"): lines.append(f"🕰 Hours: {info['hours']}")
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-        # ---- カルーセル用データ ----
+        # カルーセル用
+        subtitle = (info.get("short") or info.get("hours") or info.get("price") or " ")[:60]
+
         items.append({
-            "title": info["name"],
-            "subtitle": (info.get("short") or info.get("hours") or info.get("price") or " ")[:60],
+            "title": (info.get("name") or "Restaurant")[:40],
+            "subtitle": subtitle,
             "official": info.get("official") or "",
             "map": info.get("map") or "",
-            "image": REQUEST_IMAGE_URLS.get("飲食店"),
-            "spot_type": "food",    # ★ 飲食店
-            "affiliate_url": "",    # ★ 予約アフィ用プレースホルダ
+            "image": _pick_carousel_image("food", i, REQUEST_IMAGE_URLS.get("飲食店")),
+            "spot_type": "food",
+            "affiliate_url": "",
         })
 
+    # 最後にカルーセル
     list_title = "🍽 お店候補（3件）" if not is_en else "🍽 Restaurant options (3)"
-    if items:
-        line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+    line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 
 
@@ -1844,68 +1863,78 @@ def _parse_experience_block(block: str) -> Dict[str, Optional[str]]:
     }
 
 
-def _send_experiences_three(uid: str, reply_token: str, text: str, lang: str):
+def _send_experiences_three(uid: str, reply_token: str, exp_text: str, lang: str):
     is_en = str(lang).lower().startswith("e")
 
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()][:3]
-    if not blocks:
-        msg = "条件に合う体験スポットが見つかりませんでした。" if not is_en else "No matching experiences were found."
-        line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
-        return
+    header = (
+        "🎯 条件に合う体験スポットを3件ご提案します👇"
+        if not is_en else "🎯 Here are 3 experience spots 👇"
+    )
 
-    header = "🎯 条件に合う体験スポットを3件ご提案します👇" if not is_en else "🎯 Here are 3 experience spots 👇"
+    # まずヘッダーを reply（reply_token は1回だけ）
     line_bot_api.reply_message(reply_token, TextSendMessage(text=header))
+
+    # OpenAI出力をブロック分割して3件まで
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", (exp_text or "").strip()) if b.strip()][:3]
+
+    # 3ブロック未満でも埋めて3件にする（UI崩れ防止）
+    while len(blocks) < 3:
+        blocks.append("条件に合う実在の体験スポットが見つかりませんでした")
 
     items = []
 
-    for block in blocks:
-        info = _parse_experience_block(block)
+    for i, block in enumerate(blocks):
+        # 「見つかりませんでした」系
+        if ("見つかりません" in block) or ("No real experience" in block) or ("No matching" in block):
+            title = "条件に合う体験スポットが見つかりませんでした" if not is_en else "No matching experience found"
+            line_bot_api.push_message(uid, TextSendMessage(text=f"🎯 {title}"))
 
-        # ---- テキストメッセージ ----
+            items.append({
+                "title": title[:40],
+                "subtitle": "条件を変えて再検索してみてください。" if not is_en else "Try changing conditions.",
+                "official": "",
+                "map": "",
+                "image": _pick_carousel_image("experience", i, REQUEST_IMAGE_URLS.get("体験スポット")),
+                "spot_type": "experience",
+                "affiliate_url": "",
+            })
+            continue
+
+        info = _parse_experience_block(block)  # 既にあなたのコードにある想定
+
+        # 1件ずつテキストも push
         if not is_en:
-            lines = [f"🎯 {info['name']}"]
-            if info["short"]:
-                lines.append(info["short"])
-            if info["price"]:
-                lines.append(f"💰 料金：{info['price']}")
-            if info["dura"]:
-                lines.append(f"⌛ 所要：{info['dura']}")
-            if info["hours"]:
-                lines.append(f"🕰 営業：{info['hours']}")
+            lines = [f"🎯 {info.get('name','体験スポット')}"]
+            if info.get("short"): lines.append(info["short"])
+            if info.get("price"): lines.append(f"💰 料金：{info['price']}")
+            if info.get("dura"):  lines.append(f"⌛ 所要：{info['dura']}")
+            if info.get("hours"): lines.append(f"🕰 営業：{info['hours']}")
         else:
-            lines = [f"🎯 {info['name']}"]
-            if info["short"]:
-                lines.append(info["short"])
-            if info["price"]:
-                lines.append(f"💰 Price: {info['price']}")
-            if info["dura"]:
-                lines.append(f"⌛ Duration: {info['dura']}")
-            if info["hours"]:
-                lines.append(f"🕰 Hours: {info['hours']}")
+            lines = [f"🎯 {info.get('name','Experience')}"]
+            if info.get("short"): lines.append(info["short"])
+            if info.get("price"): lines.append(f"💰 Price: {info['price']}")
+            if info.get("dura"):  lines.append(f"⌛ Duration: {info['dura']}")
+            if info.get("hours"): lines.append(f"🕰 Hours: {info['hours']}")
 
         line_bot_api.push_message(uid, TextSendMessage(text="\n".join(lines)))
 
-        # ---- サブタイトル候補 ----
-        sub = (
-            info.get("short")
-            or (f"Duration: {info.get('dura','')}" if info.get("dura") else info.get("hours"))
-            or " "
-        )
+        # カルーセル用サブタイトル
+        subtitle = (info.get("short") or info.get("dura") or info.get("hours") or info.get("price") or " ")[:60]
 
-        # ---- カルーセル用データ ----
         items.append({
-            "title": info["name"],
-            "subtitle": sub[:60],
+            "title": (info.get("name") or "Experience")[:40],
+            "subtitle": subtitle,
             "official": info.get("official") or "",
             "map": info.get("map") or "",
-            "image": REQUEST_IMAGE_URLS.get("体験スポット"),
-            "spot_type": "experience",  # ★ 体験スポット
-            "affiliate_url": "",        # ★ 予約アフィ用プレースホルダ
+            "image": _pick_carousel_image("experience", i, REQUEST_IMAGE_URLS.get("体験スポット")),
+            "spot_type": "experience",
+            "affiliate_url": "",
         })
 
+    # 最後にカルーセル
     list_title = "🎯 体験スポット（3件）" if not is_en else "🎯 Experiences (3)"
-    if items:
-        line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+    line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+
 
 
 # ====================== 観光地：3件提案 ======================
@@ -2927,6 +2956,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
