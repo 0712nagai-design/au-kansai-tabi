@@ -891,91 +891,134 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
     state = users[uid]
 
     seq = _get_question_sequence(state.get("answers", {}))
+    if step < 0 or step >= len(seq):
+        return False
+
     q = seq[step]
     key = q["key"]
+
     state.setdefault("answers", {})
     state.setdefault("multi_temp", {})
 
-    # --- 特別処理：言語選択は「lang」質問のときだけ見る ---
+    t_raw = (text or "").strip()
+    t_norm = t_raw.translate(FW_TO_HW)
+
+    # -------------------------------------------------
+    # 0) 特別処理：言語選択（※いま seq に lang を入れてないなら実質通らないが安全のため残す）
+    # -------------------------------------------------
     if key == "lang":
-        t = text.strip()
-        if t in {"English", "english", "EN", "2"}:
+        if t_raw in {"English", "english", "EN", "en", "2"}:
             state["answers"]["lang"] = "English"
             return True
-        if t in {"日本語", "にほんご", "JP", "1"}:
+        if t_raw in {"日本語", "にほんご", "JP", "jp", "1"}:
             state["answers"]["lang"] = "日本語"
             return True
-        # ここで取れなかったら、いつもの choices 判定に流す
+        # 取れなければ通常処理へ（choices があればそっちで拾う）
 
-    # ===== 通常処理 =====
-    # choices あり（通常の選択肢）
+    # -------------------------------------------------
+    # 1) choices がある質問（単一/複数）
+    # -------------------------------------------------
     if q.get("choices"):
-        n = _label_to_num(q["choices"], text)
+        n = _label_to_num(q["choices"], t_raw)
         if n is not None:
             val = q["choices"][n]
+
+            # --- 複数選択（タップで溜める） ---
             if q.get("multi"):
-                # 複数選択中
                 sel = state["multi_temp"].setdefault(key, [])
                 if val not in sel:
                     sel.append(val)
                 return True
-            else:
-                # 単一選択
-state["answers"][key] = val
 
-# 飲食店エリア = 現在地から近く → 位置情報フラグ
-if state["answers"].get("request") == "飲食店" and key == "area":
-    if val in {"現在地から近く", "Near current location"} and not state["answers"].get("geo"):
-        state["need_location"] = True
+            # --- 単一選択 ---
+            state["answers"][key] = val
 
-# 体験スポットでも「現在地から近く」
-if state["answers"].get("request") == "体験スポット" and key == "pref":
-    if val in {"現在地から近く", "Near current location"} and not state["answers"].get("geo"):
-        state["need_location"] = True
+            # 現在地が必要か（geo がまだ無い & 「現在地から近く」選択）
+            need_loc = (not state["answers"].get("geo")) and (val in {"現在地から近く", "Near current location"})
 
-# 観光地でも「現在地から近く」
-if state["answers"].get("request") == "観光地" and key == "pref":
-    if val in {"現在地から近く", "Near current location"} and not state["answers"].get("geo"):
-        state["need_location"] = True
+            req = state["answers"].get("request")
 
-return True
+            # 飲食店：area=現在地
+            if req == "飲食店" and key == "area" and need_loc:
+                state["need_location"] = True
 
+            # 体験：pref=現在地
+            if req == "体験スポット" and key == "pref" and need_loc:
+                state["need_location"] = True
 
-    # マルチ選択の確定（「完了」/「Done」）
-    if q.get("multi") and text.strip() in {"完了", "Done"}:
+            # 観光地：pref=現在地
+            if req == "観光地" and key == "pref" and need_loc:
+                state["need_location"] = True
+
+            return True
+
+        # ここに来た＝choices質問なのに番号/ラベル一致しなかった
+        # → 下の「数字列入力」判定に回す（例: "1,3"）
+        # それもダメなら False
+
+    # -------------------------------------------------
+    # 2) マルチ選択の確定（「完了」/「Done」）
+    # -------------------------------------------------
+    if q.get("multi") and t_raw in {"完了", "Done"}:
         picked = state["multi_temp"].get(key, [])
         if not picked:
             return False
         state["answers"][key] = picked
         return True
 
-    # 日付入力
+    # -------------------------------------------------
+    # 3) 日付入力（date）
+    # -------------------------------------------------
     if key == "date":
         try:
-            datetime.strptime(text.strip(), "%Y-%m-%d")
-            state["answers"][key] = text.strip()
+            datetime.strptime(t_raw, "%Y-%m-%d")
+            state["answers"][key] = t_raw
             return True
         except Exception:
             return False
 
-    # 数字列（例: 1,3,5 一括指定 → 自動確定で次へ）
-    nums = _parse_numbers(text)
+    # -------------------------------------------------
+    # 4) 数字列入力（例: "1,3,5"）→ choices がある質問のみ
+    # -------------------------------------------------
+    nums = _parse_numbers(t_raw)
     if nums and q.get("choices"):
         bad = [n for n in nums if n not in q["choices"]]
         if bad:
             return False
+
         labels = [q["choices"][n] for n in nums]
+
         if q.get("multi"):
+            # マルチは数字列が来たら即確定（自動で次へ）
             state["answers"][key] = labels
             state["_autodone"] = True
             return True
-        else:
-            if len(nums) != 1:
-                return False
-            state["answers"][key] = q["choices"][nums[0]]
-            return True
 
+        # 単一質問に複数来たらNG
+        if len(nums) != 1:
+            return False
+
+        val = q["choices"][nums[0]]
+        state["answers"][key] = val
+
+        # 単一でも「現在地から近く」なら need_location 判定
+        need_loc = (not state["answers"].get("geo")) and (val in {"現在地から近く", "Near current location"})
+        req = state["answers"].get("request")
+
+        if req == "飲食店" and key == "area" and need_loc:
+            state["need_location"] = True
+        if req == "体験スポット" and key == "pref" and need_loc:
+            state["need_location"] = True
+        if req == "観光地" and key == "pref" and need_loc:
+            state["need_location"] = True
+
+        return True
+
+    # -------------------------------------------------
+    # 5) ここまで全部ダメなら不正入力
+    # -------------------------------------------------
     return False
+
 
 # ====================== OpenAI呼び出し ======================
 SYSTEM_PROMPT_BASE = (
@@ -2952,6 +2995,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
