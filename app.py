@@ -28,6 +28,7 @@ from linebot.models import FollowEvent
 # OpenAI v1
 from openai import OpenAI
 
+
 # ====================== 環境変数 ======================
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
@@ -164,6 +165,32 @@ def _clean_url(u: str) -> str:
     except Exception:
         u = u.replace(" ", "%20")
     return u
+    import math
+
+def _distance_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 3.0, limit: int = 3):
+    lat0, lon0 = geo["lat"], geo["lng"]  # geo_data は lng キー
+    scored = []
+
+    for sp in SIGHTSEEING_MASTER.values():
+        if not isinstance(sp, dict):
+            continue
+        if sp.get("lat") is None or sp.get("lon") is None:
+            continue
+        d = _distance_km(lat0, lon0, float(sp["lat"]), float(sp["lon"]))
+        if d <= max_km:
+            scored.append((d, sp))
+
+    scored.sort(key=lambda x: x[0])
+    return [sp for _, sp in scored[:limit]]
+
 
 def _normalize_map_url(u: str, fallback_query: str = "") -> str:
     """
@@ -276,7 +303,11 @@ COMPANION_EXP= COMPANION_FOOD.copy()
 EXP_GENRES   = {1: "温泉", 2: "自然体験", 3: "文化体験", 4: "モノづくり体験", 5: "グルメ・食体験"}
 
 # --- 観光地 ---
-AREAS_SIGHT  = PREFS_KANSAI.copy()
+AREAS_SIGHT = {
+    0: "現在地から近く",
+    **PREFS_KANSAI
+}
+
 
 # --- 日程表 ---
 PREFS_MULTI  = PREFS_KANSAI.copy()   # 複数選択
@@ -596,6 +627,8 @@ CAROUSEL_IMAGES = {
         "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/exp3.png",
     ],
 }
+CURRENT_LOCATION_IMAGE_URL = "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/gennzaiti.png"
+
 def _pick_carousel_image(kind: str, idx: int, fallback: str = "") -> str:
     """
     kind: "hotel" / "food" / "experience" など
@@ -631,7 +664,7 @@ def _render_question(idx: int, state: State):
                 "cornerRadius": "16px",
                 "backgroundColor": "#FFFFFF",
                 "paddingAll": "0px",
-                "height": "160px",   # ← 戻した
+                "height": "160px",
                 "action": {"type": "message", "label": display_label, "text": send_text},
                 "contents": [
                     {
@@ -664,7 +697,7 @@ def _render_question(idx: int, state: State):
                 "flex": 1,
                 "cornerRadius": "16px",
                 "backgroundColor": "#EEF2F7",
-                "height": "110px",  # 少し抑える
+                "height": "110px",
                 "justifyContent": "center",
                 "action": {"type": "message", "label": display_label, "text": send_text},
                 "contents": [{
@@ -678,7 +711,8 @@ def _render_question(idx: int, state: State):
             }
 
         def label_req(v: str) -> str:
-            if lang == "en": return REQUEST_LABELS_EN.get(v, v)
+            if lang == "en":
+                return REQUEST_LABELS_EN.get(v, v)
             return v
 
         bubble = {
@@ -725,7 +759,7 @@ def _render_question(idx: int, state: State):
         return FlexSendMessage(alt_text=title, contents=bubble)
 
     # ===================== 共通：画像ボタン生成（160pxに統一） =====================
-    def vbtn(img_url, label, num):
+    def vbtn(img_url: str, label: str, num: int) -> dict:
         return {
             "type": "box",
             "layout": "vertical",
@@ -733,7 +767,7 @@ def _render_question(idx: int, state: State):
             "cornerRadius": "16px",
             "backgroundColor": "#FFFFFF",
             "paddingAll": "0px",
-            "height": "160px",   # ← 統一
+            "height": "160px",
             "action": {"type": "message", "label": label, "text": str(num)},
             "contents": [
                 {
@@ -759,7 +793,7 @@ def _render_question(idx: int, state: State):
             ],
         }
 
-    def make_2col_rows(btns):
+    def make_2col_rows(btns: List[dict]) -> List[dict]:
         rows, row = [], []
         for b in btns:
             row.append(b)
@@ -770,30 +804,34 @@ def _render_question(idx: int, state: State):
             row.append({"type": "filler"})
             rows.append({"type": "box", "layout": "horizontal", "spacing": "10px", "contents": row})
         return rows
-            # ===================== その他の画像ボタン (companion / area / cuisine / exp_genre / pref) =====================
-    mapping_sets = {
+
+    # ===================== 画像付き2列ボタン対象を一本化（重複分岐を廃止） =====================
+    # NOTE:
+    # - numで引ける: meal_time / companion / cuisine / exp_genre / hotel
+    # - labelで引ける: pref / area（京都など）
+    # - 「現在地から近く」は CURRENT_LOCATION_IMAGE_URL に固定
+    image_maps = {
+        "meal_time": MEAL_TIME_IMAGE_URLS,
         "companion": COMPANION_IMAGE_URLS,
-
-        # 飲食店のエリア（1:現在地から近く を画像にしたい）
-        "area": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS)
-                if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
-
-        # 体験スポットのエリア（あなたの設計では key="pref" で出してるのでここも同じにする）
-        "pref": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS)
-                if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
-
         "cuisine": FOOD_GENRE_IMAGE_URLS,
         "exp_genre": EXP_GENRE_IMAGE_URLS,
+        "hotel": HOTEL_TYPE_IMAGE_URLS,
+        "area": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS) if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
+        "pref": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS) if "FOOD_AREA_IMAGE_URLS" in globals() else PREF_IMAGE_URLS,
     }
 
-    # q["key"] が上のどれかなら、画像付き2列ボタンで質問を描画して return する
-    if q["key"] in mapping_sets:
-        image_map = mapping_sets[q["key"]]
+    if q["key"] in image_maps:
+        image_map = image_maps[q["key"]]
         btns = []
-        for num, label in q["choices"].items():
-            img = (image_map.get(num)               # 例: 1 → 現在地アイコン
-                   or image_map.get(label)          # 例: "京都" → kyoto.png
-                   or REQUEST_IMAGE_URLS.get("観光地"))
+
+        for num, label in q.get("choices", {}).items():
+            if label in {"現在地から近く", "Near current location"}:
+                img = CURRENT_LOCATION_IMAGE_URL
+            else:
+                img = (image_map.get(num)          # 例: 1 → 朝/昼/夜 etc
+                       or image_map.get(label)     # 例: "京都" → kyoto.png
+                       or REQUEST_IMAGE_URLS.get("観光地"))
+
             btns.append(vbtn(img, label, num))
 
         rows = make_2col_rows(btns)
@@ -807,7 +845,7 @@ def _render_question(idx: int, state: State):
                 "spacing": "14px",
                 "paddingAll": "14px",
                 "contents": [
-                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
+                    {"type": "text", "text": title, "size": "22px", "weight": "bold", "wrap": True},
                     {"type": "separator"},
                     *rows
                 ],
@@ -815,120 +853,7 @@ def _render_question(idx: int, state: State):
         }
         return FlexSendMessage(alt_text=title, contents=bubble)
 
-
-    # ===================== 都道府県 =====================
-    if q["key"] == "pref":
-        btns = []
-        for num, label in q["choices"].items():
-            img = PREF_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS["観光地"]
-            btns.append(vbtn(img, label, num))
-
-        rows = make_2col_rows(btns)
-
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "14px",
-                "paddingAll": "14px",
-                "contents": [
-                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
-                    {"type": "separator"},
-                    *rows
-                ],
-            },
-        }
-        return FlexSendMessage(alt_text=title, contents=bubble)
-
-    # ===================== ホテルタイプ =====================
-    if q["key"] == "hotel":
-        btns = []
-        for num, label in q["choices"].items():
-            img = HOTEL_TYPE_IMAGE_URLS.get(label) or REQUEST_IMAGE_URLS["ホテル"]
-            btns.append(vbtn(img, label, num))
-
-        rows = make_2col_rows(btns)
-
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "14px",
-                "paddingAll": "14px",
-                "contents": [
-                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
-                    {"type": "separator"},
-                    *rows
-                ],
-            },
-        }
-        return FlexSendMessage(alt_text=title, contents=bubble)
-
-    # ===================== 食事タイミング =====================
-    if q["key"] == "meal_time":
-        btns = []
-        for num, label in q["choices"].items():
-            img = MEAL_TIME_IMAGE_URLS.get(num) or REQUEST_IMAGE_URLS["飲食店"]
-            btns.append(vbtn(img, label, num))
-        rows = make_2col_rows(btns)
-
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "14px",
-                "paddingAll": "14px",
-                "contents": [
-                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
-                    {"type": "separator"},
-                    *rows
-                ],
-            },
-        }
-        return FlexSendMessage(alt_text=title, contents=bubble)
-
-    # ===================== その他の画像ボタン (companion / area / cuisine / exp_genre) =====================
-    mapping_sets = {
-        "companion": COMPANION_IMAGE_URLS,
-        "area": (PREF_IMAGE_URLS | FOOD_AREA_IMAGE_URLS),
-        "cuisine": FOOD_GENRE_IMAGE_URLS,
-        "exp_genre": EXP_GENRE_IMAGE_URLS,
-    }
-
-    if q["key"] in mapping_sets:
-        image_map = mapping_sets[q["key"]]
-        btns = []
-        for num, label in q["choices"].items():
-            img = image_map.get(num) or image_map.get(label) or REQUEST_IMAGE_URLS.get("観光地")
-            btns.append(vbtn(img, label, num))
-
-        rows = make_2col_rows(btns)
-
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "14px",
-                "paddingAll": "14px",
-                "contents": [
-                    {"type": "text", "text": title, "size": "22px", "weight": "bold"},
-                    {"type": "separator"},
-                    *rows
-                ],
-            },
-        }
-        return FlexSendMessage(alt_text=title, contents=bubble)
-
-
-    # ===================== 最後：通常のテキストボタン =====================
+    # ===================== 最後：通常のテキスト2列ボタン =====================
     selected = state.get("multi_temp", {}).get(q["key"], []) if q.get("multi") else []
     selected_line = f"(選択中：{'、'.join(selected) if selected else 'なし'})" if q.get("multi") else ""
 
@@ -944,6 +869,7 @@ def _render_question(idx: int, state: State):
 
     bubble = _flex_question_bubble(title, selected_line, pairs, q.get("multi", False), lang)
     return FlexSendMessage(alt_text=title, contents=bubble)
+
 
        
        
@@ -1006,6 +932,13 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
                 if state["answers"].get("request") == "体験スポット" and key == "pref":
                     if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
                         state["need_location"] = True
+                # 観光地でも「現在地から近く」を選んだら位置情報フラグ
+                if state["answers"].get("request") == "観光地" and key == "pref":
+                    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
+                        state["need_location"] = True
+    
+        state["need_location"] = True
+                        
 
                 return True
 
@@ -2086,6 +2019,51 @@ def _send_sightseeing_three(uid: str, reply_token: str, text: str, lang: str):
     list_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing spots (3)"
     if items:
         line_bot_api.push_message(uid, _carousel_from_items(list_title, items))
+def _send_sightseeing_three_from_master(uid: str, reply_token: str, spots: List[Dict[str, Any]], lang: str):
+    is_en = str(lang).lower().startswith("e")
+
+    header_text = "🏯 条件に合う観光地を3件ご提案します👇" if not is_en else "🏯 Here are 3 sightseeing spots 👇"
+    messages = [TextSendMessage(text=header_text)]
+
+    def _get_spot_image(sp):
+        imgs = sp.get("images") or []
+        if isinstance(imgs, list) and imgs:
+            return imgs[0]
+        if isinstance(imgs, str) and imgs.strip():
+            return imgs.strip()
+        return REQUEST_IMAGE_URLS.get("観光地")
+
+    items_for_carousel = []
+
+    for sp in spots[:3]:
+        if not is_en:
+            title = sp.get("name","")
+            subtitle = (sp.get("description","") or "")[:60] or " "
+        else:
+            title = sp.get("name_en") or sp.get("name","")
+            subtitle = (sp.get("description_en") or sp.get("description","") or "")[:60] or " "
+
+        # テキスト（任意：欲しければ）
+        messages.append(TextSendMessage(text=f"🏯 {title}\n{subtitle}"))
+
+        items_for_carousel.append({
+            "title": title[:40],
+            "subtitle": subtitle[:60],
+            "official": sp.get("official_url",""),
+            "map": sp.get("map_url",""),
+            "image": _get_spot_image(sp),
+            "spot_type": "sightseeing",
+            "affiliate_url": "",
+        })
+
+    carousel_title = "🏯 観光地（3件）" if not is_en else "🏯 Sightseeing (3)"
+    messages.append(_carousel_from_items(carousel_title, items_for_carousel))
+
+    # replyは最大5件なので、収める
+    line_bot_api.reply_message(reply_token, messages[:5])
+
+    
+
 
 # ====================== 日程表 生成＆送信 ======================
 DAY_HEAD_RE   = re.compile(r"^Day\s*\d+", re.M | re.I)
@@ -2856,7 +2834,6 @@ def on_location(event: MessageEvent):
     state = users.get(uid)
 
     if not state:
-        # セッションが何もなければとりあえず受領だけ（お好み）
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="位置情報を受け取りました。もう一度メニューからやり直してください。")
@@ -2878,9 +2855,7 @@ def on_location(event: MessageEvent):
     # ① AI観光モード中の現在地
     # =====================================================
     if mode == "ai_travel":
-        # AI観光モード用の現在地として保存
         state["geo"] = geo_data
-
         lang = state.get("lang", "日本語")
         if lang == "日本語":
             msg = (
@@ -2894,19 +2869,18 @@ def on_location(event: MessageEvent):
                 "Now tell me what you are looking for around here.\n"
                 "e.g. 'Romantic night view', 'Solo-friendly ramen shop', etc."
             )
-
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
         return
 
     # =====================================================
-    # ② 通常の wizard モード（飲食店：現在地から近く）
+    # ② 通常の wizard モード（現在地が必要な分岐）
     # =====================================================
     if mode == "wizard":
         state.setdefault("answers", {})
         state["answers"]["geo"] = geo_data
 
         # need_location フラグを落とす
-        need_loc = state.get("need_location", False)
+        need_loc = bool(state.get("need_location"))
         state["need_location"] = False
 
         # 「たまたま位置情報送っただけ」の場合
@@ -2917,7 +2891,31 @@ def on_location(event: MessageEvent):
             )
             return
 
-        # ---- ここから正常フロー：「エリア=現在地から近く」の続き ----
+        # ★追加：観光地 × 現在地から近く → master から近傍3件を出して終了
+        req  = state["answers"].get("request")
+        pref = state["answers"].get("pref")
+        lang = state["answers"].get("lang", LAST_LANG.get(uid, "日本語"))
+
+        if req == "観光地" and pref == "現在地から近く":
+            spots = _get_near_sightseeing_from_master(geo_data, max_km=3.0, limit=3)
+
+            if spots:
+                _send_sightseeing_three_from_master(uid, event.reply_token, spots, lang=lang)
+            else:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(
+                        text=(
+                            "現在地付近（3km以内）に登録済みの観光地が見つかりませんでした。\n"
+                            "距離を広げるか、マスターデータに緯度経度（lat/lon）を追加してください。"
+                        )
+                    )
+                )
+
+            users.pop(uid, None)
+            return
+
+        # ---- それ以外（飲食店/体験スポットなど）は従来通り質問を進める ----
         step = state.get("step", 0)
         step += 1
         state["step"] = step
@@ -2925,11 +2923,9 @@ def on_location(event: MessageEvent):
         seq = _get_question_sequence(state["answers"])
 
         if step < len(seq):
-            # まだ質問が残っている → 次の質問へ
             next_question = _render_question(step, state)
             line_bot_api.reply_message(event.reply_token, next_question)
         else:
-            # すべての条件が揃っている → そのままプラン生成へ
             answers = state["answers"]
             try:
                 send_plan_parts(event.reply_token, uid, answers)
@@ -2942,7 +2938,7 @@ def on_location(event: MessageEvent):
         return
 
     # =====================================================
-    # ③ それ以外のモード（今は特に何もしない）
+    # ③ それ以外のモード
     # =====================================================
     line_bot_api.reply_message(
         event.reply_token,
@@ -2951,11 +2947,13 @@ def on_location(event: MessageEvent):
 
 
 
+
 # ====================== ローカル実行 ======================
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
