@@ -165,7 +165,7 @@ def _clean_url(u: str) -> str:
     except Exception:
         u = u.replace(" ", "%20")
     return u
-    import math
+    
 
 def _distance_km(lat1, lon1, lat2, lon2):
     R = 6371.0
@@ -921,26 +921,25 @@ def _validate_and_store(uid: str, step: int, text: str) -> bool:
                 return True
             else:
                 # 単一選択
-                state["answers"][key] = val
+state["answers"][key] = val
 
-                # 飲食店エリア = 現在地から近く → 位置情報フラグ
-                if state["answers"].get("request") == "飲食店" and key == "area":
-                    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
-                        state["need_location"] = True
-
-                # 体験スポットでも「現在地から近く」を選んだら位置情報フラグ
-                if state["answers"].get("request") == "体験スポット" and key == "pref":
-                    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
-                        state["need_location"] = True
-                # 観光地でも「現在地から近く」を選んだら位置情報フラグ
-                if state["answers"].get("request") == "観光地" and key == "pref":
-                    if val in {"現在地から近く", "Near current location"} and not state.get("geo"):
-                        state["need_location"] = True
-    
+# 飲食店エリア = 現在地から近く → 位置情報フラグ
+if state["answers"].get("request") == "飲食店" and key == "area":
+    if val in {"現在地から近く", "Near current location"} and not state["answers"].get("geo"):
         state["need_location"] = True
-                        
 
-                return True
+# 体験スポットでも「現在地から近く」
+if state["answers"].get("request") == "体験スポット" and key == "pref":
+    if val in {"現在地から近く", "Near current location"} and not state["answers"].get("geo"):
+        state["need_location"] = True
+
+# 観光地でも「現在地から近く」
+if state["answers"].get("request") == "観光地" and key == "pref":
+    if val in {"現在地から近く", "Near current location"} and not state["answers"].get("geo"):
+        state["need_location"] = True
+
+return True
+
 
     # マルチ選択の確定（「完了」/「Done」）
     if q.get("multi") and text.strip() in {"完了", "Done"}:
@@ -2953,6 +2952,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
