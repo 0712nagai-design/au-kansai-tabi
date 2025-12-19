@@ -1996,13 +1996,13 @@
     "pref": "滋賀県",
     "area": "高島市",
     "address": "滋賀県高島市鵜川215",
+    "lat": 35.3536,
+    "lng": 136.0316,
     "description": "琵琶湖に立つ鳥居で有名な湖畔の神社。日の出や夕景のフォトスポットとして人気。",
     "description_en": "A lakeside shrine famous for its torii gate standing in Lake Biwa, popular for sunrise and sunset photography.",
     "official_url": "https://shirahigejinja.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=白髭神社 滋賀県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/白髭神社.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/白髭神社.webp"],
     "tags": "神社,湖,写真スポット",
     "open_hours": "境内自由（社務所は時間制）",
     "price": "参拝無料"
@@ -2014,13 +2014,13 @@
     "pref": "滋賀県",
     "area": "高島市マキノ町",
     "address": "滋賀県高島市マキノ町寺久保〜牧野周辺",
+    "lat": 35.4759,
+    "lng": 136.0026,
     "description": "メタセコイヤの木が約2.4kmにわたり並ぶ並木道。新緑や紅葉、雪景色など四季折々の景観が楽しめる。",
     "description_en": "A 2.4 km road lined with metasequoia trees, offering beautiful scenery in every season, from fresh green to autumn leaves and snow.",
     "official_url": "https://www.google.com/search?q=メタセコイヤ並木+滋賀+観光",
     "map_url": "https://www.google.com/maps/search/?api=1&query=メタセコイヤ並木 滋賀県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/メタセコイヤ並木.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/メタセコイヤ並木.webp"],
     "tags": "並木道,景勝地,ドライブ",
     "open_hours": "終日通行可能",
     "price": "無料"
@@ -2032,13 +2032,13 @@
     "pref": "滋賀県",
     "area": "彦根市",
     "address": "滋賀県彦根市金亀町1-1",
+    "lat": 35.2764,
+    "lng": 136.2516,
     "description": "国宝に指定された天守を持つ名城で、ひこにゃんでも有名。城下町も観光に人気。",
     "description_en": "A National Treasure castle with a well-preserved keep. Famous for the mascot Hikonyan and its charming castle town.",
     "official_url": "https://www.hikoneshi.com/castle/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=彦根城",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/彦根城.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/彦根城.webp"],
     "tags": "城,国宝,歴史",
     "open_hours": "8:30〜17:00",
     "price": "有料"
@@ -2050,13 +2050,13 @@
     "pref": "滋賀県",
     "area": "甲賀市信楽町",
     "address": "滋賀県甲賀市信楽町田代桃谷300",
+    "lat": 34.9167,
+    "lng": 136.1247,
     "description": "建築家I.M.ペイが設計した自然と一体化する美術館。トンネルと橋のアプローチが特徴的。",
     "description_en": "A museum designed by architect I.M. Pei, known for its harmonious integration with the surrounding nature.",
     "official_url": "https://www.miho.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=MIHO MUSEUM 滋賀",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/MIHO MUSEUM.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/MIHO MUSEUM.webp"],
     "tags": "美術館,建築,自然",
     "open_hours": "10:00〜17:00（季節で変動）",
     "price": "有料"
@@ -2068,13 +2068,13 @@
     "pref": "滋賀県",
     "area": "長浜市",
     "address": "滋賀県長浜市公園町10-10",
+    "lat": 35.3773,
+    "lng": 136.2636,
     "description": "羽柴秀吉が築いた城として知られ、現在は歴史博物館として公開。",
     "description_en": "A reconstructed castle originally built by Toyotomi Hideyoshi, now serving as a historical museum.",
     "official_url": "https://www.city.nagahama.lg.jp/section/rekihaku/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=長浜城",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/長浜城.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/長浜城.webp"],
     "tags": "城,博物館,歴史",
     "open_hours": "9:00〜17:00",
     "price": "有料"
@@ -2086,13 +2086,13 @@
     "pref": "滋賀県",
     "area": "大津市・比叡山",
     "address": "滋賀県大津市坂本本町4220",
+    "lat": 35.0717,
+    "lng": 135.8397,
     "description": "天台宗の総本山で世界遺産。比叡山の山上に広がる歴史ある寺院群。",
     "description_en": "The headquarters of the Tendai sect and a World Heritage site, located atop Mt. Hiei.",
     "official_url": "https://www.hieizan.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=延暦寺",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/延暦寺.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/延暦寺.webp"],
     "tags": "寺,世界遺産,比叡山",
     "open_hours": "9:00〜16:30",
     "price": "有料"
@@ -2104,13 +2104,13 @@
     "pref": "滋賀県",
     "area": "大津市",
     "address": "滋賀県大津市木戸1547-1",
+    "lat": 35.2140,
+    "lng": 135.8986,
     "description": "ロープウェイで山頂へ行ける絶景スポット。びわ湖テラスで有名。",
     "description_en": "A mountaintop resort accessible by ropeway, famous for the Biwako Terrace overlooking Lake Biwa.",
     "official_url": "https://www.biwako-valley.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=びわ湖バレイ",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/びわ湖バレイ.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/びわ湖バレイ.webp"],
     "tags": "絶景,ロープウェイ,リゾート",
     "open_hours": "9:00〜17:00",
     "price": "有料"
@@ -2122,13 +2122,13 @@
     "pref": "滋賀県",
     "area": "近江八幡市",
     "address": "滋賀県近江八幡市新町周辺",
+    "lat": 35.1286,
+    "lng": 136.0972,
     "description": "八幡堀を中心とした歴史的な町並みが残る観光エリア。時代劇のロケ地としても有名。",
     "description_en": "A beautifully preserved historical district featuring Hakomori canal, often used as a filming location.",
     "official_url": "https://www.omi8.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=近江八幡",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/近江八幡.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/近江八幡.webp"],
     "tags": "町並み,歴史,観光名所",
     "open_hours": "エリア自由",
     "price": "無料"
@@ -2140,13 +2140,13 @@
     "pref": "滋賀県",
     "area": "長浜市・琵琶湖",
     "address": "滋賀県長浜市早崎町",
+    "lat": 35.4169,
+    "lng": 136.1319,
     "description": "琵琶湖に浮かぶ神秘の島。宝厳寺や都久夫須麻神社があり、船で渡るパワースポット。",
     "description_en": "A sacred island on Lake Biwa accessible by boat, home to Hogonji Temple and Tsukubusuma Shrine.",
     "official_url": "https://www.chikubushima.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=竹生島",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/竹生島.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/竹生島.webp"],
     "tags": "島,神社,寺,パワースポット",
     "open_hours": "フェリー運航時間に準ずる",
     "price": "渡船料金必要"
@@ -2158,13 +2158,13 @@
     "pref": "滋賀県",
     "area": "長浜市",
     "address": "滋賀県長浜市木之本町大音",
+    "lat": 35.4578,
+    "lng": 136.2019,
     "description": "賤ヶ岳の戦いで知られる歴史の地。ロープウェイで山頂へ行け、琵琶湖の絶景が望める。",
     "description_en": "Historic battlefield accessible via ropeway, offering spectacular views of Lake Biwa.",
     "official_url": "https://shizugatake.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=賤ヶ岳",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/賤ヶ岳.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/賤ヶ岳.webp"],
     "tags": "山,歴史,絶景",
     "open_hours": "ロープウェイ運行時間に準ずる",
     "price": "ロープウェイ有料"
@@ -2176,13 +2176,13 @@
     "pref": "滋賀県",
     "area": "高島市",
     "address": "滋賀県高島市新旭町針江",
+    "lat": 35.3143,
+    "lng": 136.0058,
     "description": "湧き水を生活に取り入れた“かばた”文化が息づく地域。美しい水辺の景観が魅力。",
     "description_en": "A village known for its clear spring waters and traditional ‘Kabata’ water-use culture.",
     "official_url": "https://harie-shozunosato.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=針江 生水の郷",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/針江 生水の郷.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/針江 生水の郷.webp"],
     "tags": "水辺,文化,景観",
     "open_hours": "見学は要予約の場合あり",
     "price": "見学料あり"
@@ -2194,16 +2194,34 @@
     "pref": "滋賀県",
     "area": "守山市",
     "address": "滋賀県守山市水保町北川2891",
+    "lat": 35.0989,
+    "lng": 135.9369,
     "description": "水面に浮かぶような建築が印象的な美術館。平山郁夫作品などを展示。",
     "description_en": "A striking museum designed to look as if floating on water, displaying works by Ikuo Hirayama and others.",
     "official_url": "https://www.sagawa-art.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=佐川美術館",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/佐川美術館.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/佐川美術館.webp"],
     "tags": "美術館,建築,水辺",
     "open_hours": "9:30〜17:00",
     "price": "観覧有料"
+  },
+  {
+    "id": "biwako_ohashi",
+    "name": "琵琶湖大橋",
+    "name_en": "Biwako Ohashi Bridge",
+    "pref": "滋賀県",
+    "area": "大津市〜守山市",
+    "address": "滋賀県大津市今堅田〜守山市今浜町",
+    "lat": 35.1183,
+    "lng": 135.9206,
+    "description": "琵琶湖を横断する大橋で、湖の絶景ドライブコースとして人気。",
+    "description_en": "A major bridge crossing Lake Biwa, known for its scenic drive.",
+    "official_url": "https://www.biwako-visitors.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=琵琶湖大橋",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/琵琶湖大橋.webp"],
+    "tags": "橋,絶景,ドライブ",
+    "open_hours": "通行自由",
+    "price": "無料"
   },
   {
     "id": "bunanoki_plaza",
@@ -2212,13 +2230,13 @@
     "pref": "滋賀県",
     "area": "近江八幡市",
     "address": "滋賀県近江八幡市北之庄町615-1",
+    "lat": 35.1319,
+    "lng": 136.1156,
     "description": "たねやグループが運営する自然と調和したスイーツ村。バームクーヘンが有名。",
     "description_en": "A nature-integrated sweets village operated by Taneya, famous for its Baumkuchen.",
     "official_url": "https://taneya.jp/la-collina/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=ラ　コリーナ近江八幡",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ラコリーナ近江八幡.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ラコリーナ近江八幡.webp"],
     "tags": "スイーツ,話題スポット,自然",
     "open_hours": "9:00〜18:00",
     "price": "無料（飲食は有料）"
@@ -2230,33 +2248,15 @@
     "pref": "滋賀県",
     "area": "長浜市",
     "address": "滋賀県長浜市元浜町12-38",
+    "lat": 35.3849,
+    "lng": 136.2631,
     "description": "黒壁ガラス館を中心とするアート＆観光エリア。ショップやカフェが充実。",
     "description_en": "A glass-art-themed district centered around the Kurokabe Glass Museum, with shops and cafes.",
     "official_url": "https://www.kurokabe.co.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=黒壁スクエア",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/黒壁スクエア.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/黒壁スクエア.webp"],
     "tags": "ガラス,観光街,アート",
     "open_hours": "店舗により異なる",
-    "price": "無料"
-  },
-  {
-    "id": "biwako_ohashi",
-    "name": "琵琶湖大橋",
-    "name_en": "Biwako Ohashi Bridge",
-    "pref": "滋賀県",
-    "area": "大津市〜守山市",
-    "address": "滋賀県大津市今堅田〜守山市今浜町",
-    "description": "琵琶湖を横断する大橋で、湖の絶景ドライブコースとして人気。",
-    "description_en": "A major bridge crossing Lake Biwa, known for its scenic drive.",
-    "official_url": "https://www.biwako-visitors.jp/",
-    "map_url": "https://www.google.com/maps/search/?api=1&query=琵琶湖大橋",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/琵琶湖大橋.webp"
-    ],
-    "tags": "橋,絶景,ドライブ",
-    "open_hours": "通行自由",
     "price": "無料"
   },
   {
@@ -2266,13 +2266,13 @@
     "pref": "滋賀県",
     "area": "長浜市",
     "address": "滋賀県長浜市元浜町11-17",
+    "lat": 35.3846,
+    "lng": 136.2634,
     "description": "海洋堂のフィギュアが大量展示されたミュージアム。大人から子供まで楽しめる。",
     "description_en": "A museum featuring a large collection of Kaiyodo figurines.",
     "official_url": "https://www.ryuyukan.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=海洋堂 フィギュアミュージアム",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/海洋堂フィギュアミュージアム.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/海洋堂フィギュアミュージアム.webp"],
     "tags": "ミュージアム,フィギュア,家族連れ",
     "open_hours": "10:00〜17:00",
     "price": "有料"
@@ -2284,13 +2284,13 @@
     "pref": "滋賀県",
     "area": "大津市坂本",
     "address": "滋賀県大津市坂本本町4244",
+    "lat": 35.0754,
+    "lng": 135.8467,
     "description": "日本最長のケーブルカーとして知られ、延暦寺へのアクセスとして利用される。",
     "description_en": "Japan's longest cable car, connecting Sakamoto to Mt. Hiei and Enryakuji.",
     "official_url": "https://www.sakamoto-cable.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=坂本ケーブル",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/坂本ケーブル.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/坂本ケーブル.webp"],
     "tags": "ケーブルカー,山,交通",
     "open_hours": "9:00〜17:00（季節変動）",
     "price": "有料"
@@ -2302,13 +2302,13 @@
     "pref": "滋賀県",
     "area": "高島市",
     "address": "滋賀県高島市今津町日置前4201-4",
+    "lat": 35.3936,
+    "lng": 136.0036,
     "description": "冬はスキー、夏は花畑や展望で人気の高原リゾート。",
     "description_en": "A highland resort offering skiing in winter and flower fields in summer.",
     "official_url": "https://www.hakodateyama.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=箱館山スキー場",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/箱館山スキー場.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/箱館山スキー場.webp"],
     "tags": "スキー,花畑,高原",
     "open_hours": "季節営業",
     "price": "有料"
@@ -2320,13 +2320,13 @@
     "pref": "滋賀県",
     "area": "野洲市",
     "address": "滋賀県野洲市小篠原2142",
+    "lat": 35.0724,
+    "lng": 136.0236,
     "description": "佐々木源氏ゆかりの古社。荘厳な社殿と静けさが魅力。",
     "description_en": "A historic shrine linked to the Sasaki clan.",
     "official_url": "https://www.sasaki-jinja.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=沙沙貴神社",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/沙沙貴神社.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/沙沙貴神社.webp"],
     "tags": "神社,歴史,静寂",
     "open_hours": "終日開放",
     "price": "無料"
@@ -2338,13 +2338,13 @@
     "pref": "滋賀県",
     "area": "高島市",
     "address": "滋賀県高島市安曇川町北船木2981",
+    "lat": 35.3036,
+    "lng": 136.0219,
     "description": "琵琶湖畔にある大型公園。遊具やキャンプ場など家族向け施設が充実。",
     "description_en": "A large lakeside park featuring playgrounds and camping facilities.",
     "official_url": "https://www.biwa.ne.jp/~kodomo/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=びわ湖こどもの国",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/びわ湖こどもの国.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/びわ湖こどもの国.webp"],
     "tags": "公園,家族連れ,湖畔",
     "open_hours": "9:00〜17:00",
     "price": "無料（一部有料）"
