@@ -187,8 +187,39 @@ def get_geo(item: dict):
 
     return None
     
+def _get_sp_lat(sp: Dict[str, Any]) -> Optional[float]:
+    # 1) geo 優先
+    g = sp.get("geo")
+    if isinstance(g, dict):
+        v = g.get("lat") or g.get("latitude")
+        if v is not None and v != "":
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+    # 2) 既存互換
+    v = sp.get("lat") or sp.get("latitude")
+    if v is None or v == "":
+        return None
+    try:
+        return float(v)
+    except Exception:
+        return None
+
+
 def _get_sp_lon(sp: Dict[str, Any]) -> Optional[float]:
-    # lon / lng / longitude を吸収
+    # 1) geo 優先
+    g = sp.get("geo")
+    if isinstance(g, dict):
+        v = g.get("lng") or g.get("lon") or g.get("longitude")
+        if v is not None and v != "":
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+    # 2) 既存互換
     for k in ("lon", "lng", "longitude"):
         v = sp.get(k)
         if v is not None and v != "":
@@ -198,14 +229,6 @@ def _get_sp_lon(sp: Dict[str, Any]) -> Optional[float]:
                 return None
     return None
 
-def _get_sp_lat(sp: Dict[str, Any]) -> Optional[float]:
-    v = sp.get("lat") or sp.get("latitude")
-    if v is None or v == "":
-        return None
-    try:
-        return float(v)
-    except Exception:
-        return None
 
 def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 15.0, limit: int = 3):
     lat0, lon0 = float(geo["lat"]), float(geo["lng"])
@@ -3043,6 +3066,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
