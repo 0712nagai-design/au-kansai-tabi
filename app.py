@@ -3010,7 +3010,7 @@ def on_location(event: MessageEvent):
         lang = state["answers"].get("lang", LAST_LANG.get(uid, "日本語"))
 
         if req == "観光地" and pref == "現在地から近く":
-            spots = _get_near_sightseeing_from_master(geo_data, max_km=3.0, limit=3)
+            spots = _get_near_sightseeing_from_master(geo_data, max_km=15.0, limit=3)
 
             if spots:
                 _send_sightseeing_three_from_master(uid, event.reply_token, spots, lang=lang)
@@ -3019,7 +3019,7 @@ def on_location(event: MessageEvent):
                     event.reply_token,
                     TextSendMessage(
                         text=(
-                            "現在地付近（3km以内）に登録済みの観光地が見つかりませんでした。\n"
+                            "現在地付近（15km以内）に登録済みの観光地が見つかりませんでした。\n"
                             "距離を広げるか、マスターデータに緯度経度（lat/lon）を追加してください。"
                         )
                     )
@@ -3066,44 +3066,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
