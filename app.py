@@ -166,6 +166,24 @@ def _clean_url(u: str) -> str:
     except Exception:
         u = u.replace(" ", "%20")
     return u
+def _get_sp_lon(sp: Dict[str, Any]) -> Optional[float]:
+    for k in ("lon", "lng", "longitude"):
+        v = sp.get(k)
+        if v is not None and v != "":
+            try:
+                return float(v)
+            except Exception:
+                return None
+    return None
+
+def _get_sp_lat(sp: Dict[str, Any]) -> Optional[float]:
+    v = sp.get("lat") or sp.get("latitude")
+    if v is None or v == "":
+        return None
+    try:
+        return float(v)
+    except Exception:
+        return None
     
 
 def _distance_km(lat1, lon1, lat2, lon2):
@@ -177,20 +195,25 @@ def _distance_km(lat1, lon1, lat2, lon2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
 def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 3.0, limit: int = 3):
-    lat0, lon0 = geo["lat"], geo["lng"]  # geo_data は lng キー
+    lat0, lon0 = float(geo["lat"]), float(geo["lng"])
     scored = []
 
     for sp in SIGHTSEEING_MASTER.values():
         if not isinstance(sp, dict):
             continue
-        if sp.get("lat") is None or sp.get("lon") is None:
+
+        lat = _get_sp_lat(sp)
+        lon = _get_sp_lon(sp)
+        if lat is None or lon is None:
             continue
-        d = _distance_km(lat0, lon0, float(sp["lat"]), float(sp["lon"]))
+
+        d = _distance_km(lat0, lon0, lat, lon)
         if d <= max_km:
             scored.append((d, sp))
 
     scored.sort(key=lambda x: x[0])
     return [sp for _, sp in scored[:limit]]
+
 
 
 def _normalize_map_url(u: str, fallback_query: str = "") -> str:
@@ -2996,6 +3019,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
