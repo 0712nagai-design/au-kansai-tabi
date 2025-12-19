@@ -167,6 +167,7 @@ def _clean_url(u: str) -> str:
         u = u.replace(" ", "%20")
     return u
 def _get_sp_lon(sp: Dict[str, Any]) -> Optional[float]:
+    # lon / lng / longitude を吸収
     for k in ("lon", "lng", "longitude"):
         v = sp.get(k)
         if v is not None and v != "":
@@ -184,15 +185,6 @@ def _get_sp_lat(sp: Dict[str, Any]) -> Optional[float]:
         return float(v)
     except Exception:
         return None
-    
-
-def _distance_km(lat1, lon1, lat2, lon2):
-    R = 6371.0
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
 def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 3.0, limit: int = 3):
     lat0, lon0 = float(geo["lat"]), float(geo["lng"])
@@ -213,6 +205,17 @@ def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 3.0, 
 
     scored.sort(key=lambda x: x[0])
     return [sp for _, sp in scored[:limit]]
+
+    
+
+def _distance_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
 
 
 
@@ -3019,6 +3022,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
