@@ -166,6 +166,27 @@ def _clean_url(u: str) -> str:
     except Exception:
         u = u.replace(" ", "%20")
     return u
+def get_geo(item: dict):
+    # 正式推奨: item["geo"]["lat"], item["geo"]["lng"]
+    if "geo" in item and item["geo"]:
+        lat = item["geo"].get("lat")
+        lng = item["geo"].get("lng") or item["geo"].get("lon")
+        if lat is not None and lng is not None:
+            return float(lat), float(lng)
+
+    if "k" in item and item["k"]:
+        lat = item["k"].get("lat")
+        lng = item["k"].get("lng") or item["k"].get("lon")
+        if lat is not None and lng is not None:
+            return float(lat), float(lng)
+
+    lat = item.get("lat")
+    lng = item.get("lng") or item.get("lon")
+    if lat is not None and lng is not None:
+        return float(lat), float(lng)
+
+    return None
+    
 def _get_sp_lon(sp: Dict[str, Any]) -> Optional[float]:
     # lon / lng / longitude を吸収
     for k in ("lon", "lng", "longitude"):
@@ -3022,6 +3043,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
