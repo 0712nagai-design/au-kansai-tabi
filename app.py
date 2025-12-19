@@ -27,6 +27,7 @@ from linebot.models import FollowEvent
 
 # OpenAI v1
 from openai import OpenAI
+import math
 
 
 # ====================== 環境変数 ======================
@@ -2995,6 +2996,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
