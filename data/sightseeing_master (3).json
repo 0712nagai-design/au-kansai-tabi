@@ -1326,7 +1326,363 @@
     "lat": null,
     "lon": null
   },
-  
+  {
+    "id": "oishi_kogen",
+    "name": "生石高原",
+    "name_en": "Oishi Plateau",
+    "pref": "和歌山県",
+    "area": "海草郡紀美野町・有田郡有田川町",
+    "address": "和歌山県海草郡紀美野町中田周辺",
+    "description": "秋のすすきの大草原で有名な高原。山頂からは紀伊山地や海まで見渡せる絶景スポット。",
+    "description_en": "A plateau famous for its vast pampas grass fields in autumn, offering stunning views over the mountains and sea.",
+    "official_url": "https://www.google.com/search?q=生石高原+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=生石高原 和歌山県",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/生石高原.webp"],
+    "tags": "高原,自然,絶景",
+    "open_hours": "終日開放（冬季は要注意）",
+    "price": "無料",
+    "geo": { "lat": 34.275214, "lon": 135.069681 }
+  },
+  {
+    "id": "aragijima",
+    "name": "あらぎ島",
+    "name_en": "Aragijima",
+    "pref": "和歌山県",
+    "area": "有田郡有田川町",
+    "address": "和歌山県有田郡有田川町清水周辺",
+    "description": "棚田が川に沿って弧を描くように広がる絶景スポット。四季折々の田園風景が楽しめる。",
+    "description_en": "A scenic area where terraced rice fields curve along the river, offering beautiful rural scenery in every season.",
+    "official_url": "https://www.google.com/search?q=あらぎ島+観光+公式サイト",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=あらぎ島 和歌山県",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/あらぎ島.webp"],
+    "tags": "棚田,景勝地,写真スポット",
+    "open_hours": "終日開放",
+    "price": "無料",
+    "geo": { "lat": 34.222981, "lon": 135.605723 }
+  },
+  {
+    "id": "koyasan_okunoin",
+    "name": "高野山 奥之院",
+    "name_en": "Koyasan Okunoin",
+    "pref": "和歌山県",
+    "area": "伊都郡高野町",
+    "address": "和歌山県伊都郡高野町奥之院",
+    "description": "弘法大師空海が眠る聖地として知られる高野山最大の霊場。杉木立に囲まれた参道が荘厳。",
+    "description_en": "The sacred site where Kobo Daishi rests, featuring a mystical cedar-lined approach path.",
+    "official_url": "https://www.koyasan.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=高野山 奥之院",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/高野山奥之院.webp"],
+    "tags": "世界遺産,霊場,寺",
+    "open_hours": "終日",
+    "price": "無料",
+    "geo": { "lat": 34.213286, "lon": 135.585335 }
+  },
+  {
+    "id": "koyasan_danjo_garan",
+    "name": "高野山 壇上伽藍",
+    "name_en": "Koyasan Danjo Garan",
+    "pref": "和歌山県",
+    "area": "伊都郡高野町",
+    "address": "和歌山県伊都郡高野町高野山152",
+    "description": "高野山の中心にある聖地。根本大塔をはじめとした多くの伽藍が建ち並ぶ。",
+    "description_en": "The core sacred temple complex of Koyasan, featuring the iconic Konpon Daito pagoda.",
+    "official_url": "https://www.koyasan.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=高野山 壇上伽藍",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/高野山壇上伽藍.webp"],
+    "tags": "世界遺産,寺,歴史",
+    "open_hours": "8:30〜17:00",
+    "price": "一部有料",
+    "geo": { "lat": 34.209825, "lon": 135.581525 }
+  },
+  {
+    "id": "kumano_nachi_taisha",
+    "name": "熊野那智大社",
+    "name_en": "Kumano Nachi Taisha",
+    "pref": "和歌山県",
+    "area": "東牟婁郡那智勝浦町",
+    "address": "和歌山県東牟婁郡那智勝浦町那智山1",
+    "description": "熊野三山のひとつで那智の滝とともに有名。朱色の社殿と滝の景観が美しい。",
+    "description_en": "One of the three Kumano shrines, famous for its vivid vermilion buildings and Nachi Waterfall.",
+    "official_url": "https://kumanonachitaisha.or.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=熊野那智大社",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/熊野那智大社.webp"],
+    "tags": "神社,世界遺産,絶景",
+    "open_hours": "8:00〜16:30",
+    "price": "無料",
+    "geo": { "lat": 33.668666, "lon": 135.888888 }
+  },
+  {
+    "id": "nachi_waterfall",
+    "name": "那智の滝",
+    "name_en": "Nachi Waterfall",
+    "pref": "和歌山県",
+    "area": "那智勝浦町",
+    "address": "和歌山県東牟婁郡那智勝浦町那智山",
+    "description": "落差133mを誇る日本一の名瀑。熊野那智大社の参詣と併せて人気。",
+    "description_en": "Japan's tallest single-drop waterfall at 133 meters, located near Kumano Nachi Taisha.",
+    "official_url": "https://www.nachikan.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=那智の滝",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/那智の滝.webp"],
+    "tags": "滝,絶景,世界遺産",
+    "open_hours": "終日",
+    "price": "無料",
+    "geo": { "lat": 33.671744, "lon": 135.890461 }
+  },
+  {
+    "id": "kumano_hayatama_taisha",
+    "name": "熊野速玉大社",
+    "name_en": "Kumano Hayatama Taisha",
+    "pref": "和歌山県",
+    "area": "新宮市",
+    "address": "和歌山県新宮市新宮1",
+    "description": "熊野三山のひとつで朱色の社殿が印象的。古来より信仰を集める聖地。",
+    "description_en": "One of the three Kumano shrines, known for its vivid vermilion shrine buildings.",
+    "official_url": "https://kumanohayatama.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=熊野速玉大社",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/熊野速玉大社.webp"],
+    "tags": "神社,世界遺産,歴史",
+    "open_hours": "8:00〜17:00",
+    "price": "無料",
+    "geo": { "lat": 33.748056, "lon": 135.993056 }
+  },
+  {
+    "id": "kumano_hongu_taisha",
+    "name": "熊野本宮大社",
+    "name_en": "Kumano Hongu Taisha",
+    "pref": "和歌山県",
+    "area": "田辺市本宮町",
+    "address": "和歌山県田辺市本宮町本宮1110",
+    "description": "熊野三山の中心的存在。大斎原の巨大な鳥居が象徴的。",
+    "description_en": "The central shrine of the three Kumano shrines, featuring a massive torii gate at Oyunohara.",
+    "official_url": "https://www.hongutaisha.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=熊野本宮大社",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/熊野本宮大社.webp"],
+    "tags": "神社,世界遺産,聖地",
+    "open_hours": "6:00〜19:00",
+    "price": "無料",
+    "geo": { "lat": 33.840583, "lon": 135.773472 }
+  },
+  {
+    "id": "shirahama_beach",
+    "name": "白浜",
+    "name_en": "Shirarahama Beach",
+    "pref": "和歌山県",
+    "area": "西牟婁郡白浜町",
+    "address": "和歌山県西牟婁郡白浜町",
+    "description": "白い砂浜が美しい関西屈指のビーチリゾート。海水浴や温泉が楽しめる。",
+    "description_en": "A top beach resort famous for its white sands and hot springs.",
+    "official_url": "https://www.nankishirahama.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=白浜",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/白浜.webp"],
+    "tags": "ビーチ,温泉,リゾート",
+    "open_hours": "エリア自由",
+    "price": "無料",
+    "geo": { "lat": 33.688715, "lon": 135.335596 }
+  },
+  {
+    "id": "senjojiki",
+    "name": "千畳敷",
+    "name_en": "Senjojiki",
+    "pref": "和歌山県",
+    "area": "白浜町",
+    "address": "和歌山県西牟婁郡白浜町千畳",
+    "description": "畳を敷き詰めたような大岩盤が広がる海岸景勝地。夕陽が美しい。",
+    "description_en": "A scenic rock plateau resembling stacked tatami mats, known for stunning sunsets.",
+    "official_url": "https://www.nankishirahama.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=千畳敷 白浜",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/千畳敷.webp"],
+    "tags": "海岸,絶景,自然",
+    "open_hours": "終日",
+    "price": "無料",
+    "geo": { "lat": 33.678144, "lon": 135.328428 }
+  },
+  {
+    "id": "adventure_world",
+    "name": "アドベンチャーワールド",
+    "name_en": "Adventure World",
+    "pref": "和歌山県",
+    "area": "西牟婁郡白浜町",
+    "address": "和歌山県西牟婁郡白浜町堅田2399",
+    "description": "パンダで有名なテーマパーク。動物園、水族館、遊園地が一体化した大型施設。",
+    "description_en": "A major theme park combining a zoo, aquarium, and amusement park, famous for its pandas.",
+    "official_url": "https://www.aws-s.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=アドベンチャーワールド 和歌山",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/アドベンチャーワールド.webp"],
+    "tags": "動物園,水族館,テーマパーク",
+    "open_hours": "10:00〜17:00",
+    "price": "有料",
+    "geo": { "lat": 33.664534, "lon": 135.361855 }
+  },
+  {
+    "id": "katsuura_onnsen",
+    "name": "勝浦温泉",
+    "name_en": "Katsuura Onsen",
+    "pref": "和歌山県",
+    "area": "那智勝浦町",
+    "address": "和歌山県東牟婁郡那智勝浦町",
+    "description": "海に浮かぶ露天風呂で有名な温泉地。洞窟風呂などユニークな入浴体験が可能。",
+    "description_en": "A coastal hot spring resort known for ocean-view open-air baths and unique cave baths.",
+    "official_url": "https://www.nachikan.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=勝浦温泉",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/勝浦温泉.webp"],
+    "tags": "温泉,リゾート,海",
+    "open_hours": "施設により異なる",
+    "price": "有料",
+    "geo": { "lat": 33.629904, "lon": 135.941707 }
+  },
+  {
+    "id": "hashiguiiwa",
+    "name": "橋杭岩",
+    "name_en": "Hashigui-iwa Rocks",
+    "pref": "和歌山県",
+    "area": "串本町",
+    "address": "和歌山県東牟婁郡串本町鬮野川",
+    "description": "海上に連なる奇岩群で国の名勝。日の出の絶景スポットとして人気。",
+    "description_en": "A row of spectacular rock formations in the ocean, designated as a national scenic site.",
+    "official_url": "https://www.town.kushimoto.wakayama.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=橋杭岩 和歌山",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/橋杭岩.webp"],
+    "tags": "奇岩,絶景,海岸",
+    "open_hours": "終日",
+    "price": "無料",
+    "geo": { "lat": 33.487419, "lon": 135.792569 }
+  },
+  {
+    "id": "shionomisaki",
+    "name": "潮岬",
+    "name_en": "Cape Shionomisaki",
+    "pref": "和歌山県",
+    "area": "串本町",
+    "address": "和歌山県東牟婁郡串本町潮岬",
+    "description": "本州最南端の岬。広大な芝生と海の絶景が広がる人気スポット。",
+    "description_en": "The southernmost point of Japan’s main island, with vast lawns and ocean views.",
+    "official_url": "https://www.town.kushimoto.wakayama.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=潮岬",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/潮岬.webp"],
+    "tags": "岬,絶景,自然",
+    "open_hours": "終日",
+    "price": "無料",
+    "geo": { "lat": 33.437500, "lon": 135.754444 }
+  },
+  {
+    "id": "kumano_kodo_daimonzaka",
+    "name": "熊野古道 大門坂",
+    "name_en": "Kumano Kodo Daimonzaka",
+    "pref": "和歌山県",
+    "area": "那智勝浦町",
+    "address": "和歌山県東牟婁郡那智勝浦町那智山",
+    "description": "苔むした石畳が美しい熊野古道の名所。那智山への参道として人気。",
+    "description_en": "A beautiful moss-covered stone-paved slope on the ancient Kumano Kodo pilgrimage route.",
+    "official_url": "https://www.tb-kumano.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=熊野古道 大門坂",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大門坂.webp"],
+    "tags": "古道,世界遺産,自然",
+    "open_hours": "終日",
+    "price": "無料",
+    "geo": { "lat": 33.636293, "lon": 135.930696 }
+  },
+  {
+    "id": "tanabe_ryujin",
+    "name": "龍神温泉",
+    "name_en": "Ryujin Onsen",
+    "pref": "和歌山県",
+    "area": "田辺市龍神村",
+    "address": "和歌山県田辺市龍神村龍神",
+    "description": "日本三美人の湯として知られる秘湯。川沿いに静かに湧く温泉地。",
+    "description_en": "A secluded hot spring known as one of Japan’s top ‘beautifying’ springs.",
+    "official_url": "https://www.ryujin.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=龍神温泉",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/龍神温泉.webp"],
+    "tags": "温泉,秘湯,自然",
+    "open_hours": "施設により異なる",
+    "price": "有料",
+    "geo": { "lat": 33.931944, "lon": 135.452778 }
+  },
+  {
+    "id": "kada",
+    "name": "加太",
+    "name_en": "Kada",
+    "pref": "和歌山県",
+    "area": "和歌山市",
+    "address": "和歌山県和歌山市加太",
+    "description": "海岸線や淡嶋神社が人気の落ち着いた港町。夕景の名所としても知られる。",
+    "description_en": "A peaceful coastal town known for Awashima Shrine and beautiful sunsets.",
+    "official_url": "https://www.wakayamakanko.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=加太 和歌山市",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/加太.webp"],
+    "tags": "港町,神社,夕日",
+    "open_hours": "エリア自由",
+    "price": "無料",
+    "geo": { "lat": 34.289006, "lon": 135.087117 }
+  },
+  {
+    "id": "awashima_jinja",
+    "name": "淡嶋神社",
+    "name_en": "Awashima Shrine",
+    "pref": "和歌山県",
+    "area": "和歌山市加太",
+    "address": "和歌山県和歌山市加太118",
+    "description": "人形供養で有名な神社。多数の雛人形が奉納されている独特の雰囲気。",
+    "description_en": "A shrine famous for doll offerings, creating a unique and spiritual atmosphere.",
+    "official_url": "https://awashimajinja.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=淡嶋神社",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/淡嶋神社.webp"],
+    "tags": "神社,供養,独自文化",
+    "open_hours": "9:00〜17:00",
+    "price": "無料",
+    "geo": { "lat": 34.273694, "lon": 135.066500 }
+  },
+  {
+    "id": "yuasa",
+    "name": "湯浅町（醤油発祥の地）",
+    "name_en": "Yuasa Town",
+    "pref": "和歌山県",
+    "area": "有田郡湯浅町",
+    "address": "和歌山県有田郡湯浅町湯浅",
+    "description": "醤油発祥の地として歴史ある町並みが残る。職人の技と文化が息づくエリア。",
+    "description_en": "The birthplace of Japanese soy sauce, featuring historical streets and traditional breweries.",
+    "official_url": "https://www.yuasacho.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=湯浅町",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/湯浅町.webp"],
+    "tags": "歴史,醤油,町並み",
+    "open_hours": "エリア自由",
+    "price": "無料",
+    "geo": { "lat": 34.030000, "lon": 135.180000 }
+  },
+  {
+    "id": "shirahama_engetsu",
+    "name": "円月島",
+    "name_en": "Engetsu Island",
+    "pref": "和歌山県",
+    "area": "白浜町",
+    "address": "和歌山県西牟婁郡白浜町",
+    "description": "中心に丸い穴が開いた岩島。夕陽が穴に重なる絶景が人気。",
+    "description_en": "A rock island with a circular hole in its center, famous for sunsets aligning with the opening.",
+    "official_url": "https://www.nankishirahama.jp/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=円月島",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/円月島.webp"],
+    "tags": "島,絶景,夕日",
+    "open_hours": "終日",
+    "price": "無料",
+    "geo": { "lat": 33.695167, "lon": 135.328944 }
+  },
+  {
+    "id": "tomogashima",
+    "name": "友ヶ島",
+    "name_en": "Tomogashima Islands",
+    "pref": "和歌山県",
+    "area": "和歌山市",
+    "address": "和歌山県和歌山市加太",
+    "description": "“ラピュタの島”として人気の無人島群。砲台跡や自然が楽しめる探検スポット。",
+    "description_en": "Uninhabited islands called the 'Laputa Islands', with fortress ruins and lush nature.",
+    "official_url": "https://www.wakayamakanko.com/",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=友ヶ島",
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/友ヶ島.webp"],
+    "tags": "無人島,歴史,探検",
+    "open_hours": "フェリー運航時間による",
+    "price": "フェリー有料",
+    "geo": { "lat": 34.268333, "lon": 135.014167 }
+  },
   {
     "id": "todaiji",
     "name": "東大寺",
@@ -1338,12 +1694,11 @@
     "description_en": "A World Heritage temple famous for its Great Buddha Hall, one of the largest wooden structures in the world.",
     "official_url": "https://www.todaiji.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=東大寺 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/東大寺.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/東大寺.webp"],
     "tags": "寺,世界遺産,大仏",
     "open_hours": "8:00〜17:00（季節により変動）",
-    "price": "拝観有料"
+    "price": "拝観有料",
+    "geo": { "lat": 34.6889, "lng": 135.8398 }
   },
   {
     "id": "nara_park",
@@ -1356,12 +1711,11 @@
     "description_en": "A vast park where deer roam freely, home to many famous sites including Todaiji and Kasuga Taisha.",
     "official_url": "https://www.narashikanko.or.jp/spot/nara_park/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=奈良公園 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/奈良公園.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/奈良公園.webp"],
     "tags": "公園,鹿,観光名所",
     "open_hours": "終日開放",
-    "price": "無料（一部施設有料）"
+    "price": "無料（一部施設有料）",
+    "geo": { "lat": 34.6851, "lng": 135.8431 }
   },
   {
     "id": "kasuga_taisha",
@@ -1374,12 +1728,11 @@
     "description_en": "A World Heritage shrine known for its vermilion buildings and numerous stone and hanging lanterns, located within Nara Park.",
     "official_url": "https://www.kasugataisha.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=春日大社 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/春日大社.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/春日大社.webp"],
     "tags": "神社,世界遺産,歴史",
     "open_hours": "6:00〜18:00（季節により変動）",
-    "price": "本殿参拝有料"
+    "price": "本殿参拝有料",
+    "geo": { "lat": 34.6814, "lng": 135.8486 }
   },
   {
     "id": "horyuji",
@@ -1392,12 +1745,11 @@
     "description_en": "A World Heritage Site known for housing the world's oldest wooden buildings and serving as a sacred place of Japanese Buddhism.",
     "official_url": "https://www.horyuji.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=法隆寺 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/法隆寺.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/法隆寺.webp"],
     "tags": "世界遺産,寺,歴史",
     "open_hours": "8:00〜17:00（季節変動あり）",
-    "price": "拝観有料"
+    "price": "拝観有料",
+    "geo": { "lat": 34.6144, "lng": 135.7343 }
   },
   {
     "id": "yakushiji",
@@ -1410,12 +1762,11 @@
     "description_en": "A splendid temple representing Hakuhō architectural style, featuring a three-storied pagoda and Golden Hall.",
     "official_url": "https://www.yakushiji.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=薬師寺 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/薬師寺.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/薬師寺.webp"],
     "tags": "寺,世界遺産,仏教建築",
     "open_hours": "8:30〜17:00",
-    "price": "拝観有料"
+    "price": "拝観有料",
+    "geo": { "lat": 34.6753, "lng": 135.7847 }
   },
   {
     "id": "toshodaiji",
@@ -1428,12 +1779,11 @@
     "description_en": "A temple founded by the Chinese monk Ganjin, known for its preserved National Treasure buildings.",
     "official_url": "https://www.toshodaiji.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=唐招提寺 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/唐招提寺.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/唐招提寺.webp"],
     "tags": "寺,歴史,文化財",
     "open_hours": "8:30〜17:00",
-    "price": "拝観有料"
+    "price": "拝観有料",
+    "geo": { "lat": 34.6758, "lng": 135.7830 }
   },
   {
     "id": "kohfukuji",
@@ -1446,12 +1796,11 @@
     "description_en": "A historic temple adjacent to Nara Park, featuring iconic structures such as the Five-Story Pagoda.",
     "official_url": "https://www.kohfukuji.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=興福寺 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/興福寺.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/興福寺.webp"],
     "tags": "寺,歴史,奈良の象徴",
     "open_hours": "9:00〜17:00",
-    "price": "拝観有料（一部エリア）"
+    "price": "拝観有料（一部エリア）",
+    "geo": { "lat": 34.6823, "lng": 135.8329 }
   },
   {
     "id": "nara_machi",
@@ -1464,12 +1813,11 @@
     "description_en": "A historic district featuring well-preserved traditional townhouses, with cafes and shops.",
     "official_url": "https://www.nara-machiguide.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=ならまち 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ならまち.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/ならまち.webp"],
     "tags": "町並み,古民家,散策",
     "open_hours": "エリア自由",
-    "price": "散策無料"
+    "price": "散策無料",
+    "geo": { "lat": 34.6786, "lng": 135.8298 }
   },
   {
     "id": "nara_national_museum",
@@ -1482,12 +1830,11 @@
     "description_en": "A national museum showcasing Buddhist art, known for hosting the Shosoin Exhibition.",
     "official_url": "https://www.narahaku.go.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=奈良国立博物館 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/奈良国立博物館.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/奈良国立博物館.webp"],
     "tags": "博物館,仏教,文化",
     "open_hours": "9:30〜17:00",
-    "price": "観覧有料"
+    "price": "観覧有料",
+    "geo": { "lat": 34.6840, "lng": 135.8348 }
   },
   {
     "id": "asuka_temple",
@@ -1500,12 +1847,11 @@
     "description_en": "Considered Japan’s oldest full-scale Buddhist temple, home to the famous Asuka Daibutsu statue.",
     "official_url": "https://asukabutu.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=飛鳥寺 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/飛鳥寺.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/飛鳥寺.webp"],
     "tags": "寺,歴史,日本最古級",
     "open_hours": "9:00〜17:15",
-    "price": "拝観有料"
+    "price": "拝観有料",
+    "geo": { "lat": 34.4677, "lng": 135.8202 }
   },
   {
     "id": "takemaru_castle",
@@ -1518,12 +1864,11 @@
     "description_en": "One of Japan’s three major mountain castles, known for its stone walls and scenic mountaintop views.",
     "official_url": "https://takatori.info/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=高取城跡 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/高取城.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/高取城.webp"],
     "tags": "城跡,山城,絶景",
     "open_hours": "終日開放",
-    "price": "無料"
+    "price": "無料",
+    "geo": { "lat": 34.4300, "lng": 135.7950 }
   },
   {
     "id": "muro_ryuketsu",
@@ -1536,12 +1881,11 @@
     "description_en": "A mystical shrine known for its cave worship and serene atmosphere.",
     "official_url": "https://www.google.com/search?q=室生龍穴神社",
     "map_url": "https://www.google.com/maps/search/?api=1&query=室生龍穴神社 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/室生龍穴神社.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/室生龍穴神社.webp"],
     "tags": "神社,自然,パワースポット",
     "open_hours": "終日開放",
-    "price": "無料"
+    "price": "無料",
+    "geo": { "lat": 34.5362, "lng": 135.9810 }
   },
   {
     "id": "okinawaike",
@@ -1554,12 +1898,11 @@
     "description_en": "A highland famous for its pampas grass fields in autumn, offering spectacular mountain scenery.",
     "official_url": "https://sonimura.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=曽爾高原 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/曽爾高原.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/曽爾高原.webp"],
     "tags": "高原,自然,絶景",
     "open_hours": "終日開放",
-    "price": "無料"
+    "price": "無料",
+    "geo": { "lat": 34.5170, "lng": 136.1420 }
   },
   {
     "id": "yoshinoyama",
@@ -1572,12 +1915,11 @@
     "description_en": "One of Japan’s most famous cherry blossom spots, with around 30,000 cherry trees.",
     "official_url": "https://www.yoshinoyama-sakura.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=吉野山 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/吉野山.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/吉野山.webp"],
     "tags": "桜,自然,世界遺産",
     "open_hours": "エリア自由",
-    "price": "散策無料"
+    "price": "散策無料",
+    "geo": { "lat": 34.3670, "lng": 135.8560 }
   },
   {
     "id": "ooyamato_shrine",
@@ -1590,12 +1932,11 @@
     "description_en": "One of Japan’s oldest shrines, dedicated to the principal deity of Yamato Province.",
     "official_url": "https://www.oyamatohp.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=大和神社 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大和神社.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大和神社.webp"],
     "tags": "神社,歴史",
     "open_hours": "終日開放",
-    "price": "無料"
+    "price": "無料",
+    "geo": { "lat": 34.5935, "lng": 135.8346 }
   },
   {
     "id": "omiwa_jinja",
@@ -1608,12 +1949,11 @@
     "description_en": "One of Japan’s oldest shrines, unique in worshiping Mt. Miwa itself as the sacred deity.",
     "official_url": "https://oomiwa.or.jp/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=大神神社 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大神神社.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/大神神社.webp"],
     "tags": "神社,日本最古級,パワースポット",
     "open_hours": "終日開放",
-    "price": "無料"
+    "price": "無料",
+    "geo": { "lat": 34.5291, "lng": 135.8531 }
   },
   {
     "id": "akame_48",
@@ -1626,12 +1966,11 @@
     "description_en": "A scenic valley with numerous waterfalls along a hiking route.",
     "official_url": "https://www.akame48taki.com/",
     "map_url": "https://www.google.com/maps/search/?api=1&query=赤目四十八滝 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/赤目四十八滝.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/赤目四十八滝.webp"],
     "tags": "滝,渓谷,自然",
     "open_hours": "8:30〜17:00",
-    "price": "入山料あり"
+    "price": "入山料あり",
+    "geo": { "lat": 34.6210, "lng": 136.0890 }
   },
   {
     "id": "yamanobe",
@@ -1644,12 +1983,11 @@
     "description_en": "Considered Japan’s oldest road, this ancient hiking trail passes through rural scenery and historic temples.",
     "official_url": "https://www.google.com/search?q=山辺の道 奈良",
     "map_url": "https://www.google.com/maps/search/?api=1&query=山辺の道 奈良県",
-    "images": [
-      "https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/山辺の道.webp"
-    ],
+    "images": ["https://raw.githubusercontent.com/0712nagai-design/au-kansai-tabi/main/images/山辺の道.webp"],
     "tags": "ハイキング,古道,自然",
     "open_hours": "終日開放",
-    "price": "無料"
+    "price": "無料",
+    "geo": { "lat": 34.5710, "lng": 135.8430 }
   },
   {
     "id": "shirahige_jinja",
