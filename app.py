@@ -207,7 +207,7 @@ def _get_sp_lat(sp: Dict[str, Any]) -> Optional[float]:
     except Exception:
         return None
 
-def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 3.0, limit: int = 3):
+def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 15.0, limit: int = 3):
     lat0, lon0 = float(geo["lat"]), float(geo["lng"])
     scored = []
 
@@ -3043,6 +3043,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
