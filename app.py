@@ -41,7 +41,43 @@ if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY が未設定です")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+EXPERIENCE_MASTER = {}
+
+try:
+    with open("data/experience_master.json", "r", encoding="utf-8") as f:
+        raw = json.load(f)
+        if isinstance(raw, list):
+            conv = {}
+            for row in raw:
+                if isinstance(row, dict) and row.get("id"):
+                    conv[row["id"]] = row
+            EXPERIENCE_MASTER = conv
+        elif isinstance(raw, dict):
+            EXPERIENCE_MASTER = raw
+        else:
+            EXPERIENCE_MASTER = {}
+except FileNotFoundError:
+    EXPERIENCE_MASTER = {}
+
 # ====================== マスターデータ（観光地）読込 ======================
+EXPERIENCE_MASTER = {}
+
+try:
+    with open("data/experience_master.json", "r", encoding="utf-8") as f:
+        raw = json.load(f)
+        if isinstance(raw, list):
+            conv = {}
+            for row in raw:
+                if isinstance(row, dict) and row.get("id"):
+                    conv[row["id"]] = row
+            EXPERIENCE_MASTER = conv
+        elif isinstance(raw, dict):
+            EXPERIENCE_MASTER = raw
+        else:
+            EXPERIENCE_MASTER = {}
+except FileNotFoundError:
+    EXPERIENCE_MASTER = {}
+
 SIGHTSEEING_MASTER = {}
 
 def _normalize_pref_name(name: str) -> str:
@@ -249,6 +285,31 @@ def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 15.0,
 
     scored.sort(key=lambda x: x[0])
     return [sp for _, sp in scored[:limit]]
+def _get_near_experience_from_master(geo: Dict[str, Any], max_km: float = 10.0, limit: int = 3):
+    lat0, lon0 = float(geo["lat"]), float(geo["lng"])
+    scored = []
+
+    for sp in EXPERIENCE_MASTER.values():
+        if not isinstance(sp, dict):
+            continue
+
+        g = sp.get("geo") or {}
+        lat = g.get("lat")
+        lon = g.get("lng") or g.get("lon")
+        if lat is None or lon is None:
+            continue
+
+        try:
+            d = _distance_km(lat0, lon0, float(lat), float(lon))
+        except Exception:
+            continue
+
+        if d <= max_km:
+            scored.append((d, sp))
+
+    scored.sort(key=lambda x: x[0])
+    return [sp for _, sp in scored[:limit]]
+
 
     
 
@@ -260,6 +321,43 @@ def _distance_km(lat1, lon1, lat2, lon2):
     a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
+def _normalize_exp_genre_label(label: str) -> str:
+    # EXP_GENRESのラベル → tags検索用キーワードに寄せる（ざっくり）
+    m = {
+        "温泉": "温泉",
+        "自然体験": "自然",
+        "文化体験": "文化",
+        "モノづくり体験": "陶芸,工房,クラフト,ものづくり",
+        "グルメ・食体験": "グルメ,食,和菓子,酒蔵,漬物",
+    }
+    return m.get(label, label)
+
+def _search_experience_master(pref: str = "", exp_genre: str = "", limit: int = 3) -> List[Dict[str, Any]]:
+    pref = _normalize_pref_name(pref)
+
+    genre_keys = []
+    if exp_genre:
+        genre_keys = [x.strip() for x in _normalize_exp_genre_label(exp_genre).split(",") if x.strip()]
+
+    results = []
+    for sp in EXPERIENCE_MASTER.values():
+        if not isinstance(sp, dict):
+            continue
+
+        sp_pref = _normalize_pref_name(sp.get("pref", ""))
+        if pref and pref != "現在地から近く" and sp_pref and sp_pref != pref:
+            continue
+
+        if genre_keys:
+            tags = (sp.get("tags") or "")
+            hay = (sp.get("name","") + " " + sp.get("area","") + " " + tags).lower()
+            ok = any(k.lower() in hay for k in genre_keys)
+            if not ok:
+                continue
+
+        results.append(sp)
+
+    return results[:limit]
 
 
 
@@ -1271,6 +1369,43 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
         alt_text=header_title,
         template=CarouselTemplate(columns=columns)
     )
+def _send_experiences_three_from_master(uid: str, reply_token: str, spots: List[Dict[str, Any]], lang: str):
+    is_en = str(lang).lower().startswith("e")
+
+    header_text = "🎯 条件に合う体験スポットを3件ご提案します👇" if not is_en else "🎯 Here are 3 experience spots 👇"
+    messages = [TextSendMessage(text=header_text)]
+
+    items_for_carousel = []
+
+    for i, sp in enumerate(spots[:3]):
+        title = sp.get("name", "")[:40] or "Experience"
+        desc = (sp.get("description") or "")[:60] or " "
+
+        # map_url無ければ lat,lng から生成
+        latlng = get_geo(sp)  # 既にあなたが持ってる共通関数
+        map_url = sp.get("map_url") or ""
+        if not map_url and latlng:
+            map_url = f"https://www.google.com/maps/search/?api=1&query={latlng[0]},{latlng[1]}"
+
+        official = sp.get("official_url") or ""
+
+        items_for_carousel.append({
+            "title": title,
+            "subtitle": desc,
+            "official": official,
+            "map": map_url,
+            "image": _pick_carousel_image("experience", i, REQUEST_IMAGE_URLS.get("体験スポット")),
+            "spot_type": "experience",
+            "affiliate_url": "",
+        })
+
+        # テキストも1件ずつ（任意）
+        messages.append(TextSendMessage(text=f"🎯 {title}\n{desc}"))
+
+    messages.append(_carousel_from_items("🎯 体験スポット（マスターデータ）", items_for_carousel))
+
+    # reply最大5件に収める
+    line_bot_api.reply_message(reply_token, messages[:5])
 
 # ====================== AI観光モード 用ヘルパー ======================
 
@@ -2463,31 +2598,46 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     if req in {"ホテル", "Hotels"}:
         hotels_text = _call_openai_text(build_hotel3_prompt(answers, lang), lang)
         _send_hotels_three(uid, reply_token, hotels_text, lang)
-        # ★ 他のプランメニューを出さない
         return
 
     # ------------- 飲食店 -------------
     if req in {"飲食店", "Restaurants"}:
         foods_text = _call_openai_text(build_food3_prompt(answers, lang), lang)
         _send_food_three(uid, reply_token, foods_text, lang)
-        # ★ 他のプランメニューを出さない
         return
 
-    # ------------- 体験スポット -------------
+    # ------------- 体験スポット（★マスターデータ駆動） -------------
     if req in {"体験スポット", "Experiences"}:
-        exp_text = _call_openai_text(build_experience3_prompt(answers, lang), lang)
-        _send_experiences_three(uid, reply_token, exp_text, lang)
-        # ★ 他のプランメニューを出さない
+        pref = answers.get("pref", "")
+        genre = answers.get("exp_genre", "")
+        geo = answers.get("geo")
+
+        # ① 現在地なら近傍検索（あなたが用意した関数がある前提）
+        if pref == "現在地から近く" and geo:
+            spots = _get_near_experience_from_master(geo, max_km=10.0, limit=3)
+        else:
+            # ② 県×ジャンルで絞って取得（あなたが用意した関数）
+            spots = _search_experience_master(pref=pref, exp_genre=genre, limit=3)
+
+        if not spots:
+            msg = (
+                "条件に合う体験スポット（マスター）が見つかりませんでした。"
+                if not is_en else
+                "No matching experiences found in master."
+            )
+            line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+            return
+
+        _send_experiences_three_from_master(uid, reply_token, spots, lang=lang)
         return
 
     # ------------- 観光地（マスターデータ＋テキスト＋カルーセル） -------------
     if req in {"観光地", "Sightseeing"}:
         import random
 
-        pref_answer = answers.get("pref")          # 例: "京都" or "Kyoto"
+        pref_answer = answers.get("pref")          # 例: "京都"
         lang_code = _get_lang_code(answers)        # 'ja' or 'en'
 
-        # 都道府県名の末尾「府/県」を揃えるための小ヘルパー
         def _norm_pref(s: str) -> str:
             if not isinstance(s, str):
                 return ""
@@ -2497,7 +2647,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                     s = s[:-1]
             return s
 
-        # 画像を1枚だけ取る（なければデフォ画像）
         def _get_spot_image(spot: Dict[str, Any]) -> str:
             imgs = spot.get("images") or []
             if isinstance(imgs, list) and imgs:
@@ -2516,7 +2665,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 if _norm_pref(sp.get("pref", "")) != _norm_pref(pref_answer):
                     continue
             else:
-                # 英語のときは pref_en で比較
                 if sp.get("pref_en") != pref_answer:
                     continue
 
@@ -2529,14 +2677,11 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 else f"No sightseeing master data registered for {pref_answer} yet."
             )
             line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
-            # ★ 他のプランメニューを出さない
             return
 
-        # ---- 候補の中からランダムで最大3件 ----
         random.shuffle(candidates)
         picked = candidates[:3]
 
-        # ---- 1. ヘッダー文 ----
         header_text = (
             "🤖 条件に合う観光地を3件ご提案します✨"
             if lang_code == "ja"
@@ -2544,7 +2689,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         )
         messages = [TextSendMessage(text=header_text)]
 
-        # ---- 2. 各スポットの説明テキスト ----
         for sp in picked:
             if lang_code == "ja":
                 name = sp.get("name", "")
@@ -2575,7 +2719,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
 
             messages.append(TextSendMessage(text=body))
 
-        # ---- 3. カルーセル用データ（同じ3件だけ） ----
         items_for_carousel = []
         for sp in picked:
             if lang_code == "ja":
@@ -2591,26 +2734,27 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 "official": sp.get("official_url", ""),
                 "map": sp.get("map_url", ""),
                 "image": _get_spot_image(sp),
+                "spot_type": "sightseeing",
+                "affiliate_url": "",
             })
 
         carousel_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing spots (from master)"
         messages.append(_carousel_from_items(carousel_title, items_for_carousel))
 
         # reply_message は最大5件まで
-        line_bot_api.reply_message(reply_token, messages)
-        # ★ 他のプランメニューを出さない
+        line_bot_api.reply_message(reply_token, messages[:5])
         return
 
     # ------------- 日程表 -------------
     if req in {"日程表", "Itinerary"}:
         schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
         _send_itinerary(uid, reply_token, schedule, lang)
-        # ★ 他のプランメニューを出さない
         return
 
     # ------------- 想定外 -------------
     msg = "未対応のリクエストです。" if not is_en else "This request is not supported yet."
     line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+
 
 
 
@@ -3004,11 +3148,11 @@ def on_location(event: MessageEvent):
             )
             return
 
-        # ★追加：観光地 × 現在地から近く → master から近傍3件を出して終了
         req  = state["answers"].get("request")
         pref = state["answers"].get("pref")
         lang = state["answers"].get("lang", LAST_LANG.get(uid, "日本語"))
 
+        # ★ 観光地 × 現在地から近く → master から近傍3件を出して終了
         if req == "観光地" and pref == "現在地から近く":
             spots = _get_near_sightseeing_from_master(geo_data, max_km=15.0, limit=3)
 
@@ -3028,7 +3172,24 @@ def on_location(event: MessageEvent):
             users.pop(uid, None)
             return
 
-        # ---- それ以外（飲食店/体験スポットなど）は従来通り質問を進める ----
+        # ★ 体験スポット × 現在地から近く → experience master から近傍3件を出して終了
+        if req == "体験スポット" and pref == "現在地から近く":
+            spots = _get_near_experience_from_master(geo_data, max_km=10.0, limit=3)
+
+            if spots:
+                _send_experiences_three_from_master(uid, event.reply_token, spots, lang=lang)
+            else:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(
+                        text="現在地付近（10km以内）に登録済みの体験スポットが見つかりませんでした。"
+                    )
+                )
+
+            users.pop(uid, None)
+            return
+
+        # ---- それ以外（飲食店/体験スポットの県選択など）は従来通り質問を進める ----
         step = state.get("step", 0)
         step += 1
         state["step"] = step
@@ -3066,4 +3227,5 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
