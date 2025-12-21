@@ -1369,43 +1369,38 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
         alt_text=header_title,
         template=CarouselTemplate(columns=columns)
     )
-def _send_experiences_three_from_master(uid: str, reply_token: str, spots: List[Dict[str, Any]], lang: str):
+def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: str):
     is_en = str(lang).lower().startswith("e")
-
     header_text = "🎯 条件に合う体験スポットを3件ご提案します👇" if not is_en else "🎯 Here are 3 experience spots 👇"
-    messages = [TextSendMessage(text=header_text)]
 
+    messages = [TextSendMessage(text=header_text)]
     items_for_carousel = []
 
     for i, sp in enumerate(spots[:3]):
         title = sp.get("name", "")[:40] or "Experience"
         desc = (sp.get("description") or "")[:60] or " "
 
-        # map_url無ければ lat,lng から生成
-        latlng = get_geo(sp)  # 既にあなたが持ってる共通関数
+        latlng = get_geo(sp)
         map_url = sp.get("map_url") or ""
         if not map_url and latlng:
             map_url = f"https://www.google.com/maps/search/?api=1&query={latlng[0]},{latlng[1]}"
 
-        official = sp.get("official_url") or ""
-
         items_for_carousel.append({
             "title": title,
             "subtitle": desc,
-            "official": official,
+            "official": sp.get("official_url") or "",
             "map": map_url,
             "image": _pick_carousel_image("experience", i, REQUEST_IMAGE_URLS.get("体験スポット")),
             "spot_type": "experience",
             "affiliate_url": "",
         })
 
-        # テキストも1件ずつ（任意）
         messages.append(TextSendMessage(text=f"🎯 {title}\n{desc}"))
 
     messages.append(_carousel_from_items("🎯 体験スポット（マスターデータ）", items_for_carousel))
 
-    # reply最大5件に収める
-    line_bot_api.reply_message(reply_token, messages[:5])
+    _push_messages_in_chunks(uid, messages, size=5)
+
 
 # ====================== AI観光モード 用ヘルパー ======================
 
@@ -2628,7 +2623,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
             return
 
-        _send_experiences_three_from_master(uid, reply_token, spots, lang=lang)
+        _push_experiences_three_from_master(uid, spots, lang=lang)
         return
 
     # ------------- 観光地（マスターデータ＋テキスト＋カルーセル） -------------
@@ -3177,7 +3172,7 @@ def on_location(event: MessageEvent):
             spots = _get_near_experience_from_master(geo_data, max_km=10.0, limit=3)
 
             if spots:
-                _send_experiences_three_from_master(uid, event.reply_token, spots, lang=lang)
+                _push_experiences_three_from_master(uid, spots, lang=lang)
             else:
                 line_bot_api.reply_message(
                     event.reply_token,
@@ -3227,5 +3222,6 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
