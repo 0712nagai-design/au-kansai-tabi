@@ -299,7 +299,7 @@
     "images": [],
     "coupon": { "available": false, "provider": "", "coupon_id": "", "title": "", "note": "" }
   },
-  [
+  
   {
     "id": "zuikogama_rakuyaki_kiyomizu",
     "name": "陶芸工房 瑞光窯（らく焼き体験）京都清水店",
@@ -555,7 +555,7 @@
     "reservation": "要予約が多い",
     "coupon": { "available": false, "provider": "", "coupon_id": "", "title": "", "note": "" }
   },
- [
+ 
   {
     "id": "lalalapo_handmade_osaka",
     "name": "大阪手作り体験のLALALAPO",
@@ -755,8 +755,7 @@
     "duration": "約120分",
     "images": [],
     "coupon": { "available": false, "provider": "", "coupon_id": "", "title": "", "note": "" }
-  }
-]
+  },
 
   {
     "id": "osaka_kimono_rental_abeno_daimaru",
