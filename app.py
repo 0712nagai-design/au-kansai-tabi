@@ -2762,9 +2762,9 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
 
         spots: List[Dict[str, Any]] = []
 
-        # 2-1) 現在地から近く（1km）
+        # 2-1) 現在地から近く（3km）
         if area == "現在地から近く" and geo:
-            tmp = _get_near_food_from_master(geo, max_km=1.0, limit=20)
+            tmp = _get_near_food_from_master(geo, max_km=3.0, limit=20)
             spots = [sp for sp in tmp if _is_food_complete(sp)][:3]
 
         # 2-2) 県×ジャンル（areaをpref扱い）
@@ -3414,6 +3414,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
