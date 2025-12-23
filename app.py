@@ -77,6 +77,27 @@ try:
             EXPERIENCE_MASTER = {}
 except FileNotFoundError:
     EXPERIENCE_MASTER = {}
+FOOD_MASTER: Dict[str, Any] = {}
+
+def _load_master_json(path: str) -> Dict[str, Any]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if isinstance(raw, list):
+            conv = {}
+            for row in raw:
+                if isinstance(row, dict) and row.get("id"):
+                    conv[row["id"]] = row
+            return conv
+        if isinstance(raw, dict):
+            return raw
+        return {}
+    except FileNotFoundError:
+        return {}
+    except Exception:
+        return {}
+
+FOOD_MASTER = _load_master_json("data/food_master.json")
 
 SIGHTSEEING_MASTER = {}
 
@@ -265,6 +286,28 @@ def _get_sp_lon(sp: Dict[str, Any]) -> Optional[float]:
                 return None
     return None
 
+def _get_near_food_from_master(geo: Dict[str, Any], max_km: float = 1.0, limit: int = 3):
+    lat0, lon0 = float(geo["lat"]), float(geo["lng"])
+    scored = []
+
+    for sp in FOOD_MASTER.values():
+        if not isinstance(sp, dict):
+            continue
+        g = sp.get("geo") or {}
+        lat = g.get("lat")
+        lon = g.get("lng") or g.get("lon")
+        if lat is None or lon is None:
+            continue
+        try:
+            d = _distance_km(lat0, lon0, float(lat), float(lon))
+        except Exception:
+            continue
+        if d <= max_km:
+            scored.append((d, sp))
+
+    scored.sort(key=lambda x: x[0])
+    return [sp for _, sp in scored[:limit]]
+
 
 def _get_near_sightseeing_from_master(geo: Dict[str, Any], max_km: float = 15.0, limit: int = 3):
     lat0, lon0 = float(geo["lat"]), float(geo["lng"])
@@ -320,6 +363,60 @@ def _distance_km(lat1, lon1, lat2, lon2):
     dlambda = math.radians(lon2 - lon1)
     a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+def _normalize_food_genre(label: str) -> str:
+    # CUISINES のラベル → tags検索用キーワード寄せ
+    m = {
+        "和食": "和食,定食,おばんざい,寿司,うどん,蕎麦",
+        "洋食": "洋食,イタリアン,フレンチ,ビストロ",
+        "中華": "中華,餃子,点心",
+        "ラーメン": "ラーメン,つけ麺",
+        "カフェ・スイーツ": "カフェ,喫茶,スイーツ,パン",
+        "こだわらない": "",
+    }
+    return m.get(label, label)
+def _is_food_complete(sp: Dict[str, Any]) -> bool:
+    g = sp.get("geo") or {}
+    must = [
+        g.get("lat"), g.get("lng"),
+        sp.get("official_url"),
+        sp.get("open_hours"),
+        sp.get("price"),
+    ]
+    return all(x is not None and str(x).strip() != "" for x in must)
+
+def _search_food_master(pref: str = "", area: str = "", cuisine: str = "", limit: int = 3) -> List[Dict[str, Any]]:
+    pref = _normalize_pref_name(pref)
+    area = (area or "").strip()
+    keys = []
+    if cuisine:
+        keys = [x.strip() for x in _normalize_food_genre(cuisine).split(",") if x.strip()]
+
+    results = []
+    for sp in FOOD_MASTER.values():
+        if not isinstance(sp, dict):
+            continue
+
+        sp_pref = _normalize_pref_name(sp.get("pref", ""))
+        if pref and pref != "現在地から近く" and sp_pref and sp_pref != pref:
+            continue
+
+        # area が「京都」「大阪」等の県名になっている運用なら、prefで足りるので area は任意
+        if area and area not in {"現在地から近く"}:
+            # sp["area"] 内に含まれるか（駅名でもOK）
+            if area not in (sp.get("area") or ""):
+                # area でヒットしなければスキップ（厳しめ）
+                continue
+
+        if keys:
+            hay = (sp.get("name","") + " " + sp.get("area","") + " " + (sp.get("tags") or "")).lower()
+            if not any(k.lower() in hay for k in keys):
+                continue
+
+        results.append(sp)
+
+    return results[:limit]
+
 
 def _normalize_exp_genre_label(label: str) -> str:
     # EXP_GENRESのラベル → tags検索用キーワードに寄せる（ざっくり）
@@ -1401,6 +1498,43 @@ def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], l
 
     _push_messages_in_chunks(uid, messages, size=5)
 
+def _push_foods_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: str):
+    is_en = str(lang).lower().startswith("e")
+    header_text = "🍽 条件に合う飲食店を3件ご提案します👇" if not is_en else "🍽 Here are 3 restaurants 👇"
+
+    messages = [TextSendMessage(text=header_text)]
+    items_for_carousel = []
+
+    for i, sp in enumerate(spots[:3]):
+        title = (sp.get("name_en") if is_en else sp.get("name")) or "Restaurant"
+        desc  = (sp.get("description_en") if is_en else sp.get("description")) or ""
+        subtitle = (desc[:60] if desc else " ")
+
+        # map_url が無い場合は geo から生成
+        map_url = sp.get("map_url") or ""
+        latlng = get_geo(sp)
+        if not map_url and latlng:
+            map_url = f"https://www.google.com/maps/search/?api=1&query={latlng[0]},{latlng[1]}"
+
+        # 1件ずつテキスト（任意）
+        if not is_en:
+            body = f"🍽 {sp.get('name','')}\n{subtitle}\n\n💰 価格帯：{sp.get('price','情報なし')}\n🕰 営業：{sp.get('open_hours','情報なし')}"
+        else:
+            body = f"🍽 {title}\n{subtitle}\n\n💰 Price: {sp.get('price','N/A')}\n🕰 Hours: {sp.get('open_hours','N/A')}"
+        messages.append(TextSendMessage(text=body))
+
+        items_for_carousel.append({
+            "title": (sp.get("name_en") if is_en else sp.get("name") or "Restaurant")[:40],
+            "subtitle": subtitle[:60],
+            "official": sp.get("official_url") or "",
+            "map": map_url,
+            "image": _pick_carousel_image("food", i, REQUEST_IMAGE_URLS.get("飲食店")),
+            "spot_type": "food",
+            "affiliate_url": "",
+        })
+
+    messages.append(_carousel_from_items("🍽 飲食店（マスターデータ）", items_for_carousel))
+    _push_messages_in_chunks(uid, messages, size=5)
 
 # ====================== AI観光モード 用ヘルパー ======================
 
@@ -2582,36 +2716,90 @@ def _send_finish_menu(uid: str, lang: str):
 
 
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
-    # 言語を取得＆記録
+    """
+    ✅ 完全版（ホテル/飲食店/体験/観光地/日程表 + AI観光モードは別）
+    - 飲食店：food_master.json から検索（必須: geo, official_url, open_hours, price）
+    - 体験：experience_master.json から検索（近傍 or 県×ジャンル）
+    - 観光地：sightseeing_master から県でランダム3件（または現在地近傍は LocationMessage 側で処理済み）
+    - ホテル/日程表：OpenAI生成（既存関数を利用）
+    """
+
+    # --- 言語を取得＆記録 ---
     lang = answers.get("lang", LAST_LANG.get(uid, "日本語"))
     LAST_LANG[uid] = lang
     is_en = str(lang).lower().startswith("e")
 
     req = answers.get("request")
 
-    # ------------- ホテル -------------
+    # =========================
+    # ユーティリティ（必須条件チェック）
+    # =========================
+    def _is_food_complete(sp: Dict[str, Any]) -> bool:
+        g = sp.get("geo") or {}
+        must = [
+            g.get("lat"), g.get("lng"),
+            sp.get("official_url"),
+            sp.get("open_hours"),
+            sp.get("price"),
+        ]
+        return all(x is not None and str(x).strip() != "" for x in must)
+
+    # =========================
+    # ① ホテル（OpenAI）
+    # =========================
     if req in {"ホテル", "Hotels"}:
         hotels_text = _call_openai_text(build_hotel3_prompt(answers, lang), lang)
         _send_hotels_three(uid, reply_token, hotels_text, lang)
         return
 
-    # ------------- 飲食店 -------------
+    # =========================
+    # ② 飲食店（マスターデータ駆動）
+    # =========================
     if req in {"飲食店", "Restaurants"}:
-        foods_text = _call_openai_text(build_food3_prompt(answers, lang), lang)
-        _send_food_three(uid, reply_token, foods_text, lang)
+        area = answers.get("area", "")      # UI上「エリア」だが実運用は県名 or 現在地
+        cuisine = answers.get("cuisine", "")
+        geo = answers.get("geo")
+
+        spots: List[Dict[str, Any]] = []
+
+        # 2-1) 現在地から近く（1km）
+        if area == "現在地から近く" and geo:
+            tmp = _get_near_food_from_master(geo, max_km=1.0, limit=20)
+            spots = [sp for sp in tmp if _is_food_complete(sp)][:3]
+
+        # 2-2) 県×ジャンル（areaをpref扱い）
+        else:
+            pref = area
+            tmp = _search_food_master(pref=pref, area="", cuisine=cuisine, limit=30)
+            spots = [sp for sp in tmp if _is_food_complete(sp)][:3]
+
+        if not spots:
+            msg = (
+                "条件に合う飲食店（マスター）が見つかりませんでした。"
+                if not is_en else
+                "No matching restaurants found in master."
+            )
+            line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+            return
+
+        # replyは1回だけ → 続きはpushで送る（5件制限対策）
+        head = "🍽 飲食店候補を送ります👇" if not is_en else "🍽 Sending restaurant options 👇"
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=head))
+        _push_foods_three_from_master(uid, spots, lang=lang)
         return
 
-    # ------------- 体験スポット（★マスターデータ駆動） -------------
+    # =========================
+    # ③ 体験スポット（マスターデータ駆動）
+    # =========================
     if req in {"体験スポット", "Experiences"}:
         pref = answers.get("pref", "")
         genre = answers.get("exp_genre", "")
         geo = answers.get("geo")
 
-        # ① 現在地なら近傍検索（あなたが用意した関数がある前提）
+        # 現在地なら近傍検索
         if pref == "現在地から近く" and geo:
             spots = _get_near_experience_from_master(geo, max_km=10.0, limit=3)
         else:
-            # ② 県×ジャンルで絞って取得（あなたが用意した関数）
             spots = _search_experience_master(pref=pref, exp_genre=genre, limit=3)
 
         if not spots:
@@ -2623,14 +2811,21 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
             return
 
+        # push送信（experienceは既存仕様通り）
+        line_bot_api.reply_message(reply_token, TextSendMessage(
+            text=("🎯 体験スポット候補を送ります👇" if not is_en else "🎯 Sending experience options 👇")
+        ))
         _push_experiences_three_from_master(uid, spots, lang=lang)
         return
 
-    # ------------- 観光地（マスターデータ＋テキスト＋カルーセル） -------------
+    # =========================
+    # ④ 観光地（マスターデータから県で3件ランダム）
+    # ※「現在地から近く」は LocationMessage 側で処理済み（近傍検索→終了）
+    # =========================
     if req in {"観光地", "Sightseeing"}:
         import random
 
-        pref_answer = answers.get("pref")          # 例: "京都"
+        pref_answer = answers.get("pref")          # 例: "京都" or "現在地から近く"
         lang_code = _get_lang_code(answers)        # 'ja' or 'en'
 
         def _norm_pref(s: str) -> str:
@@ -2650,7 +2845,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 return imgs.strip()
             return REQUEST_IMAGE_URLS.get("観光地")
 
-        # ---- マスターデータから候補抽出 ----
+        # 県抽出
         candidates: List[Dict[str, Any]] = []
         for sp in SIGHTSEEING_MASTER.values():
             if not isinstance(sp, dict):
@@ -2682,50 +2877,23 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             if lang_code == "ja"
             else "🤖 Here are 3 sightseeing spots for you ✨"
         )
+
         messages = [TextSendMessage(text=header_text)]
 
-        for sp in picked:
-            if lang_code == "ja":
-                name = sp.get("name", "")
-                area = sp.get("area", "")
-                desc = sp.get("description", "") or ""
-                price = sp.get("price", "情報なし")
-                hours = sp.get("open_hours", "情報なし")
-
-                body = (
-                    f"🛕 {name}（{area}）\n"
-                    f"{desc}\n\n"
-                    f"💰 料金目安：{price}\n"
-                    f"🕰 営業：{hours}"
-                )
-            else:
-                name = sp.get("name_en") or sp.get("name", "")
-                area = sp.get("area", "")
-                desc = sp.get("description_en") or sp.get("description", "") or ""
-                price = sp.get("price", "N/A")
-                hours = sp.get("open_hours", "N/A")
-
-                body = (
-                    f"🛕 {name} ({area})\n"
-                    f"{desc}\n\n"
-                    f"💰 Price: {price}\n"
-                    f"🕰 Hours: {hours}"
-                )
-
-            messages.append(TextSendMessage(text=body))
-
+        # テキスト詳細（2件までに抑えると reply5件に収まりやすいが、ここは既存踏襲でpushに寄せる）
+        # まず reply はヘッダー+カルーセルだけにして、詳細はpushで流す
         items_for_carousel = []
         for sp in picked:
             if lang_code == "ja":
-                title = sp.get("name", "")
-                subtitle = sp.get("description", "") or ""
+                title = sp.get("name", "") or "観光地"
+                subtitle = (sp.get("description", "") or "")[:60] or " "
             else:
-                title = sp.get("name_en") or sp.get("name", "")
-                subtitle = sp.get("description_en") or sp.get("description", "") or ""
+                title = sp.get("name_en") or sp.get("name", "") or "Spot"
+                subtitle = (sp.get("description_en") or sp.get("description", "") or "")[:60] or " "
 
             items_for_carousel.append({
-                "title": title,
-                "subtitle": subtitle[:60] if subtitle else " ",
+                "title": title[:40],
+                "subtitle": subtitle[:60],
                 "official": sp.get("official_url", ""),
                 "map": sp.get("map_url", ""),
                 "image": _get_spot_image(sp),
@@ -2733,20 +2901,44 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 "affiliate_url": "",
             })
 
-        carousel_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing spots (from master)"
+        carousel_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing (from master)"
         messages.append(_carousel_from_items(carousel_title, items_for_carousel))
 
-        # reply_message は最大5件まで
+        # reply（2件）
         line_bot_api.reply_message(reply_token, messages[:5])
+
+        # 詳細は push
+        for sp in picked:
+            if lang_code == "ja":
+                name = sp.get("name", "")
+                area = sp.get("area", "")
+                desc = sp.get("description", "") or ""
+                price = sp.get("price", "情報なし")
+                hours = sp.get("open_hours", "情報なし")
+                body = f"🛕 {name}（{area}）\n{desc}\n\n💰 料金目安：{price}\n🕰 営業：{hours}"
+            else:
+                name = sp.get("name_en") or sp.get("name", "")
+                area = sp.get("area", "")
+                desc = sp.get("description_en") or sp.get("description", "") or ""
+                price = sp.get("price", "N/A")
+                hours = sp.get("open_hours", "N/A")
+                body = f"🛕 {name} ({area})\n{desc}\n\n💰 Price: {price}\n🕰 Hours: {hours}"
+
+            line_bot_api.push_message(uid, TextSendMessage(text=body))
+
         return
 
-    # ------------- 日程表 -------------
+    # =========================
+    # ⑤ 日程表（OpenAI）
+    # =========================
     if req in {"日程表", "Itinerary"}:
         schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
         _send_itinerary(uid, reply_token, schedule, lang)
         return
 
-    # ------------- 想定外 -------------
+    # =========================
+    # 想定外
+    # =========================
     msg = "未対応のリクエストです。" if not is_en else "This request is not supported yet."
     line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
 
@@ -3222,6 +3414,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
