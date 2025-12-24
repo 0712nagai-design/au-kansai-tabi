@@ -27,7 +27,7 @@
     "official_url": "https://www.kyoto-machiya-cinq.com/",
     "price": "¥28,000〜",
     "price_num": 28000,
-    "hotel_type": "machiya",
+    "hotel_type": "mid",
     "description": "町家滞在の雰囲気をしっかり味わえる小規模宿。静かに過ごしたい人向け。",
     "tags": "町家,旅館,小規模,和風"
   },
@@ -59,7 +59,7 @@
     "official_url": "https://guesthousesoi.com/",
     "price": "¥8,500〜",
     "price_num": 8500,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "個人運営の雰囲気が良いゲストハウス。東山観光の拠点に強い。",
     "tags": "ゲストハウス,個人経営,東山,コスパ"
   },
@@ -91,7 +91,7 @@
     "official_url": "https://www.sawaya-honten.com/",
     "price": "¥12,000〜",
     "price_num": 12000,
-    "hotel_type": "mid",
+    "hotel_type": ["mid", "ryokan"],
     "description": "落ち着いた和旅館。下鴨エリアで静かに過ごしたい人向け。",
     "tags": "旅館,和風,老舗,静か"
   },
@@ -123,7 +123,7 @@
     "official_url": "https://kshouse.jp/kyoto/",
     "price": "¥9,000〜",
     "price_num": 9000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "交流型ホステルの定番。海外旅行者にも強く、回遊導線を作りやすい。",
     "tags": "ホステル,外国人向け,コスパ,交流型"
   },
@@ -139,7 +139,7 @@
     "official_url": "https://len-kyoto.com/",
     "price": "¥11,000〜",
     "price_num": 11000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "河原町エリアで動きやすいホステル。カフェ併設で滞在満足度が高い。",
     "tags": "ホステル,カフェ併設,若者,河原町"
   },
@@ -155,7 +155,7 @@
     "official_url": "https://www.themillennials.jp/kyoto",
     "price": "¥12,000〜",
     "price_num": 12000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "スマートカプセル系。ひとり旅・短期滞在の需要に刺さる。",
     "tags": "カプセルホテル,デザイン,IT,若者"
   },
@@ -171,7 +171,7 @@
     "official_url": "https://www.kyoto-yachiyo.jp/",
     "price": "¥30,000〜",
     "price_num": 30000,
-    "hotel_type": "luxury",
+    "hotel_type": ["luxury", "ryokan"],
     "description": "南禅寺近くの庭園旅館。和の体験価値が高く、単価も取りやすい。",
     "tags": "旅館,庭園,高級,南禅寺"
   },
@@ -203,7 +203,7 @@
     "official_url": "https://www.kyotohanahostel.com/",
     "price": "¥8,000〜",
     "price_num": 8000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "京都駅周辺で使いやすいホステル。価格を抑えて市内回遊したい人向け。",
     "tags": "ホステル,コスパ,外国人向け"
   },
@@ -219,7 +219,7 @@
     "official_url": "https://www.kyoto-machiya-inn.com/",
     "price": "¥25,000〜",
     "price_num": 25000,
-    "hotel_type": "machiya",
+    "hotel_type": "mid",
     "description": "町家の一棟貸しが中心。ファミリー・グループの導線を作りやすい。",
     "tags": "町家,一棟貸し,ファミリー,長期"
   },
@@ -235,7 +235,7 @@
     "official_url": "https://www.kyoto-ryokan-shimizu.com/",
     "price": "¥11,000〜",
     "price_num": 11000,
-    "hotel_type": "value",
+    "hotel_type": ["value", "ryokan"],
     "description": "京都駅近くの和旅館。移動がラクで、初めての京都にも向く。",
     "tags": "旅館,和風,駅近,コスパ"
   },
@@ -267,7 +267,7 @@
     "official_url": "https://ki-zu-mi.com/",
     "price": "¥9,000〜",
     "price_num": 9000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "小さめで静かなゲストハウス。東山・祇園側に寄せたい時に強い。",
     "tags": "ゲストハウス,個人経営,静か"
   },
@@ -287,6 +287,7 @@
     "description": "山科の穴場宿。中心部を外してコスパ重視で泊まりたい層に刺さる。",
     "tags": "ゲストハウス,郊外,穴場,コスパ"
   },
+
   {
     "id": "hotel_noum_osaka",
     "name": "Hotel Noum OSAKA",
@@ -297,7 +298,7 @@
     "official_url": "https://www.noumhotel.com/osaka/",
     "price": "¥9,000〜",
     "price_num": 9000,
-    "hotel_type": "中価格",
+    "hotel_type": "mid",
     "tags": "ブティック,デザイン,カフェ併設,天満橋,提携しやすい",
     "description": "デザイン性が高い小規模ホテル。カフェ/ラウンジもあり、送客・特典連携（ドリンク/朝食など）を作りやすい。"
   },
@@ -311,7 +312,7 @@
     "official_url": "https://www.thepaxhostel.com/",
     "price": "¥3,500〜",
     "price_num": 3500,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ホステル,ドミトリー,外国人旅行者,寺田町,提携向き",
     "description": "小規模ホステルで柔軟に提携を組みやすい。体験/飲食の送客やクーポン設計と相性が良い。"
   },
@@ -325,7 +326,7 @@
     "official_url": "https://www.hotelshe.jp/osaka/",
     "price": "¥10,000〜",
     "price_num": 10000,
-    "hotel_type": "中価格",
+    "hotel_type": "mid",
     "tags": "デザインホテル,若者,カップル,新今宮,提携しやすい",
     "description": "コンセプト型の中規模ホテル。キャンペーン連動（音楽/アート/街歩き）で提携施策を作りやすい。"
   },
@@ -339,7 +340,7 @@
     "official_url": "https://imano.jp/osaka/",
     "price": "¥3,800〜",
     "price_num": 3800,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ホステル,心斎橋,ドミトリー,国際色,提携向き",
     "description": "ホステル運営で施策の回転が速い。近隣飲食・体験との相互送客の設計がしやすい。"
   },
@@ -353,7 +354,7 @@
     "official_url": "https://www.google.com/search?q=Guesthouse+Ten-roku+%E5%A4%A7%E9%98%AA+%E5%85%AC%E5%BC%8F",
     "price": "¥3,000〜",
     "price_num": 3000,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ゲストハウス,天六,長期滞在,ローカル,提携向き",
     "description": "天六周辺のローカル導線に乗せやすいゲストハウス想定。特典/紹介施策が組みやすい。"
   },
@@ -367,7 +368,7 @@
     "official_url": "https://www.google.com/search?q=Kamagasaki+University+of+Arts+Cafe+%26+Hostel+official",
     "price": "¥3,000〜",
     "price_num": 3000,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ホステル,カフェ,アート,西成,社会性,提携向き",
     "description": "地域性とストーリーが強い宿。ツアー/街歩き/体験の提携が作りやすい。"
   },
@@ -381,7 +382,7 @@
     "official_url": "https://www.hotel88.co.jp/",
     "price": "¥11,000〜",
     "price_num": 11000,
-    "hotel_type": "中価格",
+    "hotel_type": "mid",
     "tags": "観光立地,家族,道頓堀,心斎橋,提携向き",
     "description": "繁華街ど真ん中で需要が強い。飲食・体験のクーポン導線を載せやすい。"
   },
@@ -395,7 +396,7 @@
     "official_url": "https://www.google.com/search?q=Osaka+Guesthouse+HIVE+official",
     "price": "¥3,200〜",
     "price_num": 3200,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ゲストハウス,交流,難波,バックパッカー,提携向き",
     "description": "交流型ゲストハウス。体験/飲食の紹介で送客価値が出しやすい。"
   },
@@ -409,7 +410,7 @@
     "official_url": "https://www.google.com/search?q=citizenM+Osaka+Honmachi+official",
     "price": "¥14,000〜",
     "price_num": 14000,
-    "hotel_type": "中価格",
+    "hotel_type": "mid",
     "tags": "外資,デザイン,本町,現場裁量,提携向き",
     "description": "※実在/開業状況の最終確認が必要枠。運用に入れるなら開業済み・公式導線確認後に確定。"
   },
@@ -423,7 +424,7 @@
     "official_url": "https://www.google.com/search?q=Osaka+Riverside+Hotel+official",
     "price": "¥8,000〜",
     "price_num": 8000,
-    "hotel_type": "コスパ",
+    "hotel_type": "value",
     "tags": "川沿い,景観,コスパ,ファミリー,提携向き",
     "description": "観光とビジネスの中間需要を拾える。近隣の夜景・クルーズ・飲食提携が作りやすい。"
   },
@@ -437,7 +438,7 @@
     "official_url": "https://www.google.com/search?q=Hotel+WBF+Art+Stay+Naha+official",
     "price": "¥7,000〜",
     "price_num": 7000,
-    "hotel_type": "コスパ",
+    "hotel_type": "value",
     "tags": "※大阪ではない,チェーン系,WBF,提携可,要精査",
     "description": "※リスト内にあったのでJSON化。ただし所在地は那覇。大阪マスターに入れるなら除外推奨。"
   },
@@ -451,7 +452,7 @@
     "official_url": "https://www.google.com/search?q=Hotel+Cargo+Shinsaibashi+official",
     "price": "¥6,000〜",
     "price_num": 6000,
-    "hotel_type": "コスパ",
+    "hotel_type": "value",
     "tags": "カプセル,サウナ,心斎橋,一人旅,提携向き",
     "description": "ソロ需要が強いタイプ。飲食・サウナ連携・深夜帯導線の提携が作りやすい。"
   },
@@ -465,7 +466,7 @@
     "official_url": "https://www.google.com/search?q=Osaka+Guesthouse+NEST+official",
     "price": "¥3,000〜",
     "price_num": 3000,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ゲストハウス,長期滞在,大阪市内,提携向き",
     "description": "ゲストハウスは提携施策（割引コード/体験紹介）を入れやすい。運用面でも融通が効きやすい。"
   },
@@ -479,7 +480,7 @@
     "official_url": "https://www.google.com/search?q=Bijou+Suites+Osaka+official",
     "price": "¥12,000〜",
     "price_num": 12000,
-    "hotel_type": "町家",
+    "hotel_type": "mid",
     "tags": "一棟貸し,グループ,ファミリー,長期滞在,提携向き",
     "description": "一棟貸し系が多く、体験/飲食の“セット提案”で単価を作りやすい。"
   },
@@ -493,7 +494,7 @@
     "official_url": "https://www.google.com/search?q=Hotel+Taiyo+Osaka+official",
     "price": "¥4,500〜",
     "price_num": 4500,
-    "hotel_type": "コスパ",
+    "hotel_type": "value",
     "tags": "コスパ,長期滞在,新今宮,インバウンド,提携向き",
     "description": "価格帯が強く、送客数を作りやすい。低予算向けの飲食/体験提携と相性が良い。"
   },
@@ -507,7 +508,7 @@
     "official_url": "https://u-en.hostel-osaka.com/",
     "price": "¥3,800〜",
     "price_num": 3800,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ホステル,福島,梅田近い,交流,提携向き",
     "description": "福島エリアの飲食導線が強い。食提案やはしご酒企画などの提携が作りやすい。"
   },
@@ -521,7 +522,7 @@
     "official_url": "https://www.thebridgehotel.jp/",
     "price": "¥10,000〜",
     "price_num": 10000,
-    "hotel_type": "中価格",
+    "hotel_type": "mid",
     "tags": "心斎橋,立地,サービス厚め,インバウンド,提携向き",
     "description": "立地とサービスで評価されやすい。体験/飲食との相互送客（特典付き）を載せやすい。"
   },
@@ -535,7 +536,7 @@
     "official_url": "https://www.google.com/search?q=Hotel+Kuramoto+Osaka+official",
     "price": "¥9,000〜",
     "price_num": 9000,
-    "hotel_type": "中価格",
+    "hotel_type": "mid",
     "tags": "和風,温浴,難波近い,日本橋,提携向き",
     "description": "和風・温浴系の要素があり、夜の飲食/体験提案と組みやすい。"
   },
@@ -549,7 +550,7 @@
     "official_url": "https://www.google.com/search?q=Osaka+Guesthouse+Sakura+official",
     "price": "¥3,200〜",
     "price_num": 3200,
-    "hotel_type": "ホステル",
+    "hotel_type": "value",
     "tags": "ゲストハウス,安い,交流,大阪市内,提携向き",
     "description": "低価格レンジで数を作りやすい。周辺の飲食/体験送客で価値を出しやすい。"
   },
@@ -563,7 +564,7 @@
     "official_url": "https://www.google.com/search?q=Hotel+Sanrriott+Shinsaibashi+official",
     "price": "¥8,500〜",
     "price_num": 8500,
-    "hotel_type": "コスパ",
+    "hotel_type": "value",
     "tags": "心斎橋,コスパ,都市型,提携向き,要表記確認",
     "description": "※名称の表記ゆれ可能性あり（Sanriott/Sanrio等）。運用前に正式名称・公式URLの確定推奨。"
   },
@@ -580,7 +581,7 @@
     "official_url": "https://www.asukasou.com/",
     "price": "¥22,000〜",
     "price_num": 22000,
-    "hotel_type": "mid",
+    "hotel_type": ["mid", "ryokan"],
     "description": "奈良公園至近の老舗旅館。寺社巡りや鹿観光との導線が非常に組みやすい。",
     "tags": "旅館,奈良公園,老舗,観光動線"
   },
@@ -612,7 +613,7 @@
     "official_url": "https://www.n-wakasa.com/",
     "price": "¥25,000〜",
     "price_num": 25000,
-    "hotel_type": "luxury",
+    "hotel_type": ["luxury", "ryokan"],
     "description": "屋上庭園と展望風呂が特徴。記念日・高単価提携に向く。",
     "tags": "旅館,高級,露天風呂,記念日"
   },
@@ -628,7 +629,7 @@
     "official_url": "https://www.nara-mikasa.com/",
     "price": "¥30,000〜",
     "price_num": 30000,
-    "hotel_type": "luxury",
+    "hotel_type": ["luxury", "ryokan"],
     "description": "若草山中腹の展望旅館。非日常体験型の提案が可能。",
     "tags": "旅館,展望,高級,非日常"
   },
@@ -644,7 +645,7 @@
     "official_url": "https://www.tsukihitei.com/",
     "price": "¥40,000〜",
     "price_num": 40000,
-    "hotel_type": "luxury",
+    "hotel_type": ["luxury", "ryokan"],
     "description": "原始林に囲まれた料亭旅館。富裕層・特別体験向け。",
     "tags": "料亭旅館,高級,自然,特別体験"
   },
@@ -660,7 +661,7 @@
     "official_url": "https://www.yoshidaya-nara.com/",
     "price": "¥12,000〜",
     "price_num": 12000,
-    "hotel_type": "value",
+    "hotel_type": ["value", "ryokan"],
     "description": "興福寺近くの家庭的な旅館。個人旅行者向け提携に向く。",
     "tags": "旅館,興福寺,コスパ,個人向け"
   },
@@ -676,7 +677,7 @@
     "official_url": "https://www.ryokan-matsumae.com/",
     "price": "¥10,000〜",
     "price_num": 10000,
-    "hotel_type": "value",
+    "hotel_type": ["value", "ryokan"],
     "description": "ならまち中心の小規模旅館。街歩き体験との相性が良い。",
     "tags": "旅館,ならまち,小規模,街歩き"
   },
@@ -692,7 +693,7 @@
     "official_url": "https://www.nara-ryokan.com/",
     "price": "¥9,000〜",
     "price_num": 9000,
-    "hotel_type": "value",
+    "hotel_type": ["value", "ryokan"],
     "description": "海外個人旅行者にも強い町家風旅館。",
     "tags": "旅館,町家風,インバウンド,コスパ"
   },
@@ -708,7 +709,7 @@
     "official_url": "https://www.rokumeikan-nara.com/",
     "price": "¥20,000〜",
     "price_num": 20000,
-    "hotel_type": "mid",
+    "hotel_type": ["mid", "ryokan"],
     "description": "奈良公園前の和風旅館。観光送客が非常にしやすい。",
     "tags": "旅館,奈良公園,和風,立地良"
   },
@@ -740,7 +741,7 @@
     "official_url": "https://kamunabi.jp/",
     "price": "¥8,000〜",
     "price_num": 8000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "ならまち中心のゲストハウス。体験連携が非常にしやすい。",
     "tags": "ゲストハウス,ならまち,個人経営,体験向き"
   },
@@ -756,7 +757,7 @@
     "official_url": "https://www.nara-backpackers.com/",
     "price": "¥3,500〜",
     "price_num": 3500,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "インバウンド比率が高い老舗ゲストハウス。",
     "tags": "ホステル,インバウンド,ならまち,交流"
   },
@@ -772,7 +773,7 @@
     "official_url": "https://guesthouse-tamura.com/",
     "price": "¥3,800〜",
     "price_num": 3800,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "家庭的な雰囲気で長期滞在向け。",
     "tags": "ゲストハウス,家庭的,長期滞在,ならまち"
   },
@@ -788,7 +789,7 @@
     "official_url": "https://www.guesthouse3f.com/",
     "price": "¥4,000〜",
     "price_num": 4000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "駅近で使いやすいゲストハウス。",
     "tags": "ゲストハウス,駅近,コスパ"
   },
@@ -804,7 +805,7 @@
     "official_url": "https://tsubakiso.com/",
     "price": "¥4,500〜",
     "price_num": 4500,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "ならまち中心の町家ゲストハウス。",
     "tags": "町家,ゲストハウス,ならまち"
   },
@@ -820,7 +821,7 @@
     "official_url": "https://guesthouse-iki.com/",
     "price": "¥4,000〜",
     "price_num": 4000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "静かな立地で落ち着いた滞在が可能。",
     "tags": "ゲストハウス,静か,ならまち"
   },
@@ -836,7 +837,7 @@
     "official_url": "https://guesthouse-oku.com/",
     "price": "¥4,000〜",
     "price_num": 4000,
-    "hotel_type": "hostel",
+    "hotel_type": "value",
     "description": "奈良町の奥に位置する静かな宿。",
     "tags": "ゲストハウス,奈良町,静か"
   },
@@ -852,10 +853,11 @@
     "official_url": "https://www.seikanso-nara.com/",
     "price": "¥11,000〜",
     "price_num": 11000,
-    "hotel_type": "value",
+    "hotel_type": ["value", "ryokan"],
     "description": "静かな環境の和風旅館。長期滞在や落ち着いた層向け。",
     "tags": "旅館,静か,和風,郊外"
   }
 ]
+
 
 
