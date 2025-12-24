@@ -378,13 +378,48 @@ def _normalize_hotel_type(label: str) -> str:
         "こだわらない": "",
     }
     return m.get(label, "")
+def _normalize_hotel_type_value(v: Any) -> str:
+    """
+    master 側の hotel_type/type が
+    '高級' / 'luxury' / 'Luxury' / 'LUX' みたいに揺れても
+    'luxury'/'mid'/'value'/'ryokan' に寄せる
+    """
+    s = ("" if v is None else str(v)).strip().lower()
+
+    # 日本語 → 正規化
+    ja_map = {
+        "高級": "luxury",
+        "中価格": "mid",
+        "コスパ": "value",
+        "和風旅館": "ryokan",
+        "旅館": "ryokan",
+    }
+    if s in [k.lower() for k in ja_map.keys()]:
+        # 元のキーが日本語なので再検索
+        for k, vv in ja_map.items():
+            if s == k.lower():
+                return vv
+
+    # 英語っぽい揺れ → 正規化
+    en_map = {
+        "luxury": "luxury",
+        "high": "luxury",
+        "premium": "luxury",
+        "mid": "mid",
+        "middle": "mid",
+        "standard": "mid",
+        "value": "value",
+        "budget": "value",
+        "cospa": "value",
+        "ryokan": "ryokan",
+        "japanese inn": "ryokan",
+        "inn": "ryokan",
+    }
+    return en_map.get(s, s)
 
 def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) -> List[Dict[str, Any]]:
-    """
-    現在地は使わない。pref と hotel_type で絞って返す。
-    """
-    pref = _normalize_pref_name(pref)  # "大阪府"→"大阪" などに揃える
-    ht = _normalize_hotel_type(hotel_label)
+    pref = _normalize_pref_name(pref)
+    ht = _normalize_hotel_type(hotel_label)   # UI(高級)→ 'luxury' 等
 
     results = []
     for sp in HOTEL_MASTER.values():
@@ -395,28 +430,35 @@ def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) 
         if pref and sp_pref and sp_pref != pref:
             continue
 
-        if ht and sp.get("hotel_type") != ht:
+        # ★ hotel_type のキー揺れも吸収（hotel_type / type / hotelType）
+        sp_ht_raw = sp.get("hotel_type")
+        if sp_ht_raw is None:
+            sp_ht_raw = sp.get("type")
+        if sp_ht_raw is None:
+            sp_ht_raw = sp.get("hotelType")
+
+        sp_ht = _normalize_hotel_type_value(sp_ht_raw)
+
+        # ★ ここで正規化同士で比較
+        if ht and sp_ht != ht:
             continue
 
-        # 必須：official_url は核
         if not sp.get("official_url"):
             continue
-
-        # price_num は検索精度の核なので無ければ除外推奨（要件次第で緩めてもOK）
         if sp.get("price_num") in (None, "", 0):
             continue
 
         results.append(sp)
 
-    # 価格があるなら安い順にしとく（好みで変えてOK）
     def _pn(x):
         try:
             return int(x.get("price_num"))
         except Exception:
             return 10**12
-    results.sort(key=_pn)
 
+    results.sort(key=_pn)
     return results[:limit]
+
 
 def _normalize_food_genre(label: str) -> str:
     # CUISINES のラベル → tags検索用キーワード寄せ
@@ -3622,6 +3664,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
