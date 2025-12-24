@@ -60,6 +60,9 @@ except FileNotFoundError:
     EXPERIENCE_MASTER = {}
 
 # ====================== マスターデータ（観光地）読込 ======================
+HOTEL_MASTER: Dict[str, Any] = {}
+HOTEL_MASTER = _load_master_json("data/hotel_master.json")
+
 EXPERIENCE_MASTER = {}
 
 try:
@@ -363,6 +366,57 @@ def _distance_km(lat1, lon1, lat2, lon2):
     dlambda = math.radians(lon2 - lon1)
     a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
+def _normalize_hotel_type(label: str) -> str:
+    """
+    UIのHOTELS（日本語）→ マスターの正規化hotel_typeへ寄せる
+    """
+    m = {
+        "高級": "luxury",
+        "中価格": "mid",
+        "コスパ": "value",
+        "和風旅館": "ryokan",   # ←あなたの正規化が "ryokan" ならこれでOK
+        "こだわらない": "",
+    }
+    return m.get(label, "")
+
+def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) -> List[Dict[str, Any]]:
+    """
+    現在地は使わない。pref と hotel_type で絞って返す。
+    """
+    pref = _normalize_pref_name(pref)  # "大阪府"→"大阪" などに揃える
+    ht = _normalize_hotel_type(hotel_label)
+
+    results = []
+    for sp in HOTEL_MASTER.values():
+        if not isinstance(sp, dict):
+            continue
+
+        sp_pref = _normalize_pref_name(sp.get("pref", ""))
+        if pref and sp_pref and sp_pref != pref:
+            continue
+
+        if ht and sp.get("hotel_type") != ht:
+            continue
+
+        # 必須：official_url は核
+        if not sp.get("official_url"):
+            continue
+
+        # price_num は検索精度の核なので無ければ除外推奨（要件次第で緩めてもOK）
+        if sp.get("price_num") in (None, "", 0):
+            continue
+
+        results.append(sp)
+
+    # 価格があるなら安い順にしとく（好みで変えてOK）
+    def _pn(x):
+        try:
+            return int(x.get("price_num"))
+        except Exception:
+            return 10**12
+    results.sort(key=_pn)
+
+    return results[:limit]
 
 def _normalize_food_genre(label: str) -> str:
     # CUISINES のラベル → tags検索用キーワード寄せ
@@ -1466,6 +1520,42 @@ def _carousel_from_items(header_title: str, items: List[Dict[str, str]]) -> Temp
         alt_text=header_title,
         template=CarouselTemplate(columns=columns)
     )
+def _push_hotels_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: str):
+    is_en = str(lang).lower().startswith("e")
+    header_text = "🏨 条件に合うホテルを3件ご提案します👇" if not is_en else "🏨 Here are 3 hotels 👇"
+
+    messages = [TextSendMessage(text=header_text)]
+    items_for_carousel = []
+
+    for i, sp in enumerate(spots[:3]):
+        title = sp.get("name", "")[:40] or "Hotel"
+        # price 表示用 + タイプ + 一言
+        price = sp.get("price", "")
+        ht = sp.get("hotel_type", "")
+        desc = (sp.get("description") or "")[:40]
+        subtitle = f"{price} / {ht} / {desc}".strip()[:60] or " "
+
+        # map_url 無い場合は geo から生成
+        map_url = sp.get("map_url") or ""
+        latlng = get_geo(sp)
+        if not map_url and latlng:
+            map_url = f"https://www.google.com/maps/search/?api=1&query={latlng[0]},{latlng[1]}"
+
+        items_for_carousel.append({
+            "title": title,
+            "subtitle": subtitle,
+            "official": sp.get("official_url") or "",
+            "map": map_url,
+            "image": _pick_carousel_image("hotel", i, REQUEST_IMAGE_URLS.get("ホテル")),
+            "spot_type": "hotel",
+            "affiliate_url": "",
+        })
+
+        messages.append(TextSendMessage(text=f"🏨 {title}\n{subtitle}"))
+
+    messages.append(_carousel_from_items("🏨 ホテル（マスターデータ）", items_for_carousel))
+    _push_messages_in_chunks(uid, messages, size=5)
+    
 def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: str):
     is_en = str(lang).lower().startswith("e")
     header_text = "🎯 条件に合う体験スポットを3件ご提案します👇" if not is_en else "🎯 Here are 3 experience spots 👇"
@@ -2717,11 +2807,12 @@ def _send_finish_menu(uid: str, lang: str):
 
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     """
-    ✅ 完全版（ホテル/飲食店/体験/観光地/日程表 + AI観光モードは別）
+    ✅ 完全版（ホテル/飲食店/体験/観光地/日程表）
+    - ホテル：hotel_master.json から検索（※現在地は使わない）
     - 飲食店：food_master.json から検索（必須: geo, official_url, open_hours, price）
     - 体験：experience_master.json から検索（近傍 or 県×ジャンル）
-    - 観光地：sightseeing_master から県でランダム3件（または現在地近傍は LocationMessage 側で処理済み）
-    - ホテル/日程表：OpenAI生成（既存関数を利用）
+    - 観光地：sightseeing_master から県で3件
+    - 日程表：OpenAI生成（既存関数を利用）
     """
 
     # --- 言語を取得＆記録 ---
@@ -2744,12 +2835,42 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         ]
         return all(x is not None and str(x).strip() != "" for x in must)
 
+    def _is_hotel_complete(sp: Dict[str, Any]) -> bool:
+        g = sp.get("geo") or {}
+        must = [
+            sp.get("official_url"),
+            sp.get("price"),
+            sp.get("price_num"),
+            sp.get("hotel_type"),
+            g.get("lat"), g.get("lng"),
+        ]
+        return all(x is not None and str(x).strip() != "" for x in must)
+
     # =========================
-    # ① ホテル（OpenAI）
+    # ① ホテル（マスターデータ駆動）※現在地は使わない
     # =========================
     if req in {"ホテル", "Hotels"}:
-        hotels_text = _call_openai_text(build_hotel3_prompt(answers, lang), lang)
-        _send_hotels_three(uid, reply_token, hotels_text, lang)
+        pref = answers.get("pref", "")          # "大阪" / "京都" / "奈良" ...
+        hotel_label = answers.get("hotel", "")  # "高級" / "中価格" / "コスパ" / "和風旅館" / "こだわらない"
+
+        # あなたが追加した検索関数
+        spots = _search_hotel_master(pref=pref, hotel_label=hotel_label, limit=20)
+        spots = [sp for sp in spots if _is_hotel_complete(sp)][:3]
+
+        if not spots:
+            msg = (
+                "条件に合うホテル（マスター）が見つかりませんでした。"
+                if not is_en else
+                "No matching hotels found in master."
+            )
+            line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+            return
+
+        head = "🏨 ホテル候補を送ります👇" if not is_en else "🏨 Sending hotel options 👇"
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=head))
+
+        # あなたが追加した送信関数（カルーセル）
+        _push_hotels_three_from_master(uid, spots, lang=lang)
         return
 
     # =========================
@@ -2782,7 +2903,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
             return
 
-        # replyは1回だけ → 続きはpushで送る（5件制限対策）
         head = "🍽 飲食店候補を送ります👇" if not is_en else "🍽 Sending restaurant options 👇"
         line_bot_api.reply_message(reply_token, TextSendMessage(text=head))
         _push_foods_three_from_master(uid, spots, lang=lang)
@@ -2811,7 +2931,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
             return
 
-        # push送信（experienceは既存仕様通り）
         line_bot_api.reply_message(reply_token, TextSendMessage(
             text=("🎯 体験スポット候補を送ります👇" if not is_en else "🎯 Sending experience options 👇")
         ))
@@ -2819,14 +2938,13 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         return
 
     # =========================
-    # ④ 観光地（マスターデータから県で3件ランダム）
-    # ※「現在地から近く」は LocationMessage 側で処理済み（近傍検索→終了）
+    # ④ 観光地（マスターデータから県で3件）
     # =========================
     if req in {"観光地", "Sightseeing"}:
         import random
 
-        pref_answer = answers.get("pref")          # 例: "京都" or "現在地から近く"
-        lang_code = _get_lang_code(answers)        # 'ja' or 'en'
+        pref_answer = answers.get("pref")     # 例: "京都"
+        lang_code = _get_lang_code(answers)   # 'ja' or 'en'
 
         def _norm_pref(s: str) -> str:
             if not isinstance(s, str):
@@ -2845,19 +2963,16 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 return imgs.strip()
             return REQUEST_IMAGE_URLS.get("観光地")
 
-        # 県抽出
         candidates: List[Dict[str, Any]] = []
         for sp in SIGHTSEEING_MASTER.values():
             if not isinstance(sp, dict):
                 continue
-
             if lang_code == "ja":
                 if _norm_pref(sp.get("pref", "")) != _norm_pref(pref_answer):
                     continue
             else:
                 if sp.get("pref_en") != pref_answer:
                     continue
-
             candidates.append(sp)
 
         if not candidates:
@@ -2878,10 +2993,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             else "🤖 Here are 3 sightseeing spots for you ✨"
         )
 
-        messages = [TextSendMessage(text=header_text)]
-
-        # テキスト詳細（2件までに抑えると reply5件に収まりやすいが、ここは既存踏襲でpushに寄せる）
-        # まず reply はヘッダー+カルーセルだけにして、詳細はpushで流す
         items_for_carousel = []
         for sp in picked:
             if lang_code == "ja":
@@ -2902,30 +3013,10 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             })
 
         carousel_title = "🏯 観光地（マスターデータ）" if lang_code == "ja" else "🏯 Sightseeing (from master)"
-        messages.append(_carousel_from_items(carousel_title, items_for_carousel))
-
-        # reply（2件）
-        line_bot_api.reply_message(reply_token, messages[:5])
-
-        # 詳細は push
-        for sp in picked:
-            if lang_code == "ja":
-                name = sp.get("name", "")
-                area = sp.get("area", "")
-                desc = sp.get("description", "") or ""
-                price = sp.get("price", "情報なし")
-                hours = sp.get("open_hours", "情報なし")
-                body = f"🛕 {name}（{area}）\n{desc}\n\n💰 料金目安：{price}\n🕰 営業：{hours}"
-            else:
-                name = sp.get("name_en") or sp.get("name", "")
-                area = sp.get("area", "")
-                desc = sp.get("description_en") or sp.get("description", "") or ""
-                price = sp.get("price", "N/A")
-                hours = sp.get("open_hours", "N/A")
-                body = f"🛕 {name} ({area})\n{desc}\n\n💰 Price: {price}\n🕰 Hours: {hours}"
-
-            line_bot_api.push_message(uid, TextSendMessage(text=body))
-
+        line_bot_api.reply_message(reply_token, [
+            TextSendMessage(text=header_text),
+            _carousel_from_items(carousel_title, items_for_carousel),
+        ])
         return
 
     # =========================
@@ -3414,6 +3505,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
