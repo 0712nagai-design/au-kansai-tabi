@@ -60,8 +60,7 @@ except FileNotFoundError:
     EXPERIENCE_MASTER = {}
 
 # ====================== マスターデータ（観光地）読込 ======================
-HOTEL_MASTER: Dict[str, Any] = {}
-HOTEL_MASTER = _load_master_json("data/hotel_master.json")
+
 
 EXPERIENCE_MASTER = {}
 
@@ -99,7 +98,8 @@ def _load_master_json(path: str) -> Dict[str, Any]:
         return {}
     except Exception:
         return {}
-
+HOTEL_MASTER: Dict[str, Any] = {}
+HOTEL_MASTER = _load_master_json("data/hotel_master.json")
 FOOD_MASTER = _load_master_json("data/food_master.json")
 
 SIGHTSEEING_MASTER = {}
@@ -3505,6 +3505,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
