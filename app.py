@@ -1563,18 +1563,53 @@ def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], l
     messages = [TextSendMessage(text=header_text)]
     items_for_carousel = []
 
-    for i, sp in enumerate(spots[:3]):
-        title = sp.get("name", "")[:40] or "Experience"
-        desc = (sp.get("description") or "")[:60] or " "
+    def _fmt(v: Any, fallback_ja="情報なし", fallback_en="N/A") -> str:
+        s = ("" if v is None else str(v)).strip()
+        if s:
+            return s
+        return fallback_en if is_en else fallback_ja
 
+    for i, sp in enumerate(spots[:3]):
+        title = sp.get("name", "")[:40] or ("Experience" if is_en else "体験スポット")
+        desc  = (sp.get("description") or "").strip()
+
+        # ★ 追加：営業時間・料金
+        hours = _fmt(sp.get("open_hours"))
+        price = _fmt(sp.get("price"))
+
+        # map_url 無い場合は geo から生成
         latlng = get_geo(sp)
         map_url = sp.get("map_url") or ""
         if not map_url and latlng:
             map_url = f"https://www.google.com/maps/search/?api=1&query={latlng[0]},{latlng[1]}"
 
+        # --- テキスト表示（スクショで出てる部分）を強化 ---
+        if not is_en:
+            body = (
+                f"🎯 {title}\n"
+                f"{desc}\n\n"
+                f"🕒 営業時間：{hours}\n"
+                f"💴 料金：{price}"
+            )
+        else:
+            body = (
+                f"🎯 {title}\n"
+                f"{desc}\n\n"
+                f"🕒 Hours: {hours}\n"
+                f"💴 Price: {price}"
+            )
+        messages.append(TextSendMessage(text=body))
+
+        # --- カルーセルの subtitle も「説明＋営業時間＋料金」にする（60文字制限あり） ---
+        if not is_en:
+            subtitle = f"{(desc[:34] if desc else '')}  🕒{hours}  💴{price}"
+        else:
+            subtitle = f"{(desc[:34] if desc else '')}  🕒{hours}  💴{price}"
+        subtitle = subtitle[:60] if subtitle else " "
+
         items_for_carousel.append({
-            "title": title,
-            "subtitle": desc,
+            "title": title[:40],
+            "subtitle": subtitle,
             "official": sp.get("official_url") or "",
             "map": map_url,
             "image": _pick_carousel_image("experience", i, REQUEST_IMAGE_URLS.get("体験スポット")),
@@ -1582,11 +1617,9 @@ def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], l
             "affiliate_url": "",
         })
 
-        messages.append(TextSendMessage(text=f"🎯 {title}\n{desc}"))
-
     messages.append(_carousel_from_items("🎯 体験スポット（マスターデータ）", items_for_carousel))
-
     _push_messages_in_chunks(uid, messages, size=5)
+
 
 def _push_foods_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: str):
     is_en = str(lang).lower().startswith("e")
@@ -3505,6 +3538,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
