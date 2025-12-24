@@ -1558,9 +1558,10 @@ def _push_hotels_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: 
     
 def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: str):
     is_en = str(lang).lower().startswith("e")
-    header_text = "🎯 条件に合う体験スポットを3件ご提案します👇" if not is_en else "🎯 Here are 3 experience spots 👇"
 
-    messages = [TextSendMessage(text=header_text)]
+    header_text = "🎯 条件に合う体験スポットを3件ご提案します👇" if not is_en else "🎯 Here are 3 experience spots 👇"
+    line_bot_api.push_message(uid, TextSendMessage(text=header_text))
+
     items_for_carousel = []
 
     def _fmt(v: Any, fallback_ja="情報なし", fallback_en="N/A") -> str:
@@ -1570,8 +1571,10 @@ def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], l
         return fallback_en if is_en else fallback_ja
 
     for i, sp in enumerate(spots[:3]):
-        title = sp.get("name", "")[:40] or ("Experience" if is_en else "体験スポット")
+        title = (sp.get("name") or "").strip() or ("Experience" if is_en else "体験スポット")
         desc  = (sp.get("description") or "").strip()
+        if not desc:
+            desc = "説明なし" if not is_en else "No description."
 
         # ★ 追加：営業時間・料金
         hours = _fmt(sp.get("open_hours"))
@@ -1579,11 +1582,11 @@ def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], l
 
         # map_url 無い場合は geo から生成
         latlng = get_geo(sp)
-        map_url = sp.get("map_url") or ""
+        map_url = (sp.get("map_url") or "").strip()
         if not map_url and latlng:
             map_url = f"https://www.google.com/maps/search/?api=1&query={latlng[0]},{latlng[1]}"
 
-        # --- テキスト表示（スクショで出てる部分）を強化 ---
+        # --- 1件ずつの説明テキスト（必ず出す） ---
         if not is_en:
             body = (
                 f"🎯 {title}\n"
@@ -1598,27 +1601,24 @@ def _push_experiences_three_from_master(uid: str, spots: List[Dict[str, Any]], l
                 f"🕒 Hours: {hours}\n"
                 f"💴 Price: {price}"
             )
-        messages.append(TextSendMessage(text=body))
+        line_bot_api.push_message(uid, TextSendMessage(text=body))
 
-        # --- カルーセルの subtitle も「説明＋営業時間＋料金」にする（60文字制限あり） ---
-        if not is_en:
-            subtitle = f"{(desc[:34] if desc else '')}  🕒{hours}  💴{price}"
-        else:
-            subtitle = f"{(desc[:34] if desc else '')}  🕒{hours}  💴{price}"
+        # --- カルーセル subtitle（60文字制限） ---
+        subtitle = f"{desc} / 🕒{hours} / 💴{price}"
         subtitle = subtitle[:60] if subtitle else " "
 
         items_for_carousel.append({
             "title": title[:40],
             "subtitle": subtitle,
-            "official": sp.get("official_url") or "",
+            "official": (sp.get("official_url") or "").strip(),
             "map": map_url,
             "image": _pick_carousel_image("experience", i, REQUEST_IMAGE_URLS.get("体験スポット")),
             "spot_type": "experience",
             "affiliate_url": "",
         })
 
-    messages.append(_carousel_from_items("🎯 体験スポット（マスターデータ）", items_for_carousel))
-    _push_messages_in_chunks(uid, messages, size=5)
+    # --- 最後にカルーセル（必ず出す） ---
+    line_bot_api.push_message(uid, _carousel_from_items("🎯 体験スポット（マスターデータ）", items_for_carousel))
 
 
 def _push_foods_three_from_master(uid: str, spots: List[Dict[str, Any]], lang: str):
@@ -3538,6 +3538,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
