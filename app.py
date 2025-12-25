@@ -419,18 +419,20 @@ def _normalize_hotel_type_value(v: Any) -> str:
 
 def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) -> List[Dict[str, Any]]:
     pref = _normalize_pref_name(pref)
-    ht = _normalize_hotel_type(hotel_label)   # UI(高級)→ 'luxury' 等
+    ht = _normalize_hotel_type(hotel_label)   # UI(高級)→ 'luxury' 等 / こだわらない→''
 
-    results = []
+    results: List[Dict[str, Any]] = []
+
     for sp in HOTEL_MASTER.values():
         if not isinstance(sp, dict):
             continue
 
+        # 都道府県フィルタ
         sp_pref = _normalize_pref_name(sp.get("pref", ""))
         if pref and sp_pref and sp_pref != pref:
             continue
 
-        # ★ hotel_type のキー揺れも吸収（hotel_type / type / hotelType）
+        # hotel_type を masterから取る（あれば優先）
         sp_ht_raw = sp.get("hotel_type")
         if sp_ht_raw is None:
             sp_ht_raw = sp.get("type")
@@ -439,10 +441,15 @@ def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) 
 
         sp_ht = _normalize_hotel_type_value(sp_ht_raw)
 
-        # ★ ここで正規化同士で比較
+        # ★ hotel_typeが無い / 空なら tagsから推定
+        if not sp_ht:
+            sp_ht = _hotel_type_from_tags(sp.get("tags"))
+
+        # ★ UIが「こだわらない」以外ならタイプ一致を要求
         if ht and sp_ht != ht:
             continue
 
+        # 必須条件（いままで通り）
         if not sp.get("official_url"):
             continue
         if sp.get("price_num") in (None, "", 0):
@@ -458,6 +465,7 @@ def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) 
 
     results.sort(key=_pn)
     return results[:limit]
+
 
 
 def _normalize_food_genre(label: str) -> str:
@@ -3664,6 +3672,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
