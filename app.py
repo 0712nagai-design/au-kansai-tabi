@@ -378,6 +378,38 @@ def _normalize_hotel_type(label: str) -> str:
         "こだわらない": "",
     }
     return m.get(label, "")
+import re
+from typing import Any, List
+
+def _extract_tags(v: Any) -> List[str]:
+    if v is None:
+        return []
+    if isinstance(v, list):
+        return [str(x).strip() for x in v if str(x).strip()]
+    s = str(v).strip()
+    if not s:
+        return []
+    # カンマ/読点/スラッシュ/空白 を全部区切りとして扱う
+    parts = re.split(r"[,\u3001/|\s]+", s)
+    return [p.strip() for p in parts if p.strip()]
+
+def _hotel_type_from_tags(tags: Any) -> str:
+    ts = set(_extract_tags(tags))
+
+    # まずは和風旅館系
+    if "和風旅館" in ts or "旅館" in ts or "ryokan" in {t.lower() for t in ts}:
+        return "ryokan"
+
+    # 次に価格帯系
+    if "高級" in ts:
+        return "luxury"
+    if "中価格" in ts or "ミドル" in ts:
+        return "mid"
+    if "コスパ" in ts or "格安" in ts or "安い" in ts:
+        return "value"
+
+    return ""
+    
 def _normalize_hotel_type_value(v: Any) -> str:
     """
     master 側の hotel_type/type が
@@ -3672,6 +3704,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
