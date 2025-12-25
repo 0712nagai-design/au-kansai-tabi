@@ -384,65 +384,92 @@ from typing import Any, List
 import re
 from typing import Any, Dict, List
 
+import re
+from typing import Any, Dict, List, Tuple
+
 def _extract_tags(v: Any) -> List[str]:
-    """tags が list / str どっちでも受けて、区切りを全部吸収して配列化"""
     if v is None:
         return []
     if isinstance(v, list):
         return [str(x).strip() for x in v if str(x).strip()]
-
     s = str(v).strip()
     if not s:
         return []
-
-    # 区切り: , 、 / | 空白 全角スペース ・(中点)
-    parts = re.split(r"[,\u3001/|\s\u3000\u30fb]+", s)  # \u30fb = ・
+    parts = re.split(r"[,\u3001/|\s\u3000\u30fb]+", s)  # , 、 / | 空白 全角空白 ・
     return [p.strip() for p in parts if p.strip()]
 
-def _hotel_type_from_tags(tags: Any) -> str:
-    """tags だけから 'luxury'/'mid'/'value'/'ryokan' を推定"""
+def _infer_from_tags(tags: Any) -> Tuple[str, bool]:
+    """
+    return: (tier, is_ryokan)
+      tier: 'luxury'|'mid'|'value'|''
+      is_ryokan: True/False
+    """
     ts = _extract_tags(tags)
     joined = " ".join(ts)
 
-    # ★ 和風旅館は部分一致で強く拾う（温泉旅館、和風、旅館 など）
-    if re.search(r"(和風|旅館|温泉旅館|ryokan|japanese\s*inn|japanese[- ]style)", joined, flags=re.I):
-        return "ryokan"
+    # 形式（旅館）判定
+    is_ryokan = bool(re.search(
+        r"(和風旅館|温泉旅館|旅館|ryokan|japanese\s*inn|japanese[- ]style)",
+        joined, flags=re.I
+    ))
 
-    # 高級/中価格/コスパ も「含む」で拾う（例: "高級ホテル" など）
-    if re.search(r"(高級|ラグジュアリー|luxury|premium|高級ホテル)", joined, flags=re.I):
-        return "luxury"
-    if re.search(r"(中価格|ミドル|standard|mid|middle)", joined, flags=re.I):
-        return "mid"
-    if re.search(r"(コスパ|お得|budget|value|リーズナブル)", joined, flags=re.I):
-        return "value"
+    # 価格帯（tier）判定
+    # ※「高級,和風旅館」なら tier='luxury' かつ is_ryokan=True になる
+    if re.search(r"(高級|ラグジュアリー|luxury|premium)", joined, flags=re.I):
+        tier = "luxury"
+    elif re.search(r"(中価格|ミドル|standard|mid|middle)", joined, flags=re.I):
+        tier = "mid"
+    elif re.search(r"(コスパ|お得|budget|value|リーズナブル)", joined, flags=re.I):
+        tier = "value"
+    else:
+        tier = ""
 
-    return ""
+    return tier, is_ryokan
+
+def _normalize_hotel_label(label: str) -> Tuple[str, bool]:
+    """
+    UI入力を2軸に正規化して返す
+    - tier: luxury/mid/value/''
+    - want_ryokan: True/False
+    """
+    s = (label or "").strip()
+
+    # UIが単一選択しかない前提：和風旅館なら want_ryokan=True
+    if s in ("和風旅館", "旅館"):
+        return "", True
+
+    m = {
+        "高級": "luxury",
+        "中価格": "mid",
+        "コスパ": "value",
+        "こだわらない": "",
+    }
+    return m.get(s, ""), False
 
 def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) -> List[Dict[str, Any]]:
     pref = _normalize_pref_name(pref)
 
-    # UIラベル → 正規化（こだわらない→""）
-    ht = _normalize_hotel_type(hotel_label)
+    want_tier, want_ryokan = _normalize_hotel_label(hotel_label)
 
     results: List[Dict[str, Any]] = []
-
     for sp in HOTEL_MASTER.values():
         if not isinstance(sp, dict):
             continue
 
-        # 都道府県フィルタ
         sp_pref = _normalize_pref_name(sp.get("pref", ""))
         if pref and sp_pref and sp_pref != pref:
             continue
 
-        # ★ hotel_type系は完全無視して tags から推定
-        sp_ht = _hotel_type_from_tags(sp.get("tags"))
+        tier, is_ryokan = _infer_from_tags(sp.get("tags"))
 
-        # UIが「こだわらない」以外ならタイプ一致を要求
-        if ht and sp_ht != ht:
+        # UIが旅館指定なら旅館のみ
+        if want_ryokan and not is_ryokan:
             continue
 
-        # 必須条件
+        # UIが価格帯指定なら価格帯一致（旅館でもホテルでもOK）
+        if want_tier and tier != want_tier:
+            continue
+
         if not sp.get("official_url"):
             continue
         if sp.get("price_num") in (None, "", 0):
@@ -450,14 +477,10 @@ def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) 
 
         results.append(sp)
 
-    def _pn(x):
-        try:
-            return int(x.get("price_num"))
-        except Exception:
-            return 10**12
-
-    results.sort(key=_pn)
+    results.sort(key=lambda x: int(x.get("price_num", 10**12) or 10**12))
     return results[:limit]
+
+
 
 
 def _hotel_type_from_tags(tags: Any) -> str:
@@ -516,54 +539,6 @@ def _normalize_hotel_type_value(v: Any) -> str:
     }
     return en_map.get(s, s)
 
-def _search_hotel_master(pref: str = "", hotel_label: str = "", limit: int = 3) -> List[Dict[str, Any]]:
-    pref = _normalize_pref_name(pref)
-    ht = _normalize_hotel_type(hotel_label)   # UI(高級)→ 'luxury' 等 / こだわらない→''
-
-    results: List[Dict[str, Any]] = []
-
-    for sp in HOTEL_MASTER.values():
-        if not isinstance(sp, dict):
-            continue
-
-        # 都道府県フィルタ
-        sp_pref = _normalize_pref_name(sp.get("pref", ""))
-        if pref and sp_pref and sp_pref != pref:
-            continue
-
-        # hotel_type を masterから取る（あれば優先）
-        sp_ht_raw = sp.get("hotel_type")
-        if sp_ht_raw is None:
-            sp_ht_raw = sp.get("type")
-        if sp_ht_raw is None:
-            sp_ht_raw = sp.get("hotelType")
-
-        sp_ht = _normalize_hotel_type_value(sp_ht_raw)
-
-        # ★ hotel_typeが無い / 空なら tagsから推定
-        if not sp_ht:
-            sp_ht = _hotel_type_from_tags(sp.get("tags"))
-
-        # ★ UIが「こだわらない」以外ならタイプ一致を要求
-        if ht and sp_ht != ht:
-            continue
-
-        # 必須条件（いままで通り）
-        if not sp.get("official_url"):
-            continue
-        if sp.get("price_num") in (None, "", 0):
-            continue
-
-        results.append(sp)
-
-    def _pn(x):
-        try:
-            return int(x.get("price_num"))
-        except Exception:
-            return 10**12
-
-    results.sort(key=_pn)
-    return results[:limit]
 
 
 
@@ -3771,6 +3746,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
