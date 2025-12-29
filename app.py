@@ -356,6 +356,10 @@ def _get_near_experience_from_master(geo: Dict[str, Any], max_km: float = 10.0, 
     scored.sort(key=lambda x: x[0])
     return [sp for _, sp in scored[:limit]]
 
+def normalize_state(state: dict) -> dict:
+    # 人数は聞かないが、下流が参照しても落ちないようにする
+    state.setdefault("people", 2)
+    return state
 
     
 
@@ -3753,6 +3757,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
