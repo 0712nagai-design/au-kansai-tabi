@@ -832,7 +832,6 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     # ===================== 体験スポット =====================
     if req == "体験スポット":
         pref_choices   = AREAS_EXP
-        people_choices = PEOPLE_EXP
         comp_choices   = COMPANION_EXP
         genre_choices  = EXP_GENRES
 
@@ -3747,6 +3746,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
