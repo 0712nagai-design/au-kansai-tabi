@@ -3014,16 +3014,16 @@ def _send_finish_menu(uid: str, lang: str):
 
 def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     """
-    ✅ 完全版（ホテル/飲食店/体験/観光地/日程表）
+    ✅ send_plan_parts() 最新版（人数質問を外しても落ちない）
     - ホテル：hotel_master.json から検索（※現在地は使わない）
     - 飲食店：food_master.json から検索（現在地 or 県×ジャンル）
     - 体験：experience_master.json から検索（現在地 or 県×ジャンル）
       ★体験は reply 5件に収めて「説明もカルーセルも確実に出る」方式
     - 観光地：sightseeing_master から県 or 現在地近傍
-    - 日程表：OpenAI生成
+    - 日程表：OpenAI生成（people が無くても動く）
     """
 
-    # --- 言語を取得＆記録 ---
+    # --- 言語を取得＆記録（日本語固定運用でも壊れない） ---
     lang = answers.get("lang", LAST_LANG.get(uid, "日本語"))
     LAST_LANG[uid] = lang
     is_en = str(lang).lower().startswith("e")
@@ -3033,7 +3033,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # =========================
     # ユーティリティ（必須条件チェック）
     # =========================
-    def _is_food_complete(sp: Dict[str, Any]) -> bool:
+    def _is_food_complete_local(sp: Dict[str, Any]) -> bool:
         g = sp.get("geo") or {}
         must = [
             g.get("lat"), g.get("lng"),
@@ -3043,23 +3043,22 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         ]
         return all(x is not None and str(x).strip() != "" for x in must)
 
-    def _is_hotel_complete(sp: Dict[str, Any]) -> bool:
+    def _is_hotel_complete_local(sp: Dict[str, Any]) -> bool:
         g = sp.get("geo") or {}
         must = [
             sp.get("official_url"),
             sp.get("price"),
             sp.get("price_num"),
-            sp.get("hotel_type"),
+            # hotel_type は tags 推論だけでも動く可能性あるが、表示のため基本必須扱い
+            sp.get("hotel_type") or _hotel_type_from_tags(sp.get("tags")),
             g.get("lat"), g.get("lng"),
         ]
         return all(x is not None and str(x).strip() != "" for x in must)
 
-    def _is_exp_complete(sp: Dict[str, Any]) -> bool:
+    def _is_exp_complete_local(sp: Dict[str, Any]) -> bool:
         g = sp.get("geo") or {}
-        # 体験は多少ゆるめ（description無しでも出す、ただし地図/URLは欲しい）
-        must = [
-            g.get("lat"), g.get("lng"),
-        ]
+        # 体験は最低限 geo があれば出す（URLはあれば嬉しいが足切りすると候補が減りすぎる）
+        must = [g.get("lat"), g.get("lng")]
         return all(x is not None and str(x).strip() != "" for x in must)
 
     def _safe_reply_text(msg_ja: str, msg_en: str):
@@ -3075,21 +3074,30 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         pref = answers.get("pref", "")          # "大阪" / "京都" / "奈良" ...
         hotel_label = answers.get("hotel", "")  # "高級" / "中価格" / "コスパ" / "和風旅館" / "こだわらない"
 
-        spots = _search_hotel_master(pref=pref, hotel_label=hotel_label, limit=30)
-        spots = [sp for sp in spots if _is_hotel_complete(sp)][:3]
+        spots = _search_hotel_master(pref=pref, hotel_label=hotel_label, limit=50)
+        # hotel_type 欄が無いデータでも tags 推論で補う
+        fixed = []
+        for sp in spots:
+            if not isinstance(sp, dict):
+                continue
+            if not sp.get("hotel_type"):
+                sp = dict(sp)
+                sp["hotel_type"] = _hotel_type_from_tags(sp.get("tags"))
+            if _is_hotel_complete_local(sp):
+                fixed.append(sp)
 
-        if not spots:
+        picked = fixed[:3]
+        if not picked:
             _safe_reply_text(
                 "条件に合うホテル（マスター）が見つかりませんでした。",
                 "No matching hotels found in master."
             )
             return
 
-        # ★ 返信は1回だけ（ヘッダー）
+        # reply は1回だけ（ヘッダー）
         _safe_reply_text("🏨 ホテル候補を送ります👇", "🏨 Sending hotel options 👇")
-
-        # ★ 中身は push（pushが使えない環境なら、ホテルも reply 5件方式に揃えるのが安全）
-        _push_hotels_three_from_master(uid, spots, lang=lang)
+        # 中身は push
+        _push_hotels_three_from_master(uid, picked, lang=lang)
         return
 
     # =========================
@@ -3110,14 +3118,14 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                     "To search near you, please send your location first."
                 )
                 return
-            tmp = _get_near_food_from_master(geo, max_km=3.0, limit=50)
-            spots = [sp for sp in tmp if _is_food_complete(sp)][:3]
+            tmp = _get_near_food_from_master(geo, max_km=3.0, limit=80)
+            spots = [sp for sp in tmp if _is_food_complete_local(sp)][:3]
 
         # 2-2) 県×ジャンル
         else:
             pref = area
-            tmp = _search_food_master(pref=pref, area="", cuisine=cuisine, limit=50)
-            spots = [sp for sp in tmp if _is_food_complete(sp)][:3]
+            tmp = _search_food_master(pref=pref, area="", cuisine=cuisine, limit=80)
+            spots = [sp for sp in tmp if _is_food_complete_local(sp)][:3]
 
         if not spots:
             _safe_reply_text(
@@ -3138,7 +3146,6 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         genre = answers.get("exp_genre", "")
         geo = answers.get("geo")
 
-        # 現在地なら近傍検索
         if pref == "現在地から近く":
             if not geo:
                 _safe_reply_text(
@@ -3146,12 +3153,12 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                     "To search near you, please send your location first."
                 )
                 return
-            spots = _get_near_experience_from_master(geo, max_km=10.0, limit=30)
+            candidates = _get_near_experience_from_master(geo, max_km=10.0, limit=60)
         else:
-            spots = _search_experience_master(pref=pref, exp_genre=genre, limit=30)
+            candidates = _search_experience_master(pref=pref, exp_genre=genre, limit=60)
 
-        # 体験は軽く整形（geo無しを落とす）
-        spots = [sp for sp in spots if _is_exp_complete(sp)][:3]
+        # 体験は geo 必須で足切り
+        spots = [sp for sp in candidates if _is_exp_complete_local(sp)][:3]
 
         if not spots:
             _safe_reply_text(
@@ -3160,7 +3167,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
             )
             return
 
-        # ★ここが最重要：体験は reply 5件で完結（push依存を排除）
+        # ★体験は reply 5件で完結（説明3 + カルーセル）
         _reply_experiences_three_from_master(reply_token, spots, lang=lang)
         return
 
@@ -3188,6 +3195,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                     "To search near you, please send your location first."
                 )
                 return
+
             spots = _get_near_sightseeing_from_master(geo, max_km=15.0, limit=3)
             if not spots:
                 _safe_reply_text(
@@ -3196,11 +3204,10 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 )
                 return
 
-            # replyは最大5件に収めている関数なのでOK
             _send_sightseeing_three_from_master(uid, reply_token, spots, lang=lang)
             return
 
-        # 4-2) 県指定 → 県で抽出してランダム3件
+        # 4-2) 県指定 → 県で抽出して3件
         import random
         candidates: List[Dict[str, Any]] = []
         pref_norm = _norm_pref(pref_answer)
@@ -3222,9 +3229,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
         random.shuffle(candidates)
         picked = candidates[:3]
 
-        # reply 2件（テキスト + カルーセル）で完結
         header_text = "🏯 観光地を3件ご提案します👇" if not is_en else "🏯 Here are 3 sightseeing spots 👇"
-        items_for_carousel = []
 
         def _get_spot_image(spot: Dict[str, Any]) -> str:
             imgs = spot.get("images") or []
@@ -3234,6 +3239,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
                 return imgs.strip()
             return REQUEST_IMAGE_URLS.get("観光地")
 
+        items_for_carousel = []
         for sp in picked:
             title = sp.get("name", "") or ("Spot" if is_en else "観光地")
             subtitle = (sp.get("description", "") or "")[:60] or " "
@@ -3258,6 +3264,7 @@ def send_plan_parts(reply_token: str, uid: str, answers: Dict[str, Any]):
     # ⑤ 日程表（OpenAI）
     # =========================
     if req in {"日程表", "Itinerary"}:
+        # people が無い運用でも、プロンプト側が参照してても .get なので落ちない想定
         try:
             schedule = _call_openai_text(build_itinerary_prompt(answers, lang), lang)
             _send_itinerary(uid, reply_token, schedule, lang)
@@ -3746,6 +3753,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
