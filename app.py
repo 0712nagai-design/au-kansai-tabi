@@ -733,7 +733,6 @@ PREFS_KANSAI = {1: "京都", 2: "大阪", 3: "奈良", 4: "兵庫", 5: "滋賀",
 
 # --- ホテル ---
 STAY_PLAN_HOTEL = {1: "日帰り", 2: "1泊2日", 3: "2泊3日", 4: "3泊4日", 5: "4泊5日", 6: "5泊6日"}
-
 HOTELS  = {1: "高級", 2: "中価格", 3: "コスパ", 4: "和風旅館", 5: "こだわらない"}
 
 # --- 飲食店 ---
@@ -746,7 +745,6 @@ BUDGET_FOOD  = {1: "～1000円", 2: "1000～2000円", 3: "2000～5000円", 4: "5
 
 # --- 体験スポット ---
 AREAS_EXP    = AREAS_FOOD.copy()
-
 COMPANION_EXP= COMPANION_FOOD.copy()
 EXP_GENRES   = {1: "温泉", 2: "自然体験", 3: "文化体験", 4: "モノづくり体験", 5: "グルメ・食体験"}
 
@@ -795,18 +793,15 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     if req == "ホテル":
         prefs_choices   = PREFS_KANSAI
         stay_choices    = STAY_PLAN_HOTEL
-        people_choices  = PEOPLE_HOTEL
         hotel_choices   = HOTELS
 
         title_pref   = "関西の都道府県を1つ選んでください。"
         title_stay   = "何泊何日ですか？"
-        title_people = "人数を選んでください。"
         title_hotel  = "ホテルタイプを選んでください。"
 
         seq += [
             {"key": "pref",      "title": title_pref,   "choices": prefs_choices,   "multi": False},
             {"key": "stay_plan", "title": title_stay,   "choices": stay_choices,    "multi": False},
-            {"key": "people",    "title": title_people, "choices": people_choices,  "multi": False},
             {"key": "hotel",     "title": title_hotel,  "choices": hotel_choices,   "multi": False},
         ]
         return seq
@@ -815,14 +810,12 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
     if req == "飲食店":
         meal_choices   = MEAL_TIMES
         area_choices   = AREAS_FOOD
-        people_choices = PEOPLE_FOOD
         comp_choices   = COMPANION_FOOD
         cui_choices    = CUISINES
         budget_choices = BUDGET_FOOD
 
         title_meal   = "食事のタイミングを選んでください。"
         title_area   = "エリアを選んでください。"
-        title_people = "人数を選んでください。"
         title_comp   = "同行者を選んでください。"
         title_cui    = "食べたいジャンルを選んでください。"
         title_budget = "ご予算を選んでください。"
@@ -830,7 +823,6 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
         seq += [
             {"key": "meal_time", "title": title_meal,   "choices": meal_choices,   "multi": False},
             {"key": "area",      "title": title_area,   "choices": area_choices,   "multi": False},
-            {"key": "people",    "title": title_people, "choices": people_choices, "multi": False},
             {"key": "companion", "title": title_comp,   "choices": comp_choices,   "multi": False},
             {"key": "cuisine",   "title": title_cui,    "choices": cui_choices,    "multi": False},
             {"key": "budget",    "title": title_budget, "choices": budget_choices, "multi": False},
@@ -846,13 +838,11 @@ def _get_question_sequence(answers: Dict[str, Any]) -> List[Dict[str, Any]]:
 
         title_pref   = "関西の都道府県を1つ選んでください。"
         title_genre  = "体験ジャンルを選んでください。"
-        title_people = "人数を選んでください。"
         title_comp   = "同行者を選んでください。"
 
         seq += [
             {"key": "pref",      "title": title_pref,   "choices": pref_choices,   "multi": False},
             {"key": "exp_genre", "title": title_genre,  "choices": genre_choices,  "multi": False},
-            {"key": "people",    "title": title_people, "choices": people_choices, "multi": False},
             {"key": "companion", "title": title_comp,   "choices": comp_choices,   "multi": False},
         ]
         return seq
@@ -3757,6 +3747,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Running Python: {sys.version}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
+
 
 
 
